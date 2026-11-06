@@ -73,7 +73,7 @@ worker/                       ReminderWorker, ReminderScheduler, BootReceiver
 
 **Model & cost:** orchestrator on **Sonnet for routine issues**, Opus only for genuinely hard cross-system reasoning. Subagents are model-pinned in their frontmatter.
 
-1. **Spec** (`spec` agent) — clarifying questions, then clarifications posted on the issue. Skipped only on the fast-path (mechanical **and** single-file change).
+1. **Spec** (`spec` agent) — clarifying questions, then clarifications posted on the issue. Skipped only on the fast-path (mechanical **and** single-file change). A spec `## Suggested sub-tasks` split is a hard gate: only an explicit human split/override decision unblocks it — a generic "go" never does (technical ADR-0043).
 2. **Implement** (`implementer` agent) — pushes a `claude/*` branch; the orchestrator opens the PR against `develop`.
 3. **Review** (`reviewer` agent) — **never skipped**, runs in parallel with CI; one combined fix round (CI + BLOCKING + SMALL); review is capped at two rounds total (`pipeline.md`).
 4. **QA** (`qa` agent) — only when the reviewer lists "needs a device" items.

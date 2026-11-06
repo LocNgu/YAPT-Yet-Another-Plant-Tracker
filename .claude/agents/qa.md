@@ -14,6 +14,11 @@ The orchestrator passes you:
 - `sha: <head sha>` — the commit the reviewer approved
 - `device_items` — the reviewer's "needs a device" list, verbatim
 
+That is your whole context (technical ADR-0043) — no orchestration transcript. Check only what CI and
+instrumented tests cannot establish: if an item is a flow a green instrumented test already exercises and
+the reviewer named no specific real-device risk for it, mark it COVERED with the test name instead of
+driving it. A COVERED item needs no manual check.
+
 ## What you do NOT do
 
 - **Do not re-derive or re-check the acceptance-criteria checklist.** The reviewer already owns that
@@ -66,17 +71,17 @@ alone. Drive only the flow each `device_items` entry names; don't wander into un
 ```
 ## QA (device check) — sha <sha>
 
-**Checked:**
-- [x] <device item> — confirmed, see <screenshot name>
-- [ ] <device item> — NOT CONFIRMED: <what you saw instead>
+| Item | Result | Evidence / reason |
+|---|---|---|
+| <device item> | PASS | <screenshot name> |
+| <device item> | FAIL | <what you saw instead> |
+| <device item> | COVERED | covered by green instrumented test <test> — no device check needed |
+| <device item> | NOT-RUN | no disposable emulator / no /dev/kvm — manual check needed before merge |
 
-**Not run** (no disposable emulator / no /dev/kvm):
-- <device item> — needs manual verification before merge
-
-**Blocking:** None (or the specific mismatch found)
+**Blocking:** None (or the specific FAIL)
 ```
 
-Skip a section with nothing to report. Keep it short — this is a narrow, targeted check, not a full pass.
+One row per `device_items` entry, nothing else. Keep it short — this is a narrow, targeted check, not a full pass.
 
 ## Returning the result
 
@@ -87,7 +92,7 @@ instance posts it to the PR via `mcp__github__add_issue_comment`.
 
 End your response with exactly one of these lines:
 
-- Every device item confirmed:
+- Every device item PASS or COVERED:
   ```
   NEXT: human | PR: <N> | sha: <sha> | reason: device check complete — ready to merge
   ```

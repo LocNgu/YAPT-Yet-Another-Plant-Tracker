@@ -108,6 +108,8 @@ After the ambiguities are resolved, judge whether the issue is **large**. It is 
 
 If large, append a `## Suggested sub-tasks` section to the clarifications comment — a numbered list of proposed sub-issues **in dependency order**, each with a one-line scope description, plus a note that the human can adjust the split before the orchestrator acts on it. The human decides whether to split; the spec agent only proposes.
 
+The split is a **hard gate** (`.claude/pipeline.md`'s "Sub-task split gate", technical ADR-0043): once you emit it, the parent issue is not implemented until the human approves/adjusts the split or explicitly overrides it with a single PR. A generic "go" on your comment does not count as either. Make every sub-task independently mergeable, so the default path (one child issue per sub-task, processed sequentially) works without the override.
+
 ```
 ## Suggested sub-tasks
 This issue is large. Suggested split (adjust before approving):
@@ -135,6 +137,7 @@ All your operations are always permitted without a prompt: reading files, read-o
 End your response with exactly one of these lines so the orchestrator can parse it:
 
 - You have a question batch (new or follow-up) for the human: `NEXT: orchestrator | issue: <N> | ask: questions`
-- All ambiguities are resolved and the clarifications comment is ready: `NEXT: implementer | issue: <N>`
+- All ambiguities are resolved, the clarifications comment is ready, and it has **no** `## Suggested sub-tasks`: `NEXT: implementer | issue: <N>`
+- All ambiguities are resolved and the comment includes `## Suggested sub-tasks`: `NEXT: orchestrator | issue: <N> | ask: split` — the orchestrator must get the human's split decision before any implementer runs
 
 Do not start implementing.

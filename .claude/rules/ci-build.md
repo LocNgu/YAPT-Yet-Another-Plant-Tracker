@@ -60,8 +60,9 @@ paths:
 - **While iterating:** use targeted runs (`--tests "…SpecificClassTest"`, or `compileDebugKotlin` alone) with `-q`/`--console=plain` and grep for `FAILED`/`error:`/`Exception`. These supplement the full gate; they never replace it.
 - **Network exception:** if the gate fails *only* because an external service (e.g. Maven Central) is down after one retry, report the command and error in the handoff/PR body. A failure caused by the change never qualifies.
 
-## Diagnosing a failed CI check (#684)
-- Read the check run's annotations first (`get_check_run`/`get_job_logs` annotations). They usually name the failing test and line.
+## Diagnosing a failed CI check (#684, #854)
+- While waiting, poll compact status snapshots with backoff, never streamed `--watch` output (`.claude/pipeline.md`'s "CI observation").
+- Read the check run's annotations first (`get_check_run`/`get_job_logs` annotations). They usually name the failing test and line. Next, the uploaded test-report artifact.
 - Use the raw log only when annotations don't localize the failure (e.g. a hung job). Save it to a file and grep it for `FAILED`, `Exception`, `AssertionError`, `waitUntil` or `Timed out`; never read it inline.
 
 ## Cloud / in-session builds (#419, #544, #548)
