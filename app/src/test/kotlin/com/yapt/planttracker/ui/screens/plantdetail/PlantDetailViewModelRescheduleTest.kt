@@ -201,7 +201,7 @@ class PlantDetailViewModelRescheduleTest {
         coVerify(exactly = 3) { quickLogUseCase.recordReschedule(monstera, any()) }
         coVerify(exactly = 1) { quickLogUseCase.recordReschedule(monstera, customDate) }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
     }
 
     @Test
@@ -273,7 +273,7 @@ class PlantDetailViewModelRescheduleTest {
             // change by construction — a full-row updatePlant() must never be used here (#808).
             coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(1L, null, any()) }
             coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-            coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+            coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
         }
 
     @Test

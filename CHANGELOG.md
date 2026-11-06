@@ -12,6 +12,9 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0081) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
+
 ## [0.42.0] - 2026-11-04
 
 ### Added

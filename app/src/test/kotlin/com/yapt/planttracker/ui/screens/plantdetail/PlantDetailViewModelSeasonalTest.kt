@@ -55,6 +55,7 @@ class PlantDetailViewModelSeasonalTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
         coEvery { addAdjustment(any()) } returns 1L
+        coEvery { recordManualEdit(any()) } returns 1L
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera") = Plant(
@@ -226,6 +227,7 @@ class PlantDetailViewModelSeasonalTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
         coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        coEvery { wateringAdjustmentRepo.recordManualEdit(any()) } returns 1L
         val vm = makeVm()
 
         vm.plant.test {
@@ -235,7 +237,7 @@ class PlantDetailViewModelSeasonalTest {
         }
 
         coVerify {
-            wateringAdjustmentRepo.addAdjustment(match { it.beforeIntervalDays == 6 })
+            wateringAdjustmentRepo.recordManualEdit(match { it.beforeIntervalDays == 6 })
         }
     }
 
