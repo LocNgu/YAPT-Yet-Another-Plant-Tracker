@@ -12,6 +12,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-11-07
+
 ### Fixed
 - **Before you leave no longer suggests plants already watered today** (#1018) — on the last day at home, a plant
   with a watering logged today is in neither **Water today** nor **Check the soil**, even when its interval is short
