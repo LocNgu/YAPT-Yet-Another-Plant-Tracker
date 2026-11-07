@@ -155,7 +155,7 @@ class WateringAdjustmentDaoTest {
         }
     }
 
-    // ---- #799 (product ADR-0081): recordManualEdit same-day merge ----
+    // ---- #799 (product ADR-0082): recordManualEdit same-day merge ----
 
     private val day1 = java.time.LocalDate.of(2026, 3, 10)
     private fun at(hour: Int, minute: Int = 0, day: java.time.LocalDate = day1): Long =

@@ -21,7 +21,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * #799 (product ADR-0081): [WateringAdjustmentRepository.recordManualEdit] against a real in-memory DB.
+ * #799 (product ADR-0082): [WateringAdjustmentRepository.recordManualEdit] against a real in-memory DB.
  * Plant Detail's `setWateringInterval()` and Add/Edit's `saveEdit()` both call this one method, so two
  * same-day edits from either writer (in any order) leave a single `MANUAL_EDIT` row.
  */

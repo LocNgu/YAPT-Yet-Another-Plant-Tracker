@@ -49,7 +49,7 @@ abstract class WateringAdjustmentDao {
     abstract suspend fun updateAfterAndTime(id: Long, after: Int, triggeredAt: Long)
 
     /**
-     * #799 (product ADR-0081): write a `MANUAL_EDIT` row, merging into the plant's newest row when that row is
+     * #799 (product ADR-0082): write a `MANUAL_EDIT` row, merging into the plant's newest row when that row is
      * itself a `MANUAL_EDIT` from the same local day (keeps its `beforeIntervalDays`, takes the new
      * `afterIntervalDays`/`triggeredAt`). Read-then-write in one transaction so two quick writes can't both insert.
      */

@@ -1,4 +1,4 @@
-# Product ADR-0081: Same-day manual interval edits merge into one adjustment row
+# Product ADR-0082: Same-day manual interval edits merge into one adjustment row
 
 **Status**: accepted
 

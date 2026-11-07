@@ -17,7 +17,7 @@ class WateringAdjustmentRepository(private val wateringAdjustmentDao: WateringAd
         wateringAdjustmentDao.insertAdjustment(adjustment.toEntity())
 
     /**
-     * The single write path for `MANUAL_EDIT` rows (#799, product ADR-0081): merges into the plant's newest
+     * The single write path for `MANUAL_EDIT` rows (#799, product ADR-0082): merges into the plant's newest
      * row when that is a same-local-day `MANUAL_EDIT`, otherwise inserts. [adjustment] must be a `MANUAL_EDIT`.
      */
     suspend fun recordManualEdit(adjustment: WateringAdjustment): Long {
