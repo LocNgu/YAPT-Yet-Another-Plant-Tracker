@@ -484,7 +484,9 @@ class QuickLogUseCaseSeasonalTest {
             assertTrue(outcome != null)
             assertEquals(5, outcome?.currentIntervalEffective)
             assertEquals(6, outcome?.suggestedIntervalEffective)
-            assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == 5.6 }
+            // The base stays at 5.6: only confidence is written, and no write names the base column (#872).
+            assertPlantWrite(plantRepo, exactly = 0) { it.containsKey("wateringBaseIntervalDays") }
+            assertPlantWrite(plantRepo) { it.containsKey("wateringConfidence") }
         }
 }
 

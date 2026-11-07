@@ -5,7 +5,6 @@ import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
 import com.yapt.planttracker.domain.away.AwayPeriods
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.Plant
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest

@@ -142,10 +142,11 @@ class QuickLogUseCaseOverrideRevertTest {
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
             )
             coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+            // #872: the backdated branch observes a fresh read, but must still leave the override alone.
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
             useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
 
-            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
             verifyNoPlantRowWrite(plantRepo)
         }
 
@@ -162,10 +163,10 @@ class QuickLogUseCaseOverrideRevertTest {
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
             )
             coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
             useCase.quickLiquidFertilizeWithReason(monstera, null, loggedAt = loggedAt)
 
-            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
             verifyNoPlantRowWrite(plantRepo)
         }
 
