@@ -3224,7 +3224,8 @@ class PlantDetailScreenTest {
         coEvery { repo.updateWateringDueDateOverride(any(), any(), any(), any()) } answers {
             state.value = state.value.copy(
                 wateringDueDateOverride = it.invocation.args[1] as Long?,
-                updatedAt = it.invocation.args[2] as Long
+                wateringDueDateOverrideMadeAt = it.invocation.args[2] as Long?,
+                updatedAt = it.invocation.args[3] as Long
             )
         }
         coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {
@@ -3878,7 +3879,8 @@ class PlantDetailScreenTest {
         coEvery { repo.updateWateringDueDateOverride(any(), any(), any(), any()) } answers {
             state.value = state.value.copy(
                 wateringDueDateOverride = it.invocation.args[1] as Long?,
-                updatedAt = it.invocation.args[2] as Long
+                wateringDueDateOverrideMadeAt = it.invocation.args[2] as Long?,
+                updatedAt = it.invocation.args[3] as Long
             )
         }
         coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {
