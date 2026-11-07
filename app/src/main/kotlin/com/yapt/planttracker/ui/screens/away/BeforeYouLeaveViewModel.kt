@@ -68,7 +68,7 @@ sealed interface BeforeYouLeaveUiState {
         val checkTheSoil: List<BeforeYouLeaveRow>,
         val canWaitCount: Int,
         /** Plants already watered today, in neither list (#1018). */
-        val wateredTodayCount: Int = 0
+        val wateredTodayCount: Int
     ) : BeforeYouLeaveUiState {
         val tickedPlants: List<Plant>
             get() = (waterToday + checkTheSoil).filter { it.ticked }.map { it.plant }

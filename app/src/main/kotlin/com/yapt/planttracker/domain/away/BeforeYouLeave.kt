@@ -20,7 +20,7 @@ data class BeforeYouLeavePlan(
     /** Plants in neither list that are not [wateredTodayCount]. */
     val canWaitCount: Int,
     /** Visible plants with a WATER log today (#1018): in neither list, since one more watering would be rejected. */
-    val wateredTodayCount: Int = 0
+    val wateredTodayCount: Int
 )
 
 data class BeforeYouLeaveInput(

@@ -178,6 +178,28 @@ class BeforeYouLeaveViewModelTest {
     }
 
     @Test
+    fun `a plant watered elsewhere while the screen is open drops out and is not logged twice`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 10)
+        val due = fixture.addPlant("Due now", interval = 3, lastWatered = today.minusDays(3))
+        val vm = viewModel()
+        val events = mutableListOf<BeforeYouLeaveEvent>()
+        backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.events.collect { events += it } }
+        assertEquals(listOf(due.id), vm.ready().tickedPlants.map { it.id })
+
+        // Watered from another surface (Plant Detail, Plant List) while Before you leave stays open.
+        fixture.careLogRepo.addLog(
+            CareLog(plantId = due.id, careType = CareType.WATER, loggedAt = fixture.millis(today))
+        )
+        vm.logTicked().join()
+
+        assertTrue(vm.ready().waterToday.isEmpty())
+        assertEquals(1, vm.ready().wateredTodayCount)
+        assertEquals(2, fixture.waterLogs(due.id).size)
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
     fun `plants just logged leave the lists`() = runTest {
         val today = fixture.today
         fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 10)
