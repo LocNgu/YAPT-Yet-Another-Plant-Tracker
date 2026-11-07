@@ -22,12 +22,14 @@ import com.yapt.planttracker.ui.components.CareGroupHeader
 import com.yapt.planttracker.ui.components.PlantDueRow
 
 /**
- * The days before the last day at home (product ADR-0076): the plants to hold until it, read-only. It takes no
- * callbacks on purpose, so no row can be ticked and nothing can be logged from here.
+ * The days before the last day at home (product ADR-0076): the plants to hold until it, read-only. Its only callback
+ * opens a plant (#1018); there is deliberately none to tick or log, so no row can be ticked and nothing can be logged
+ * from here.
  */
 @Composable
 internal fun BeforeYouLeaveLeadInContent(
     state: BeforeYouLeaveUiState.LeadIn,
+    onOpenPlant: (plantId: Long) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val lastDay = awayDayText(state.lastDayAtHome, state.today)
@@ -62,7 +64,7 @@ internal fun BeforeYouLeaveLeadInContent(
         }
         if (!collapsed) {
             items(state.holds, key = { "hold-${it.plant.id}" }) { row ->
-                PlantDueRow(plant = row.plant, dueDate = row.dueDate)
+                PlantDueRow(plant = row.plant, dueDate = row.dueDate, onOpen = { onOpenPlant(row.plant.id) })
             }
         }
     }

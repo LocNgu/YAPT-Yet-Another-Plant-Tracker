@@ -40,7 +40,11 @@ import com.yapt.planttracker.ui.components.PlantDueRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BeforeYouLeaveScreen(viewModel: BeforeYouLeaveViewModel, onNavigateBack: () -> Unit) {
+fun BeforeYouLeaveScreen(
+    viewModel: BeforeYouLeaveViewModel,
+    onNavigateBack: () -> Unit,
+    onOpenPlant: (plantId: Long) -> Unit = {}
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -72,11 +76,16 @@ fun BeforeYouLeaveScreen(viewModel: BeforeYouLeaveViewModel, onNavigateBack: () 
                     modifier = Modifier.padding(padding).padding(16.dp)
                 )
             }
-            is BeforeYouLeaveUiState.LeadIn -> BeforeYouLeaveLeadInContent(state = current, contentPadding = padding)
+            is BeforeYouLeaveUiState.LeadIn -> BeforeYouLeaveLeadInContent(
+                state = current,
+                onOpenPlant = onOpenPlant,
+                contentPadding = padding
+            )
             is BeforeYouLeaveUiState.Ready -> BeforeYouLeaveContent(
                 state = current,
                 onToggle = viewModel::toggle,
                 onLog = { viewModel.logTicked() },
+                onOpenPlant = onOpenPlant,
                 contentPadding = padding
             )
         }
@@ -90,6 +99,7 @@ internal fun BeforeYouLeaveContent(
     state: BeforeYouLeaveUiState.Ready,
     onToggle: (plantId: Long) -> Unit,
     onLog: () -> Unit,
+    onOpenPlant: (plantId: Long) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues()
 ) {
     val tickedCount = state.tickedPlants.size
@@ -114,7 +124,8 @@ internal fun BeforeYouLeaveContent(
                 rows = state.waterToday,
                 collapsed = R.string.before_leave_water_today in collapsedSections,
                 onToggleSection = { collapsedSections = collapsedSections.toggled(R.string.before_leave_water_today) },
-                onToggle = onToggle
+                onToggle = onToggle,
+                onOpenPlant = onOpenPlant
             )
             plantSection(
                 title = R.string.before_leave_check_soil,
@@ -122,21 +133,37 @@ internal fun BeforeYouLeaveContent(
                 rows = state.checkTheSoil,
                 collapsed = R.string.before_leave_check_soil in collapsedSections,
                 onToggleSection = { collapsedSections = collapsedSections.toggled(R.string.before_leave_check_soil) },
-                onToggle = onToggle
+                onToggle = onToggle,
+                onOpenPlant = onOpenPlant
             )
-            item {
-                Text(
-                    pluralStringResource(R.plurals.before_leave_can_wait, state.canWaitCount, state.canWaitCount),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
+            countLines(state)
         }
         Button(
             onClick = onLog,
             enabled = tickedCount > 0,
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) { Text(pluralStringResource(R.plurals.before_leave_log_action, tickedCount, tickedCount)) }
+    }
+}
+
+/** The plants in neither list: already watered today (#1018, only when there are any), then those that can wait. */
+private fun LazyListScope.countLines(state: BeforeYouLeaveUiState.Ready) {
+    val watered = state.wateredTodayCount
+    if (watered > 0) {
+        item {
+            Text(
+                pluralStringResource(R.plurals.before_leave_watered_today, watered, watered),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+    item {
+        Text(
+            pluralStringResource(R.plurals.before_leave_can_wait, state.canWaitCount, state.canWaitCount),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 4.dp)
+        )
     }
 }
 
@@ -147,7 +174,8 @@ private fun LazyListScope.plantSection(
     rows: List<BeforeYouLeaveRow>,
     collapsed: Boolean,
     onToggleSection: () -> Unit,
-    onToggle: (Long) -> Unit
+    onToggle: (Long) -> Unit,
+    onOpenPlant: (Long) -> Unit
 ) {
     if (rows.isEmpty()) return
     item(key = "header-$title") {
@@ -173,7 +201,8 @@ private fun LazyListScope.plantSection(
             plant = row.plant,
             dueDate = row.dueDate,
             checked = row.ticked,
-            onCheckedChange = { onToggle(row.plant.id) }
+            onCheckedChange = { onToggle(row.plant.id) },
+            onOpen = { onOpenPlant(row.plant.id) }
         )
     }
 }

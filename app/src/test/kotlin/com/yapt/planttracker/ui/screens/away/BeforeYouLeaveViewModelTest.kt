@@ -99,7 +99,7 @@ class BeforeYouLeaveViewModelTest {
         fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 7)
         fixture.addPlant("Due now", interval = 7, lastWatered = today.minusDays(7))
         fixture.addPlant("Due later", interval = 7, lastWatered = today.minusDays(2))
-        fixture.addPlant("Far off", interval = 30, lastWatered = today)
+        fixture.addPlant("Far off", interval = 30, lastWatered = today.minusDays(1))
 
         val ready = viewModel().ready()
 
@@ -158,20 +158,44 @@ class BeforeYouLeaveViewModelTest {
     }
 
     @Test
-    fun `a plant already watered today is skipped by the duplicate guard`() = runTest {
+    fun `a plant already watered today is in neither list and is counted on its own`() = runTest {
         val today = fixture.today
-        fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 7)
-        // A one-day interval watered today is due tomorrow, so it is on the list even though it was watered.
-        val daily = fixture.addPlant("Daily", interval = 1, lastWatered = today)
+        fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 10)
+        // #1018: a 3-day plant watered today is due again before halfway to a visit 10 days out, but a second watering
+        // today would be rejected, so it must not be offered (it used to be, ticked).
+        val watered = fixture.addPlant("Watered", interval = 3, lastWatered = today)
         val vm = viewModel()
-        val events = mutableListOf<BeforeYouLeaveEvent>()
-        backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.events.collect { events += it } }
-        assertEquals(listOf("Daily"), vm.ready().waterToday.map { it.plant.name })
+
+        val ready = vm.ready()
+        assertTrue(ready.waterToday.isEmpty())
+        assertTrue(ready.checkTheSoil.isEmpty())
+        assertEquals(1, ready.wateredTodayCount)
+        assertEquals(0, ready.canWaitCount)
 
         vm.logTicked().join()
 
-        assertEquals(1, fixture.waterLogs(daily.id).size)
-        assertEquals(listOf(BeforeYouLeaveEvent.Logged(logged = 0, skipped = 1)), events)
+        assertEquals(1, fixture.waterLogs(watered.id).size)
+    }
+
+    @Test
+    fun `plants just logged leave the lists`() = runTest {
+        val today = fixture.today
+        fixture.addTrip(today.plusDays(1), today.plusDays(10), visitEveryDays = 10)
+        // Due today on a 3-day interval: logged now, it is due again in three days, still before halfway.
+        val due = fixture.addPlant("Due now", interval = 3, lastWatered = today.minusDays(3))
+        val vm = viewModel()
+        val events = mutableListOf<BeforeYouLeaveEvent>()
+        backgroundScope.launch(mainDispatcherRule.testDispatcher) { vm.events.collect { events += it } }
+        assertEquals(listOf("Due now"), vm.ready().waterToday.map { it.plant.name })
+
+        vm.logTicked().join()
+
+        assertEquals(listOf(BeforeYouLeaveEvent.Logged(logged = 1, skipped = 0)), events)
+        val after = vm.ready()
+        assertTrue(after.waterToday.isEmpty())
+        assertEquals(1, after.wateredTodayCount)
+        assertEquals(0, after.tickedPlants.size)
+        assertEquals(2, fixture.waterLogs(due.id).size)
     }
 
     @Test
