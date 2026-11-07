@@ -23,6 +23,14 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 613,
+            versionName = "0.42.1",
+            fixed = listOf(
+                "Before you leave no longer suggests plants you already watered today",
+                "Tap a plant in Before you leave to open it"
+            )
+        ),
+        ReleaseNotes(
             versionCode = 608,
             versionName = "0.42.0",
             added = listOf(

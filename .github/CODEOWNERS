@@ -1,0 +1,5 @@
+# Changes here require the repository owner's review — technical ADR-0024, #683, #685.
+# Advisory on its own: enforcement needs a `develop` ruleset with "Require review from Code Owners".
+/.claude/            @LocNgu
+/.github/workflows/  @LocNgu
+/.github/CODEOWNERS  @LocNgu
