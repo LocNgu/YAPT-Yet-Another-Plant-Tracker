@@ -1,8 +1,12 @@
 package com.yapt.planttracker.domain.away
 
 import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.util.toLocalDate
+import com.yapt.planttracker.util.toStartOfDayMillis
 import java.time.LocalDate
 
 data class BeforeYouLeavePlan(
@@ -15,7 +19,10 @@ data class BeforeYouLeavePlan(
      * their interval (product ADR-0076). Water only if the soil is dry. Unticked by default.
      */
     val checkTheSoil: List<WateringDue>,
-    val canWaitCount: Int
+    /** Plants in neither list that are not [wateredTodayCount]. */
+    val canWaitCount: Int,
+    /** Visible plants with a WATER log today (#1018): in neither list, since one more watering would be rejected. */
+    val wateredTodayCount: Int
 )
 
 data class BeforeYouLeaveInput(
@@ -43,6 +50,16 @@ data class BeforeYouLeaveInput(
  * is added to Check the soil, so it can last the whole trip ([TripWateringShifts.bringForward], product
  * ADR-0076). Those plants are due after the first visit, so they are never in the two lists above.
  *
+ * A plant already watered today is in neither list (#1018): with a widened horizon a short interval comes due again
+ * before the first visit, but the same-day duplicate guard would reject a second watering, and the owner has just
+ * done the real one. It is counted on its own, not as "can wait".
+ *
+ * A plant whose active reschedule was made today is left out the same way (#1019, product ADR-0081): the owner
+ * just chose that date, whatever it is, so it is in neither list and not brought forward. Unlike a watered-today
+ * plant it is counted under [BeforeYouLeavePlan.canWaitCount]. "Active" is the `maxOf()` winner over the schedule's
+ * due date, and "today" compares `wateringDueDateOverrideMadeAt` as a local calendar day; a plant with no stamp
+ * (legacy rows, old backups) is listed by its due date as before.
+ *
  * In the days before the last day at home, [holds] lists the plants to hold until it (product ADR-0076).
  */
 object BeforeYouLeave {
@@ -59,9 +76,13 @@ object BeforeYouLeave {
         val gap = (input.visitEveryDays ?: SitterRhythm.DEFAULT_EVERY_DAYS).coerceAtLeast(1)
         val firstVisit = input.today.plusDays(gap.toLong())
         val lastWaterTodayDay = input.today.plusDays(((gap - 1) / 2).toLong())
-        val active = input.plants.filter { it.isVisible }
+        val visible = input.plants.filter { it.isVisible }
+        val wateredToday = input.careLogs.plantsWateredOn(input.today)
+        val active = visible.filter { it.id !in wateredToday }
+        val rescheduledToday = active.filter { it.isRescheduledOn(input) }.mapTo(HashSet()) { it.id }
+        val candidates = active.filter { it.id !in rescheduledToday }
         val due = SitterDueDates.wateringsDueBy(
-            plants = active,
+            plants = candidates,
             careLogs = input.careLogs,
             today = input.today,
             horizonEnd = firstVisit,
@@ -70,15 +91,41 @@ object BeforeYouLeave {
         )
         val (water, check) = due.partition { it.dueDate <= lastWaterTodayDay }
         val listed = due.mapTo(HashSet()) { it.plant.id }
-        val broughtForward = TripWateringShifts.bringForward(input.toShiftInput(active), firstVisit)
+        val broughtForward = TripWateringShifts.bringForward(input.toShiftInput(candidates), firstVisit)
             .filter { it.plant.id !in listed }
         return BeforeYouLeavePlan(
             firstVisit = firstVisit,
             waterToday = water,
             checkTheSoil = check + broughtForward,
-            canWaitCount = active.size - due.size - broughtForward.size
+            canWaitCount = active.size - due.size - broughtForward.size,
+            wateredTodayCount = visible.size - active.size
         )
     }
+
+    private fun Plant.isRescheduledOn(input: BeforeYouLeaveInput): Boolean {
+        val override = wateringDueDateOverride
+        val madeAt = wateringDueDateOverrideMadeAt
+        return override != null && madeAt != null && madeAt.toLocalDate() == input.today &&
+            overrideWinsOverSchedule(override, input)
+    }
+
+    private fun Plant.overrideWinsOverSchedule(override: Long, input: BeforeYouLeaveInput): Boolean {
+        val computedNextDueAt = CareSchedule.computeStatus(
+            plant = this,
+            lastWateredAt = input.careLogs.filter { it.plantId == id && it.careType == CareType.WATER }
+                .maxOfOrNull { it.loggedAt },
+            lastFertilizedAt = null,
+            totalLogs = 0,
+            now = input.today.toStartOfDayMillis(),
+            seasonalAmplitude = input.seasonalAmplitude,
+            hemisphere = input.hemisphere
+        ).computedNextWateringDueAt
+        return computedNextDueAt == null || override > computedNextDueAt
+    }
+
+    /** Ids of plants with a WATER log on [day] (local calendar day, technical ADR-0013). */
+    private fun List<CareLog>.plantsWateredOn(day: LocalDate): Set<Long> =
+        filter { it.careType == CareType.WATER && it.loggedAt.toLocalDate() == day }.mapTo(HashSet()) { it.plantId }
 
     private fun BeforeYouLeaveInput.toShiftInput(plants: List<Plant>) = TripShiftInput(
         plants = plants,

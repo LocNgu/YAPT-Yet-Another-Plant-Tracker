@@ -66,7 +66,9 @@ sealed interface BeforeYouLeaveUiState {
         val firstVisit: LocalDate,
         val waterToday: List<BeforeYouLeaveRow>,
         val checkTheSoil: List<BeforeYouLeaveRow>,
-        val canWaitCount: Int
+        val canWaitCount: Int,
+        /** Plants already watered today, in neither list (#1018). */
+        val wateredTodayCount: Int
     ) : BeforeYouLeaveUiState {
         val tickedPlants: List<Plant>
             get() = (waterToday + checkTheSoil).filter { it.ticked }.map { it.plant }
@@ -181,7 +183,8 @@ class BeforeYouLeaveViewModel(
             firstVisit = plan.firstVisit,
             waterToday = rows(plan.waterToday, default = true),
             checkTheSoil = rows(plan.checkTheSoil, default = false),
-            canWaitCount = plan.canWaitCount
+            canWaitCount = plan.canWaitCount,
+            wateredTodayCount = plan.wateredTodayCount
         )
     }
 

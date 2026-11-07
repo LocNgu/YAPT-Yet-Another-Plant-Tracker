@@ -756,6 +756,7 @@
     <string name="state_room_chip_has_selection">Contains selected plants</string>
     <string name="state_room_chip_selected_has_selection">Selected, contains selected plants</string>
     <string name="cd_bulk_select_plant">Select plant</string>
+    <string name="cd_open_plant_details">Open plant details</string>
     <string name="cd_bulk_clear_selection">Clear selection</string>
     <string name="cd_bulk_select_all">Select all</string>
     <plurals name="bulk_action_bar_title">
@@ -971,6 +972,10 @@
     <plurals name="before_leave_can_wait">
         <item quantity="one">%d other plant can wait</item>
         <item quantity="other">%d other plants can wait</item>
+    </plurals>
+    <plurals name="before_leave_watered_today">
+        <item quantity="one">%d already watered today</item>
+        <item quantity="other">%d already watered today</item>
     </plurals>
     <plurals name="before_leave_log_action">
         <item quantity="one">Log %d as watered</item>

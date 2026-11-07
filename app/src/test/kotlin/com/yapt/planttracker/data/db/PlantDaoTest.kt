@@ -476,6 +476,21 @@ class PlantDaoTest {
     }
 
     @Test
+    fun `updateWateringDueDateOverride writes the override and its made-at together`() = runTest {
+        val id = dao.insertPlant(plant())
+
+        dao.updateWateringDueDateOverride(id, 5_000L, 4_000L, 4_000L)
+        val set = dao.getPlantById(id).first()!!
+        assertEquals(5_000L, set.wateringDueDateOverride)
+        assertEquals(4_000L, set.wateringDueDateOverrideMadeAt)
+
+        dao.updateWateringDueDateOverride(id, null, null, 6_000L)
+        val cleared = dao.getPlantById(id).first()!!
+        assertNull(cleared.wateringDueDateOverride)
+        assertNull(cleared.wateringDueDateOverrideMadeAt)
+    }
+
+    @Test
     fun `linkToParent re-parents a plant that already has a different parent`() = runTest {
         val first = dao.insertPlant(plant(name = "First"))
         val second = dao.insertPlant(plant(name = "Second"))

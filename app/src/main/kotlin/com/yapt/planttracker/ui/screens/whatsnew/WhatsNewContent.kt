@@ -14,12 +14,21 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
-        added = listOf("Back up automatically to a folder you choose, daily or weekly, from Settings")
+        added = listOf("Back up automatically to a folder you choose, daily or weekly, from Settings"),
+        fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 613,
+            versionName = "0.42.1",
+            fixed = listOf(
+                "Before you leave no longer suggests plants you already watered today",
+                "Tap a plant in Before you leave to open it"
+            )
+        ),
         ReleaseNotes(
             versionCode = 608,
             versionName = "0.42.0",

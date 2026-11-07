@@ -567,7 +567,11 @@ fun YaptNavGraph(
                         app.settingsDataStore
                     )
                 )
-                BeforeYouLeaveScreen(vm, onNavigateBack = { navController.popBackStackOnce(backStackEntry) })
+                BeforeYouLeaveScreen(
+                    vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onOpenPlant = { plantId -> navController.navigate(Screen.PlantDetail.createRoute(plantId)) }
+                )
             }
 
             composable(
