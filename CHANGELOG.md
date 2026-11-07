@@ -12,6 +12,14 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Quick-logging a watering no longer undoes an edit made at the same moment** (#872) — logging water or liquid
+  fertilizer from Care, Plant List or Calendar, and applying or dismissing an interval suggestion there, wrote the
+  whole plant row back from the screen's copy. A setting changed on Plant Detail just before (or while) the write
+  ran, such as notes or the fertilizing interval, could silently revert. These writes now touch only the watering
+  columns they change (confidence, base and effective interval, the reschedule override, the bootstrap's reset
+  anchor), and a backdated watering learns from a fresh read of the plant. No schema change.
+
 ## [0.42.0] - 2026-11-04
 
 ### Added

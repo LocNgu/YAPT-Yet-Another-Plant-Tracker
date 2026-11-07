@@ -97,7 +97,6 @@ class WateringLifecycleResetTest {
         runTest {
             val plantRepository: PlantRepository = mockk(relaxed = true)
             val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-            coEvery { plantRepository.updatePlant(any()) } returns Unit
 
             val amplitude = 0.5
             val hemisphere = Hemisphere.NORTHERN
@@ -122,9 +121,7 @@ class WateringLifecycleResetTest {
             )
 
             assertTrue(applied)
-            val updatedPlant = slot<Plant>()
-            coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-            val plantAfter = updatedPlant.captured
+            val plantAfter = capturedBootstrap(plantRepository)
             val rawBase = requireNotNull(plantAfter.wateringBaseIntervalDays)
             val expectedEffective = SeasonalWatering.effectiveInterval(
                 rawBase,
@@ -152,7 +149,6 @@ class WateringLifecycleResetTest {
         runTest {
             val plantRepository: PlantRepository = mockk(relaxed = true)
             val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-            coEvery { plantRepository.updatePlant(any()) } returns Unit
 
             // 5 timestamps, 7 days apart -> 4 gaps, clears MIN_BOOTSTRAP_GAPS (3).
             val waterLogTimestampsMs = (0..4).map {
@@ -172,9 +168,7 @@ class WateringLifecycleResetTest {
                 now = julyFifthMidYearMs
             )
 
-            val updatedPlant = slot<Plant>()
-            coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-            val plantAfter = updatedPlant.captured
+            val plantAfter = capturedBootstrap(plantRepository)
             assertEquals(7, plantAfter.wateringIntervalDays)
             assertEquals(7.0, requireNotNull(plantAfter.wateringBaseIntervalDays), 0.0)
         }
@@ -191,7 +185,6 @@ class WateringLifecycleResetTest {
         runTest {
             val plantRepository: PlantRepository = mockk(relaxed = true)
             val wateringAdjustmentRepository: WateringAdjustmentRepository = mockk(relaxed = true)
-            coEvery { plantRepository.updatePlant(any()) } returns Unit
 
             val amplitude = 0.5
             val hemisphere = Hemisphere.NORTHERN
@@ -221,9 +214,7 @@ class WateringLifecycleResetTest {
             )
 
             assertTrue(applied)
-            val updatedPlant = slot<Plant>()
-            coVerify(exactly = 1) { plantRepository.updatePlant(capture(updatedPlant)) }
-            val plantAfter = updatedPlant.captured
+            val plantAfter = capturedBootstrap(plantRepository)
             val rawBase = requireNotNull(plantAfter.wateringBaseIntervalDays)
             val expectedEffectiveFromDisplayNow = SeasonalWatering.effectiveInterval(
                 rawBase,
@@ -282,7 +273,7 @@ class WateringLifecycleResetTest {
                 now = marEighth
             )
             assertFalse(appliedWithDormancy)
-            coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+            coVerify(exactly = 0) { plantRepository.applyWateringBootstrap(any(), any(), any(), any(), any()) }
 
             // Same raw history, no dormancy window configured: the unfiltered gapCount (3) clears the
             // threshold, so the bootstrap DOES apply — confirming the difference above is genuinely the
@@ -297,6 +288,27 @@ class WateringLifecycleResetTest {
                 now = marEighth
             )
             assertTrue(appliedWithoutDormancy)
-            coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+            coVerify(exactly = 1) { plantRepository.applyWateringBootstrap(any(), any(), any(), any(), any()) }
         }
+
+    /**
+     * The bootstrap's one column-specific write (#872), returned as a [Plant] carrying only the columns it
+     * names, so the assertions read like the old full-row capture.
+     */
+    private fun capturedBootstrap(plantRepository: PlantRepository): Plant {
+        val interval = slot<Int>()
+        val base = slot<Double>()
+        val updatedAt = slot<Long>()
+        coVerify(exactly = 1) {
+            plantRepository.applyWateringBootstrap(any(), capture(interval), capture(base), any(), capture(updatedAt))
+        }
+        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        return Plant(
+            name = "",
+            createdAt = 0L,
+            updatedAt = updatedAt.captured,
+            wateringIntervalDays = interval.captured,
+            wateringBaseIntervalDays = base.captured
+        )
+    }
 }

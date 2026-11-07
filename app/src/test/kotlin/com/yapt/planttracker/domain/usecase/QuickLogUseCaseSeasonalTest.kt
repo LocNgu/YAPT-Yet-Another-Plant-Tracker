@@ -62,6 +62,7 @@ class QuickLogUseCaseSeasonalTest {
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera", wateringIntervalDays: Int? = null) = Plant(
@@ -337,9 +338,7 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(null, outcome.suggestion)
         // technical ADR-0027: the sub-threshold base correction still persists immediately even
         // though nothing crossed a rounding boundary for display.
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringBaseIntervalDays != null && it.wateringBaseIntervalDays!! < 8.8 })
-        }
+        assertPlantWrite(plantRepo) { (it["wateringBaseIntervalDays"] as Double?)?.let { base -> base < 8.8 } == true }
     }
 
     /**
@@ -485,9 +484,7 @@ class QuickLogUseCaseSeasonalTest {
             assertTrue(outcome != null)
             assertEquals(5, outcome?.currentIntervalEffective)
             assertEquals(6, outcome?.suggestedIntervalEffective)
-            coVerify {
-                plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.6 })
-            }
+            assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == 5.6 }
         }
 }
 

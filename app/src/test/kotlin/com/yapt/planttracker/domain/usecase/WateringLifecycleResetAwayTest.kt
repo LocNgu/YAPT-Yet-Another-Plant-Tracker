@@ -58,14 +58,13 @@ class WateringLifecycleResetAwayTest {
         val applied = WateringLifecycleReset.maybeBootstrap(request, plantRepository, adjustments, timestamps.last())
 
         assertFalse(applied)
-        coVerify(exactly = 0) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 0) { plantRepository.applyWateringBootstrap(any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun `the same history bootstraps when no gap is excluded`() = runTest {
         val plantRepository: PlantRepository = mockk(relaxed = true)
         val adjustments: WateringAdjustmentRepository = mockk(relaxed = true)
-        coEvery { plantRepository.updatePlant(any()) } returns Unit
         val request = WateringLifecycleReset.BootstrapRequest(
             plant = plant,
             waterLogTimestampsMs = timestamps,
@@ -76,6 +75,6 @@ class WateringLifecycleResetAwayTest {
         val applied = WateringLifecycleReset.maybeBootstrap(request, plantRepository, adjustments, timestamps.last())
 
         assertTrue(applied)
-        coVerify(exactly = 1) { plantRepository.updatePlant(any()) }
+        coVerify(exactly = 1) { plantRepository.applyWateringBootstrap(any(), any(), any(), any(), any()) }
     }
 }
