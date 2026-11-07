@@ -15,6 +15,23 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0081) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
 
+### Added
+- **Automatic local backups** (#1001, product ADR-0081, technical ADR-0043) — Settings → Backup & Restore has an
+  **Automatic backups** switch. Pick a folder (Storage Access Framework, permission persisted), choose **Daily** or
+  **Weekly** (default), keep the last **3 / 7 / 14** (default 7) and whether to include (optimized) photos. A unique
+  periodic WorkManager job writes `yapt-backup-YYYY-MM-DD.yapt` through the unchanged export, skips runs when nothing
+  changed, and prunes only YAPT's own older files after a successful write. The status line shows the last backup,
+  "N photos skipped" or "Folder unavailable, choose again"; a notification (own channel, ID `-3`) appears on the second
+  consecutive failure or at once when the folder permission is lost. Settings are device-local and not part of `.yapt`
+  files, so there is no schema bump.
+  
+### Fixed
+- **Before you leave leaves out plants you rescheduled today** (#1019, product ADR-0081) — a plant whose active
+  reschedule (including a notification Skip) was made today is in neither **Water today** nor **Check the soil** and
+  is not brought forward, whatever its new date; it counts under "other plants can wait". Adds the nullable
+  `wateringDueDateOverrideMadeAt` column (DB 22, `MIGRATION_21_22`) and backup schema v25. Existing reschedules have no
+  timestamp and are listed by their due date as before.
+
 ## [0.42.1] - 2026-11-07
 
 ### Fixed

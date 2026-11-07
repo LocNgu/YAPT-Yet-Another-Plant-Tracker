@@ -168,11 +168,16 @@ class PlantDetailPlantEditLockTest {
             delay(WRITE_MS)
             stored.value = firstArg()
         }
-        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } coAnswers {
+        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any(), any()) } coAnswers {
             val override = secondArg<Long?>()
-            val at = thirdArg<Long>()
+            val madeAt = thirdArg<Long?>()
+            val at = arg<Long>(3)
             delay(WRITE_MS)
-            stored.value = stored.value?.copy(wateringDueDateOverride = override, updatedAt = at)
+            stored.value = stored.value?.copy(
+                wateringDueDateOverride = override,
+                wateringDueDateOverrideMadeAt = madeAt,
+                updatedAt = at
+            )
         }
         coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } coAnswers {
             val uri = secondArg<String?>()
@@ -279,7 +284,7 @@ class PlantDetailPlantEditLockTest {
 
             assertEquals(12, stored.value?.wateringIntervalDays)
             assertNull(stored.value?.wateringDueDateOverride)
-            assertEquals(listOf(PlantDetailViewModel.Event.RescheduleReverted(OVERRIDE_AT)), events)
+            assertEquals(listOf(PlantDetailViewModel.Event.RescheduleReverted(OVERRIDE_AT, null)), events)
         }
 
     @Test
@@ -301,7 +306,7 @@ class PlantDetailPlantEditLockTest {
             val vm = makeVm(plant().copy(pinIntervalToBase = false, wateringDueDateOverride = null))
 
             vm.setPinIntervalToBase(true)
-            vm.undoRevertReschedule(OVERRIDE_AT)
+            vm.undoRevertReschedule(OVERRIDE_AT, null)
             advanceUntilIdle()
 
             assertEquals(true, stored.value?.pinIntervalToBase)

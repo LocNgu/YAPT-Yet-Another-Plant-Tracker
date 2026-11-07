@@ -655,7 +655,10 @@ class PlantDetailViewModel(
          * is the plant's actual prior override value, for `undoRevertReschedule` to restore exactly —
          * never recomputed at the call site.
          */
-        data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()
+        data class RescheduleReverted(
+            val previousOverrideAtMillis: Long,
+            val previousMadeAtMillis: Long?
+        ) : Event()
 
         /**
          * `toggleFertilizingSeason` refused a toggle that would empty the freshly read season set

@@ -16,7 +16,9 @@ object WhatsNewContent {
         versionName = "Unreleased",
         changed = listOf(
             "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
-        )
+        ),
+        added = listOf("Back up automatically to a folder you choose, daily or weekly, from Settings"),
+        fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older

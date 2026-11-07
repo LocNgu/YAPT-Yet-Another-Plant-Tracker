@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -410,6 +411,21 @@ class VisitProjectorTest {
 
         assertTrue(withoutVisit.listed.isEmpty())
         assertEquals(listOf(day(13)), withVisit.listed.map { it.dueDate })
+    }
+
+    @Test
+    fun `a simulated watering clears the made-at stamp together with the override`() {
+        val rescheduled = plant(1, interval = 3, override = day(30)).copy(wateringDueDateOverrideMadeAt = millis(today))
+        val logs = listOf(water(1, day(1)))
+
+        val withVisit = project(
+            listOf(rescheduled),
+            logs,
+            listOf(visit(day(10), SitterVisitState.CONFIRMED, 1L to true))
+        )
+
+        assertNull(withVisit.listed.single().plant.wateringDueDateOverrideMadeAt)
+        assertNull(withVisit.listed.single().plant.wateringDueDateOverride)
     }
 
     @Test

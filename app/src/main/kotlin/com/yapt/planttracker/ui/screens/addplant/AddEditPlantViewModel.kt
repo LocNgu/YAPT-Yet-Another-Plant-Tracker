@@ -363,6 +363,7 @@ class AddEditPlantViewModel(
                 wateringIntervalDays = literalToStore(existing, newWateringIntervalDays, intervalChanged),
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
+                wateringDueDateOverrideMadeAt = existing?.wateringDueDateOverrideMadeAt,
                 // The one-off repot plan isn't edited on this screen (Plant Detail's Repot tab owns it):
                 // carry the stored values over so an unrelated edit can't silently wipe it (#809).
                 repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,
