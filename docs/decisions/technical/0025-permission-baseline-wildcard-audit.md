@@ -1,6 +1,6 @@
 # Technical ADR-0025: Permission baseline wildcard audit
 
-**Status**: accepted — `gh` write allow/deny entries amended by [ADR-0042](0042-github-access-mcp-default-gh-fallback.md)
+**Status**: accepted — `gh` write allow/deny entries amended by [ADR-0042](0042-github-access-mcp-default-gh-fallback.md); `git -C *` force-push deny trailing-wildcard symmetry and unfreezing of the original deny block amended in #687 (see `.claude/rules/permissions.md`)
 
 **Date**: 2026-09-07
 
