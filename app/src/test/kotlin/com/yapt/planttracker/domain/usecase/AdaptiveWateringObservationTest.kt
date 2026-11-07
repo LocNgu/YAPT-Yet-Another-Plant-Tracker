@@ -367,7 +367,9 @@ class AdaptiveWateringObservationTest {
         )
 
         assertNull(result)
-        assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == 20.45 && it["wateringConfidence"] == 5 && it["updatedAt"] == loggedAt }
+        assertPlantWrite(plantRepo) {
+            it["wateringBaseIntervalDays"] == 20.45 && it["wateringConfidence"] == 5 && it["updatedAt"] == loggedAt
+        }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.triggeredAt == loggedAt })
         }

@@ -159,7 +159,9 @@ class QuickLogUseCaseWateringReasonTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST)
 
-        assertPlantWrite(plantRepo, exactly = 1) { it["wateringIntervalDays"] == 7 && it["wateringBaseIntervalDays"] == 7.0 }
+        assertPlantWrite(plantRepo, exactly = 1) {
+            it["wateringIntervalDays"] == 7 && it["wateringBaseIntervalDays"] == 7.0
+        }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(
                 match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP && it.afterIntervalDays == 7 }

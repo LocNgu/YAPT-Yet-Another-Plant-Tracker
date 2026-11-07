@@ -583,7 +583,7 @@ class QuickLogUseCaseTest {
         useCase.recordReschedule(monstera, newDueAt)
 
         coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
-        verifyNoPlantRowWrite(plantRepo)
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
     }
