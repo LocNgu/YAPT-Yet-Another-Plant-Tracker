@@ -67,6 +67,7 @@ import com.yapt.planttracker.ui.screens.plantlist.PlantListScreen
 import com.yapt.planttracker.ui.screens.plantlist.PlantListViewModel
 import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewScreen
 import com.yapt.planttracker.ui.screens.repotting.RepottingOverviewViewModel
+import com.yapt.planttracker.ui.screens.settings.AutoBackupViewModel
 import com.yapt.planttracker.ui.screens.settings.SettingsScreen
 import com.yapt.planttracker.ui.screens.settings.SettingsViewModel
 import com.yapt.planttracker.ui.screens.today.TodayScreen
@@ -479,6 +480,9 @@ fun YaptNavGraph(
                     onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
                     onBackupInProgressChanged = { backupInProgress = it },
                     awayModeViewModel = awayModeViewModel(app),
+                    autoBackupViewModel = viewModel(
+                        factory = AutoBackupViewModel.Factory(app.settingsDataStore, app)
+                    ),
                     awayModeNavigation = navController.awayModeNavigation(),
                     confirmVisitViewModel = confirmVisitViewModel(app)
                 )

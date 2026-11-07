@@ -42,6 +42,21 @@ object SettingsKeys {
      */
     val SEASONAL_BASE_GRADUATION_FIXUP_DONE = booleanPreferencesKey("seasonal_base_graduation_fixup_done")
 
+    // Automatic local backups (#1001, technical ADR-0043): device-local, deliberately not in BackupSettings —
+    // the folder grant is bound to this device, so a restore leaves auto-backup off.
+    val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+    val AUTO_BACKUP_FOLDER_URI = stringPreferencesKey("auto_backup_folder_uri")
+    val AUTO_BACKUP_FREQUENCY = stringPreferencesKey("auto_backup_frequency")
+    val AUTO_BACKUP_RETENTION = intPreferencesKey("auto_backup_retention")
+    val AUTO_BACKUP_INCLUDE_PHOTOS = booleanPreferencesKey("auto_backup_include_photos")
+    val AUTO_BACKUP_OPTIMIZE_PHOTOS = booleanPreferencesKey("auto_backup_optimize_photos")
+    val AUTO_BACKUP_LAST_SUCCESS_AT = longPreferencesKey("auto_backup_last_success_at")
+    val AUTO_BACKUP_LAST_SKIPPED_PHOTOS = intPreferencesKey("auto_backup_last_skipped_photos")
+    val AUTO_BACKUP_LAST_FAILURE = stringPreferencesKey("auto_backup_last_failure")
+    val AUTO_BACKUP_FAILURE_COUNT = intPreferencesKey("auto_backup_failure_count")
+    val AUTO_BACKUP_FAILURE_NOTIFIED = booleanPreferencesKey("auto_backup_failure_notified")
+    val AUTO_BACKUP_FINGERPRINT = stringPreferencesKey("auto_backup_fingerprint")
+
     /** Device-local marker for the #309 one-time compression of pre-existing in-app camera captures. */
     val CAMERA_PHOTO_COMPRESSION_FIXUP_DONE = booleanPreferencesKey("camera_photo_compression_fixup_done")
 }
