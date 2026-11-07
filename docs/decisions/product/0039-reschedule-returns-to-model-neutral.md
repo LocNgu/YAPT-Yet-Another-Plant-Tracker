@@ -1,6 +1,6 @@
 # Product ADR-0039: Reschedule returns to model-neutral
 
-**Status**: accepted — the reschedule write also stamps made-at metadata, still model-neutral, amended by [ADR-0081](0081-before-you-leave-skips-plants-rescheduled-today.md)
+**Status**: accepted — the reschedule write (it now also stamps when the reschedule was made; still model-neutral) amended by [ADR-0081](0081-before-you-leave-skips-plants-rescheduled-today.md)
 
 **Date**: 2026-09-15
 
