@@ -652,7 +652,7 @@ class QuickLogUseCase(
 
     /**
      * Records a reschedule: a plain [Plant.wateringDueDateOverride] write to [newDueAtMillis], stamped with
-     * [Plant.wateringDueDateOverrideMadeAt] = now in the same statement (#1019, product ADR-0081: metadata
+     * [Plant.wateringDueDateOverrideMadeAt] = now in the same statement (#1019, product ADR-0083: metadata
      * for Before you leave, not a learning write), nothing else (#738, product ADR-0039 — a reschedule is
      * model-neutral again). Never writes a
      * [CareType.CHECK] log, [Plant.wateringConfidence], [Plant.wateringIntervalDays]/

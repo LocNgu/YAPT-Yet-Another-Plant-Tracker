@@ -31,7 +31,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
-// Schema 25 (#1019, product ADR-0081): wateringDueDateOverrideMadeAt added to BackupPlant — when the active
+// Schema 25 (#1019, product ADR-0083): wateringDueDateOverrideMadeAt added to BackupPlant — when the active
 // reschedule was made, for Before you leave. Old backups restore it as null ("made on an earlier day").
 // Schema 24 (#960, product ADR-0073): propagatedFromId added to BackupPlant — the plant-family parent link.
 // Restore inserts plants unlinked and applies the links in a second pass, dropping dangling and cyclic

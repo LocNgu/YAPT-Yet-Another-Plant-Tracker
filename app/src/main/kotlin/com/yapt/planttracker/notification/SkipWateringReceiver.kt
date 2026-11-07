@@ -39,7 +39,7 @@ class SkipWateringReceiver : BroadcastReceiver() {
      * which could already be in the past and would then advance a stale date by only one day,
      * leaving the plant still overdue (#741). [now] is injectable so a test can pin the clock
      * relative to a fixed-date override (#733). Stamps `wateringDueDateOverrideMadeAt` with [now]: a Skip is a
-     * reschedule made now, which Before you leave leaves out for the day (#1019, product ADR-0081).
+     * reschedule made now, which Before you leave leaves out for the day (#1019, product ADR-0083).
      */
     internal suspend fun skipWatering(
         context: Context,
