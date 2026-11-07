@@ -12,6 +12,18 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Before you leave no longer suggests plants already watered today** (#1018) — on the last day at home, a plant
+  with a watering logged today is in neither **Water today** nor **Check the soil**, even when its interval is short
+  enough to come due again before the first visit (e.g. a 3-day plant with a 10-day sitter rhythm). A second watering
+  would be rejected as a same-day duplicate anyway. A line under the lists ("3 already watered today") counts them,
+  separately from "N other plants can wait", so plants just logged with **Log N as watered** leave the lists at once.
+  Plants rescheduled today are still listed; that is #1019.
+- **Before you leave rows open the plant** (#1018) — tapping a plant in the last-day lists or the lead-in **Hold for
+  your last day** list opens its Plant Detail page; on the last day the checkbox ticks and unticks it (TalkBack: a
+  checkbox labelled with the plant name, and the row as a button with an "Open plant details" action). The hold list
+  stays read-only: nothing can be ticked or logged from it.
+
 ## [0.42.0] - 2026-11-04
 
 ### Added
