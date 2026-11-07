@@ -12,6 +12,13 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Fixed
+- **Before you leave leaves out plants you rescheduled today** (#1019, product ADR-0081) — a plant whose active
+  reschedule (including a notification Skip) was made today is in neither **Water today** nor **Check the soil** and
+  is not brought forward, whatever its new date; it counts under "other plants can wait". Adds the nullable
+  `wateringDueDateOverrideMadeAt` column (DB 22, `MIGRATION_21_22`) and backup schema v25. Existing reschedules have no
+  timestamp and are listed by their due date as before.
+
 ## [0.42.1] - 2026-11-07
 
 ### Fixed

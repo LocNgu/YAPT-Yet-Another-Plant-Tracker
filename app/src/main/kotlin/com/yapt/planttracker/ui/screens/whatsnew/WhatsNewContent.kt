@@ -11,7 +11,11 @@ data class ReleaseNotes(
 object WhatsNewContent {
     // Implementer appends here per PR (dev workflow step 5): one short plain-language sentence per change,
     // not a copy of CHANGELOG's [Unreleased] bullet (.claude/rules/whats-new.md, product ADR-0072).
-    val unreleased: ReleaseNotes = ReleaseNotes(versionCode = 0, versionName = "Unreleased")
+    val unreleased: ReleaseNotes = ReleaseNotes(
+        versionCode = 0,
+        versionName = "Unreleased",
+        fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
+    )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).

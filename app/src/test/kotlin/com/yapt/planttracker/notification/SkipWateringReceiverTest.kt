@@ -57,6 +57,20 @@ class SkipWateringReceiverTest {
     }
 
     @Test
+    fun `skipWatering stamps the made-at with the injected now`() = runBlocking {
+        val now = 1_790_000_000_000L
+        val plantId = app.plantRepository.addPlant(
+            Plant(name = "Fern", wateringIntervalDays = 7, createdAt = 0L, updatedAt = 0L)
+                .copy(wateringDueDateOverrideMadeAt = 5L)
+        )
+
+        SkipWateringReceiver().skipWatering(app, plantId, now)
+
+        val updated = app.plantRepository.getPlantById(plantId).first()!!
+        assertEquals(now, updated.wateringDueDateOverrideMadeAt)
+    }
+
+    @Test
     fun `skipWatering never changes wateringConfidence or wateringIntervalDays (#570 - not a learning signal)`() =
         runBlocking {
             val plantId = app.plantRepository.addPlant(
