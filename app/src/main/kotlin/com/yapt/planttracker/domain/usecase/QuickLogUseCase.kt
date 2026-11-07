@@ -395,7 +395,7 @@ class QuickLogUseCase(
         val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
             clearWateringOverrideIfActive(plant.id) ?: plant
         } else {
-            plant
+            freshOrSnapshot(plant)
         }
         val suggestion = computeSuggestion(freshPlant, feedback, loggedAt)
         if (schedulePostWateringReminder) onWaterLogged(loggedAt)
@@ -472,7 +472,7 @@ class QuickLogUseCase(
             val freshPlant = if (loggedAt >= (previousNewest ?: Long.MIN_VALUE)) {
                 clearWateringOverrideIfActive(plant.id) ?: plant
             } else {
-                plant
+                freshOrSnapshot(plant)
             }
             if (schedulePostWateringReminder) onWaterLogged(loggedAt)
             QuickLogOutcome(
@@ -585,13 +585,14 @@ class QuickLogUseCase(
         val previousBaseIntervalDays = plant.wateringBaseIntervalDays
         // #644: newInterval is effective-space now — write it to wateringIntervalDays directly, no
         // re-conversion (that used to be #626's fix; it's now folded into the deseasonalize step above).
-        plantRepository.updatePlant(
-            plant.copy(
-                wateringIntervalDays = newInterval,
-                wateringBaseIntervalDays = newBaseIntervalDays,
-                wateringConfidence = wateringConfidence,
-                updatedAt = now
-            )
+        // Column-specific (#872): Calendar, Plant List and Care call this outside Plant Detail's lock, so
+        // the write names only the three watering-model columns it owns.
+        plantRepository.updateWateringModel(
+            plant.id,
+            wateringIntervalDays = newInterval,
+            wateringBaseIntervalDays = newBaseIntervalDays,
+            confidence = wateringConfidence,
+            updatedAt = now
         )
         // #584 review: `previousEffectiveIntervalDays` may still be a literal effective value
         // rather than base-space — read the plant's actual current base for the row instead. #626:
@@ -634,7 +635,8 @@ class QuickLogUseCase(
             wateringConfidence = CareSchedule.confidenceAfterDismissal(plant.wateringConfidence),
             updatedAt = now
         )
-        plantRepository.updatePlant(updated)
+        // Column-specific (#872): only the confidence column moves, so only it is written.
+        plantRepository.updateWateringConfidence(plant.id, updated.wateringConfidence, now)
         plant.wateringIntervalDays?.let { current ->
             val currentBase = currentAdaptiveBaseIntervalDays(plant, current)
             wateringAdjustmentRepository.addAdjustment(
@@ -847,7 +849,7 @@ class QuickLogUseCase(
     /**
      * Clears [Plant.wateringDueDateOverride] if [plantId] currently has one active, and returns the
      * freshly-fetched plant (cleared or not) so callers that go on to call [computeSuggestion] can
-     * build any follow-up [PlantRepository.updatePlant] call off consistent, post-clear state rather
+     * build any follow-up write off consistent, post-clear state rather
      * than the stale [Plant] snapshot they were originally passed (#614, same bug class as #612) —
      * without this, [AdaptiveWateringObservation]'s own `.copy()` would silently resurrect the override it
      * just cleared. Returns `null` only if [plantId] no longer exists (a pre-existing race, not
@@ -857,8 +859,17 @@ class QuickLogUseCase(
     private suspend fun clearWateringOverrideIfActive(plantId: Long): Plant? {
         val p = plantRepository.getPlantById(plantId).first() ?: return null
         if (p.wateringDueDateOverride == null) return p
-        val cleared = p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
-        plantRepository.updatePlant(cleared)
-        return cleared
+        val now = System.currentTimeMillis()
+        // Column-specific (#872): nothing between the read above and this write can be reverted by it.
+        plantRepository.updateWateringDueDateOverride(plantId, null, now)
+        return p.copy(wateringDueDateOverride = null, updatedAt = now)
     }
+
+    /**
+     * The backdated branch of a quick water (#872): the override stays, but the observation still works
+     * from a fresh read rather than the caller's possibly stale snapshot. Falls back to [plant] only if
+     * the row is gone, mirroring [clearWateringOverrideIfActive].
+     */
+    private suspend fun freshOrSnapshot(plant: Plant): Plant =
+        plantRepository.getPlantById(plant.id).first() ?: plant
 }

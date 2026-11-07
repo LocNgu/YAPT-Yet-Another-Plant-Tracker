@@ -91,6 +91,32 @@ class PlantRepository(
     suspend fun updateWateringConfidence(id: Long, confidence: Int?, updatedAt: Long) =
         plantDao.updateWateringConfidence(id, confidence, updatedAt)
 
+    /** Column-specific update — see [PlantDao.updateWateringConfidenceAndBase]'s doc for why this exists. */
+    suspend fun updateWateringConfidenceAndBase(
+        id: Long,
+        confidence: Int?,
+        wateringBaseIntervalDays: Double?,
+        updatedAt: Long
+    ) = plantDao.updateWateringConfidenceAndBase(id, confidence, wateringBaseIntervalDays, updatedAt)
+
+    /** Column-specific update — see [PlantDao.updateWateringModel]'s doc for why this exists. */
+    suspend fun updateWateringModel(
+        id: Long,
+        wateringIntervalDays: Int?,
+        wateringBaseIntervalDays: Double?,
+        confidence: Int?,
+        updatedAt: Long
+    ) = plantDao.updateWateringModel(id, wateringIntervalDays, wateringBaseIntervalDays, confidence, updatedAt)
+
+    /** Column-specific update — see [PlantDao.applyWateringBootstrap]'s doc for why this exists. */
+    suspend fun applyWateringBootstrap(
+        id: Long,
+        wateringIntervalDays: Int,
+        wateringBaseIntervalDays: Double,
+        confidence: Int?,
+        updatedAt: Long
+    ) = plantDao.applyWateringBootstrap(id, wateringIntervalDays, wateringBaseIntervalDays, confidence, updatedAt)
+
     /** Direct children of [parentId] — archived and hidden ones included — by name (#960). */
     fun getChildren(parentId: Long): Flow<List<Plant>> =
         plantDao.getChildren(parentId).map { list -> list.map { it.toDomain() } }

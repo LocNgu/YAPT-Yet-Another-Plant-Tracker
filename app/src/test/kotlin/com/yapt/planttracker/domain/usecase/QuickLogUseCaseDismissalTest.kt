@@ -41,6 +41,7 @@ class QuickLogUseCaseDismissalTest {
     @Before
     fun setUp() {
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
     }
 
@@ -74,7 +75,7 @@ class QuickLogUseCaseDismissalTest {
 
         useCase.recordWateringSuggestionDismissal(monstera)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == expectedConfidence }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == expectedConfidence }
     }
 
     @Test
