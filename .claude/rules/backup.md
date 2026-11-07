@@ -68,7 +68,7 @@ excluded from `BackupSettings`; import clears it together with pending post-wate
 
 ## Tests
 - `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
-- `PlantFamilyBackupTest` (plain JVM) pins `CURRENT_SCHEMA_VERSION == 25` and covers v24 (, link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
+- `PlantFamilyBackupTest` (plain JVM) pins `CURRENT_SCHEMA_VERSION == 25` and covers v24 (link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
 - `AwayPeriodBackupTest` (plain JVM) covers the away-trip restore rules: bad dates skipped, visits re-filtered into their trip, visit plants of missing plants dropped.
 - Instrumented `BackupManager` tests cover:
   - round-trips with and without photos, an empty DB, and settings

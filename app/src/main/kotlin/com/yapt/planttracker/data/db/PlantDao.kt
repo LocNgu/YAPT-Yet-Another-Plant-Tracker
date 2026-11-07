@@ -94,9 +94,9 @@ interface PlantDao {
 
     /**
      * Column-specific update touching only `wateringDueDateOverride`, its `wateringDueDateOverrideMadeAt`
-     * stamp and `updatedAt`, written in one statement so the pair can never drift (product ADR-0081). Same rationale as
-     * [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch a column it
-     * doesn't name, eliminating the race entirely rather than just narrowing its window. Used by
+     * stamp and `updatedAt`, written in one statement so the pair can never drift (product ADR-0081).
+     * Same rationale as [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch
+     * a column it doesn't name, eliminating the race entirely rather than just narrowing its window. Used by
      * `QuickLogUseCase.recordReschedule()` (#738, product ADR-0039) so a reschedule can never
      * silently revert a concurrent write to any other column.
      */
