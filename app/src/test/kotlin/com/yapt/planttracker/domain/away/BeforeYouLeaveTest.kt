@@ -328,7 +328,7 @@ class BeforeYouLeaveTest {
         assertEquals(0, result.canWaitCount)
     }
 
-    // --- rescheduled today (#1019, product ADR-0081) ---
+    // --- rescheduled today (#1019, product ADR-0083) ---
 
     private fun at(day: LocalDate, hour: Int = 9) =
         day.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()

@@ -16,7 +16,7 @@ import kotlinx.coroutines.sync.withLock
  * carries the plant's actual prior override value, captured once here from a fresh read (never the
  * cached `plant` StateFlow, which can lag a write still in flight) and threaded straight through for
  * [undoRevertReschedule] to restore as-is. The `wateringDueDateOverrideMadeAt` stamp is cleared with the
- * override and restored exactly as captured on undo, never re-stamped (#1019, product ADR-0081).
+ * override and restored exactly as captured on undo, never re-stamped (#1019, product ADR-0083).
  * Writes through the column-specific
  * [com.yapt.planttracker.data.repository.PlantRepository.updateWateringDueDateOverride] inside
  * [PlantDetailViewModel.plantEditMutex] (#808, technical ADR-0036): the statement can't revert any

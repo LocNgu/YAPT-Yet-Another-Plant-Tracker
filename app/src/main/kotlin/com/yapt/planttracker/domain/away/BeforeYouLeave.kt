@@ -54,7 +54,7 @@ data class BeforeYouLeaveInput(
  * before the first visit, but the same-day duplicate guard would reject a second watering, and the owner has just
  * done the real one. It is counted on its own, not as "can wait".
  *
- * A plant whose active reschedule was made today is left out the same way (#1019, product ADR-0081): the owner
+ * A plant whose active reschedule was made today is left out the same way (#1019, product ADR-0083): the owner
  * just chose that date, whatever it is, so it is in neither list and not brought forward. Unlike a watered-today
  * plant it is counted under [BeforeYouLeavePlan.canWaitCount]. "Active" is the `maxOf()` winner over the schedule's
  * due date, and "today" compares `wateringDueDateOverrideMadeAt` as a local calendar day; a plant with no stamp

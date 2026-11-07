@@ -385,7 +385,7 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
-        // #1019 (product ADR-0081): when the active reschedule was made, for Before you leave. Nullable with
+        // #1019 (product ADR-0083): when the active reschedule was made, for Before you leave. Nullable with
         // no backfill: existing overrides read as "made on an earlier day".
         @Suppress("MagicNumber")
         val MIGRATION_21_22 = object : Migration(21, 22) {
