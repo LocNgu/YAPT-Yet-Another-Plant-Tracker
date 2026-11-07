@@ -31,6 +31,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 25 (#1019, product ADR-0081): wateringDueDateOverrideMadeAt added to BackupPlant — when the active
+// reschedule was made, for Before you leave. Old backups restore it as null ("made on an earlier day").
 // Schema 24 (#960, product ADR-0073): propagatedFromId added to BackupPlant — the plant-family parent link.
 // Restore inserts plants unlinked and applies the links in a second pass, dropping dangling and cyclic
 // ones. Old backups deserialize it to null: no recorded parent.
@@ -90,7 +92,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 24
+const val CURRENT_SCHEMA_VERSION = 25
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -232,6 +234,7 @@ class BackupManager(
                                 createdAt = entity.createdAt,
                                 updatedAt = entity.updatedAt,
                                 wateringDueDateOverride = entity.wateringDueDateOverride,
+                                wateringDueDateOverrideMadeAt = entity.wateringDueDateOverrideMadeAt,
                                 useLiquidFertilizer = entity.useLiquidFertilizer,
                                 wateringConfidence = entity.wateringConfidence,
                                 wateringBaseIntervalDays = entity.wateringBaseIntervalDays,
@@ -458,6 +461,7 @@ class BackupManager(
                     createdAt = bp.createdAt,
                     updatedAt = bp.updatedAt,
                     wateringDueDateOverride = bp.wateringDueDateOverride,
+                    wateringDueDateOverrideMadeAt = bp.wateringDueDateOverrideMadeAt,
                     useLiquidFertilizer = bp.useLiquidFertilizer,
                     wateringConfidence = bp.wateringConfidence,
                     wateringBaseIntervalDays = bp.wateringBaseIntervalDays,

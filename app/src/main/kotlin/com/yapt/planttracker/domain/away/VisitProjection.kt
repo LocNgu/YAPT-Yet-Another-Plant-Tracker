@@ -169,7 +169,11 @@ object VisitProjector {
         return map { plant ->
             val day = simulated[plant.id]
             val clears = day != null && day.toNoonMillis() >= (newestReal[plant.id] ?: Long.MIN_VALUE)
-            if (clears && plant.wateringDueDateOverride != null) plant.copy(wateringDueDateOverride = null) else plant
+            if (clears && plant.wateringDueDateOverride != null) {
+                plant.copy(wateringDueDateOverride = null, wateringDueDateOverrideMadeAt = null)
+            } else {
+                plant
+            }
         }
     }
 
