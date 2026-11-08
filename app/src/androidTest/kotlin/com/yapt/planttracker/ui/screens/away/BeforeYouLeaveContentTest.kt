@@ -3,13 +3,15 @@ package com.yapt.planttracker.ui.screens.away
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -18,6 +20,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.Plant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,6 +34,7 @@ class BeforeYouLeaveContentTest {
 
     private val today = LocalDate.now()
     private val toggled = mutableListOf<Long>()
+    private val opened = mutableListOf<Long>()
     private var logCalls = 0
 
     private fun plant(id: Long, name: String, room: String? = null) =
@@ -46,14 +50,23 @@ class BeforeYouLeaveContentTest {
             BeforeYouLeaveRow(plant(2, "Fern"), today.plusDays(2), ticked = true)
         ),
         check: List<BeforeYouLeaveRow> = listOf(BeforeYouLeaveRow(plant(3, "Cactus"), today.plusDays(5), ticked = false)),
-        canWait: Int = 4
-    ) = BeforeYouLeaveUiState.Ready(today, today.plusDays(7), water, check, canWait)
+        canWait: Int = 4,
+        wateredToday: Int = 0
+    ) = BeforeYouLeaveUiState.Ready(today, today.plusDays(7), water, check, canWait, wateredToday)
 
     private fun setContent(state: BeforeYouLeaveUiState.Ready = state()) {
         composeTestRule.setContent {
-            BeforeYouLeaveContent(state, onToggle = { toggled += it }, onLog = { logCalls++ })
+            BeforeYouLeaveContent(
+                state,
+                onToggle = { toggled += it },
+                onLog = { logCalls++ },
+                onOpenPlant = { opened += it }
+            )
         }
     }
+
+    /** A row's own checkbox (#1018): the row itself opens the plant. */
+    private fun tick(name: String) = composeTestRule.onNode(isToggleable() and hasContentDescription(name))
 
     @Test
     fun itSplitsThePlantsIntoWaterTodayAndCheckTheSoil() {
@@ -69,20 +82,46 @@ class BeforeYouLeaveContentTest {
     fun waterTodayIsTickedAndCheckTheSoilIsNot() {
         setContent()
 
-        composeTestRule.onNodeWithText("Basil").assertIsOn()
-        composeTestRule.onNodeWithText("Fern").assertIsOn()
-        composeTestRule.onNodeWithText("Cactus").assertIsOff()
+        tick("Basil").assertIsOn()
+        tick("Fern").assertIsOn()
+        tick("Cactus").assertIsOff()
     }
 
     @Test
-    fun tappingAPlantReportsItAndTheActionCountsTheTickedOnes() {
+    fun tappingAPlantsCheckboxReportsItAndTheActionCountsTheTickedOnes() {
         setContent()
 
-        composeTestRule.onNodeWithText("Cactus").performClick()
+        tick("Cactus").performClick()
 
         assertEquals(listOf(3L), toggled)
+        assertTrue(opened.isEmpty())
         composeTestRule.onNodeWithText("Log 2 as watered").assertIsEnabled().performClick()
         assertEquals(1, logCalls)
+    }
+
+    @Test
+    fun tappingAPlantOpensItWithoutTickingIt() {
+        setContent()
+
+        composeTestRule.onNode(hasText("Cactus") and hasClickAction()).performClick()
+
+        assertEquals(listOf(3L), opened)
+        assertTrue(toggled.isEmpty())
+    }
+
+    @Test
+    fun plantsAlreadyWateredTodayAreCountedOnALineOfTheirOwn() {
+        setContent(state(wateredToday = 3))
+
+        composeTestRule.onNodeWithText("3 already watered today").assertIsDisplayed()
+        composeTestRule.onNodeWithText("4 other plants can wait").assertIsDisplayed()
+    }
+
+    @Test
+    fun withNothingWateredTodayThereIsNoWateredLine() {
+        setContent()
+
+        composeTestRule.onNodeWithText("already watered today", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -113,7 +152,7 @@ class BeforeYouLeaveContentTest {
     }
 
     @Test
-    fun eachRowReadsNameRoomDueDateAndTickTogether() {
+    fun eachRowReadsNameRoomAndDueDateTogetherAndHasItsOwnTick() {
         setContent(
             state(
                 water = listOf(BeforeYouLeaveRow(plant(1, "Basil", room = "Kitchen"), today, ticked = true)),
@@ -125,10 +164,12 @@ class BeforeYouLeaveContentTest {
         )
 
         composeTestRule.onNode(hasText("Basil") and hasText("Kitchen") and hasText(string(R.string.date_relative_today)))
-            .assertIsOn()
+            .assert(hasClickAction())
+        tick("Basil").assertIsOn()
         composeTestRule.onNode(hasText("Cactus") and hasText("Hall") and hasText(string(R.string.date_group_tomorrow)))
-            .assertIsOff()
-        composeTestRule.onNodeWithText("Aloe").assertIsOff()
+            .assert(hasClickAction())
+        tick("Cactus").assertIsOff()
+        tick("Aloe").assertIsOff()
     }
 
     @Test
@@ -141,7 +182,7 @@ class BeforeYouLeaveContentTest {
         composeTestRule.onNodeWithText("Log 2 as watered").assertIsEnabled()
 
         composeTestRule.onNodeWithText("Check the soil · 1").performClick()
-        composeTestRule.onNodeWithText("Cactus").assertIsOff()
+        tick("Cactus").assertIsOff()
     }
 
     // --- the lead-in: a read-only hold list (#969, product ADR-0076) ---
@@ -156,7 +197,7 @@ class BeforeYouLeaveContentTest {
     ) = BeforeYouLeaveUiState.LeadIn(today, lastDay, holds)
 
     private fun setLeadInContent(state: BeforeYouLeaveUiState.LeadIn = leadIn()) {
-        composeTestRule.setContent { BeforeYouLeaveLeadInContent(state) }
+        composeTestRule.setContent { BeforeYouLeaveLeadInContent(state, onOpenPlant = { opened += it }) }
     }
 
     private fun lastDayText(): String = awayDayText(lastDay, today)
@@ -176,15 +217,16 @@ class BeforeYouLeaveContentTest {
     }
 
     @Test
-    fun leadInRowsCannotBeTickedOrTapped() {
+    fun leadInRowsCannotBeTickedButTappingOneOpensThePlant() {
         setLeadInContent()
 
         composeTestRule.onNode(hasText("Basil") and hasText("Kitchen"))
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ToggleableState))
-            .assertHasNoClickAction()
         composeTestRule.onNodeWithText("Fern")
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ToggleableState))
-            .assertHasNoClickAction()
+            .performClick()
+
+        assertEquals(listOf(2L), opened)
     }
 
     @Test

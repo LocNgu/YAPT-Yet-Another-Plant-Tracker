@@ -118,6 +118,7 @@ fun SettingsScreen(
     onNavigateToWateringOverview: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {},
     awayModeViewModel: AwayModeViewModel? = null,
+    autoBackupViewModel: AutoBackupViewModel? = null,
     awayModeNavigation: AwayModeNavigation = AwayModeNavigation(),
     confirmVisitViewModel: ConfirmVisitViewModel? = null
 ) {
@@ -712,6 +713,8 @@ fun SettingsScreen(
                         )
                 }
             )
+
+            autoBackupViewModel?.let { AutoBackupSettingsSection(it) }
 
             SettingsItemRow(
                 icon = Icons.Filled.DeleteSweep,

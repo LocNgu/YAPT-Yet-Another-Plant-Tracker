@@ -16,6 +16,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
@@ -223,7 +224,7 @@ internal class AdaptiveWateringObservation(
         )
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = deseasonalizedObservedIntervalDays(actual, plant.pinIntervalToBase, loggedAt),
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actual, plant, loggedAt),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
@@ -388,13 +389,12 @@ internal class AdaptiveWateringObservation(
     /**
      * The season function used by [WateringLifecycleReset.maybeBootstrap] and
      * [CareSchedule.bootstrapBaseInterval] to de-seasonalize each historical gap. It returns
-     * `{ 1.0 }` when [Plant.pinIntervalToBase] is set or amplitude is Off, matching the live
+     * `{ 1.0 }` when the plant's effective amplitude is 0 (pinned, custom Off or global Off, #700), matching the live
      * observation's [deseasonalizedObservedIntervalDays] and [currentAdaptiveBaseIntervalDays].
      */
     @Suppress("ReturnCount")
     private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
-        if (plant.pinIntervalToBase) return { 1.0 }
-        val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+        val amplitude = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0)
         if (amplitude == 0.0) return { 1.0 }
         val hemisphere = SeasonalWatering.currentHemisphere()
         return { date -> SeasonalWatering.season(date, amplitude, hemisphere) }
@@ -441,7 +441,7 @@ internal class AdaptiveWateringObservation(
         persistBase: Boolean,
         loggedAt: Long
     ) {
-        val seasonAdjustable = !plant.pinIntervalToBase && (dataStore?.seasonalAmplitudeOnce() ?: 0.0) != 0.0
+        val seasonAdjustable = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0) != 0.0
         val newBase = result.baseIntervalDays.takeIf { persistBase && seasonAdjustable }
             ?: plant.wateringBaseIntervalDays
         if (newBase != plant.wateringBaseIntervalDays) {
@@ -485,23 +485,23 @@ internal class AdaptiveWateringObservation(
      */
     @Suppress("ReturnCount")
     suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double {
-        if (plant.pinIntervalToBase) return configuredIntervalDays.toDouble()
-        if ((dataStore?.seasonalAmplitudeOnce() ?: 0.0) == 0.0) return configuredIntervalDays.toDouble()
+        if (plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0) == 0.0) {
+            return configuredIntervalDays.toDouble()
+        }
         return plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
     }
 
     /**
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * seasonal correction is not baked into [Plant.wateringConfidence] as a permanent change in
-     * thirst. A no-op when [dataStore] is null, amplitude is Off, or [pinned] is true — the due-date
+     * thirst. A no-op when [dataStore] is null or the plant's effective amplitude is 0 — the due-date
      * math never applies the curve to a pinned plant, so its observed gaps are already flat.
      * [loggedAt] is the observation day, possibly backdated (#654); using wall-clock today here
      * would de-seasonalize the wrong month while the log and adjustment claim an earlier date.
      */
     @Suppress("ReturnCount")
-    private suspend fun deseasonalizedObservedIntervalDays(actual: Int, pinned: Boolean, loggedAt: Long): Int {
-        if (pinned) return actual
-        val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+    private suspend fun deseasonalizedObservedIntervalDays(actual: Int, plant: Plant, loggedAt: Long): Int {
+        val amplitude = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0)
         if (amplitude == 0.0) return actual
         return SeasonalWatering.deseasonalizeToDays(
             actual,

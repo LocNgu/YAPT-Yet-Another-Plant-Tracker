@@ -15,7 +15,9 @@ import kotlinx.coroutines.sync.withLock
  * safety net, mirroring `applySuggestionOrPrompt`'s silent-apply flow. `Event.RescheduleReverted`
  * carries the plant's actual prior override value, captured once here from a fresh read (never the
  * cached `plant` StateFlow, which can lag a write still in flight) and threaded straight through for
- * [undoRevertReschedule] to restore as-is. Writes through the column-specific
+ * [undoRevertReschedule] to restore as-is. The `wateringDueDateOverrideMadeAt` stamp is cleared with the
+ * override and restored exactly as captured on undo, never re-stamped (#1019, product ADR-0083).
+ * Writes through the column-specific
  * [com.yapt.planttracker.data.repository.PlantRepository.updateWateringDueDateOverride] inside
  * [PlantDetailViewModel.plantEditMutex] (#808, technical ADR-0036): the statement can't revert any
  * other column, and the lock stops a full-row writer that already read the row from putting the old
@@ -28,13 +30,13 @@ import kotlinx.coroutines.sync.withLock
  */
 fun PlantDetailViewModel.revertReschedule() {
     viewModelScope.launch {
-        val previousOverride = plantEditMutex.withLock {
-            val previous = plantRepository.getPlantById(plantId).first()?.wateringDueDateOverride
-                ?: return@withLock null
-            plantRepository.updateWateringDueDateOverride(plantId, null, System.currentTimeMillis())
-            previous
+        val previous = plantEditMutex.withLock {
+            val plant = plantRepository.getPlantById(plantId).first() ?: return@withLock null
+            val override = plant.wateringDueDateOverride ?: return@withLock null
+            plantRepository.updateWateringDueDateOverride(plantId, null, null, System.currentTimeMillis())
+            override to plant.wateringDueDateOverrideMadeAt
         } ?: return@launch
-        emitEvent(PlantDetailViewModel.Event.RescheduleReverted(previousOverride))
+        emitEvent(PlantDetailViewModel.Event.RescheduleReverted(previous.first, previous.second))
     }
 }
 
@@ -46,12 +48,13 @@ fun PlantDetailViewModel.revertReschedule() {
  * race as the existing interval-undo Snackbar). It never reverts any *other* column (#808): a
  * column-specific write under [PlantDetailViewModel.plantEditMutex], like [revertReschedule].
  */
-fun PlantDetailViewModel.undoRevertReschedule(previousOverrideAtMillis: Long) {
+fun PlantDetailViewModel.undoRevertReschedule(previousOverrideAtMillis: Long, previousMadeAtMillis: Long?) {
     viewModelScope.launch {
         plantEditMutex.withLock {
             plantRepository.updateWateringDueDateOverride(
                 plantId,
                 previousOverrideAtMillis,
+                previousMadeAtMillis,
                 System.currentTimeMillis()
             )
         }

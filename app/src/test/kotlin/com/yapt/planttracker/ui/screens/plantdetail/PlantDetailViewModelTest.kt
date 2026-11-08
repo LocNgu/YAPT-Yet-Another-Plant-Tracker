@@ -61,6 +61,7 @@ class PlantDetailViewModelTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
         coEvery { addAdjustment(any()) } returns 1L
+        coEvery { recordManualEdit(any()) } returns 1L
     }
 
     // Only reportIssue() touches withTransaction, and no test in this file exercises it

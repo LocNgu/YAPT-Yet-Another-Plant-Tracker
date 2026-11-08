@@ -248,7 +248,7 @@ class QuickLogUseCaseStaleSnapshotTest {
     @Test
     fun `dismissal does not put back an override cleared since the snapshot`() = runTest {
         val snapshot = addPlant(confidence = 2, wateringDueDateOverride = daysAgo(-2))
-        plantRepo.updateWateringDueDateOverride(snapshot.id, null, now)
+        plantRepo.updateWateringDueDateOverride(snapshot.id, null, null, now)
 
         useCase.recordWateringSuggestionDismissal(snapshot)
 

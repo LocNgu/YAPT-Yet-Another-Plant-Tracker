@@ -27,10 +27,13 @@ A quick-water can be backdated (`loggedAt`). Keep the two clocks apart:
 - `WateringLifecycleReset.maybeBootstrap()` likewise takes `displayNow` **only** for the `seasonFn()` conversion of the written `wateringIntervalDays`. `triggeredAt`/`updatedAt` keep the historical `now`.
 - **Override clearing (#679):** a WATER insert clears an active `wateringDueDateOverride` only when its `loggedAt` is at or after the previous newest watering (no prior watering counts as `Long.MIN_VALUE`, so a first watering always clears). Backfilling an old watering never discards a newer reschedule.
 
+## Season row uses the plant's strength (#700, product ADR-0084)
+`WateringExplanationBuilder.build()` takes the *global* amplitude and resolves it with `Plant.effectiveWateringAmplitude()`. The multiplier and band use the plant's own amplitude, and the row is hidden whenever that is 0 (Pin, or a global Off with no custom strength). A global Off with a plant on Custom Strong therefore shows the row.
+
 ## Interval-suggestion write path — one choke point (#631, #644, #718, #767, technical ADR-0027)
 `QuickLogUseCase.applyWateringIntervalSuggestion(plant, originalSuggestion, newInterval, suggestedBaseInterval: Double?)` is the **only** write path for the product ADR-0006 dialog's Apply. Plant Detail (`PlantDetailIntervalActions.applySuggestedInterval()` and the silent-apply branch), Calendar and Plant List all call it — never add a per-screen copy. Math tests live in `QuickLogUseCaseIntervalApplyTest`; each VM keeps only a delegation test.
 - `newInterval` is **effective-space** (what the field shows). The dialog fields are pre-filled from the effective value (`pendingWateringSuggestion.effectiveIntervalDays` / `QuickWaterSuggestion.suggestedIntervalEffective`), the same number the "Suggested: N days" sentence shows.
-- Writes `wateringIntervalDays = newInterval` directly, through the column-specific `PlantRepository.updateWateringModel()` (interval, base, confidence, `updatedAt` only; #872), so no caller's stale snapshot can revert another column. The base is written only when `!plant.pinIntervalToBase && amplitude != 0.0`; pinned/amplitude-Off plants keep `newInterval` as a literal and leave the stored base untouched.
+- Writes `wateringIntervalDays = newInterval` directly, through the column-specific `PlantRepository.updateWateringModel()` (interval, base, confidence, `updatedAt` only; #872), so no caller's stale snapshot can revert another column. The base is written only when the plant's effective amplitude (`Plant.effectiveWateringAmplitude`) is non-zero; pinned or effective-Off plants keep `newInterval` as a literal and leave the stored base untouched.
 - Base value: if `suggestedBaseInterval` is non-null (the field is untouched), persist the model's unrounded base verbatim. `null` means the user retyped the field (callers pass it via `takeIf { field == suggested }`); then derive `SeasonalWatering.deseasonalize(newInterval)` **on the Apply day**. Re-deriving a base from a rounded value amplifies the ±0.5-day rounding by 1/season (#718).
 - Apply reads `nowProvider()` once and uses it for the seasonal inverse, `Plant.updatedAt` and `DIALOG_EDIT.triggeredAt`.
 - The effective `newInterval` is converted down to base-space **once** (`newIntervalBaseSpace`) and reused for the base write, `confidenceAfterDialogEdit()`'s tolerance check and the row below.
@@ -40,13 +43,13 @@ A quick-water can be backdated (`loggedAt`). Keep the two clocks apart:
 
 ## `watering_adjustments` table (product ADR-0028)
 A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent applies change confidence/base without any `CareLog` row.
-- A row is written **every time** the model evaluates, including no-ops (`before == after`).
+- A row is written **every time** the model evaluates, including no-ops (`before == after`) — except same-day `MANUAL_EDIT` edits, which merge (below).
 - Triggers (`WateringAdjustmentTrigger`):
   - `WATER_TOO_SOON`/`WATER_TOO_LATE`/`WATER_JUST_RIGHT`/`WATER_NEUTRAL` come from the WATER observation path.
   - `WATER_NOT_ATTRIBUTED` is an off-schedule watering the user declined to attribute. It wins via `AdaptiveInterval.excludedFromBaseLearning` and is distinct from on-schedule `WATER_NEUTRAL`.
   - `FROZEN_POST_REPOT` is an observation excluded by the REPOT freeze window. It is not a declined attribution.
   - `DIALOG_DISMISSAL` and `DIALOG_EDIT` come from the suggestion dialog.
-  - `MANUAL_EDIT` comes from `AddEditPlantViewModel.saveEdit()` and `PlantDetailViewModel.setWateringInterval()`.
+  - `MANUAL_EDIT` comes from `AddEditPlantViewModel.saveEdit()` and `PlantDetailViewModel.setWateringInterval()`, both through `WateringAdjustmentRepository.recordManualEdit()` (#799, product ADR-0082): if the plant's newest row is a same-local-day `MANUAL_EDIT` it is updated in place (original `before` kept, new `after`/`triggeredAt`; net-zero stays as "unchanged"), otherwise a row is inserted. One Room `@Transaction` in `WateringAdjustmentDao`. Never call `addAdjustment` for `MANUAL_EDIT`.
   - `REPOT_RESET`/`ROOM_CHANGE_RESET` are lifecycle resets that change confidence only (`before == after`).
   - `PROPAGATE_CONFIDENCE_DROP` is a new PROPAGATE log lowering confidence by 2 (`before == after`; `rules/care-logging.md`). Written only when the confidence changed.
   - `HISTORY_BOOTSTRAP` is the one-time cold start from watering history.

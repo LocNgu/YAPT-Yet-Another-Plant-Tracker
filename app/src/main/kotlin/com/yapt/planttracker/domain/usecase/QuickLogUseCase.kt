@@ -29,6 +29,7 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
@@ -548,8 +549,8 @@ class QuickLogUseCase(
         // *literal* value, not base-space-convertible, so it's used as-is for the confidence check
         // and the base is left untouched below rather than clobbered with a never-seasonally-converted
         // value (#584 review round 2, still applies post-#644).
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
+        val amplitude = plant.effectiveWateringAmplitude(dataStore.seasonalAmplitudeOnce())
+        val seasonAdjustable = amplitude != 0.0
         val newIntervalBaseSpace = if (seasonAdjustable && suggestedBaseInterval != null) {
             suggestedBaseInterval
         } else if (seasonAdjustable) {
@@ -653,8 +654,10 @@ class QuickLogUseCase(
     }
 
     /**
-     * Records a reschedule: a plain [Plant.wateringDueDateOverride] write to [newDueAtMillis],
-     * nothing else (#738, product ADR-0039 — a reschedule is model-neutral again). Never writes a
+     * Records a reschedule: a plain [Plant.wateringDueDateOverride] write to [newDueAtMillis], stamped with
+     * [Plant.wateringDueDateOverrideMadeAt] = now in the same statement (#1019, product ADR-0083: metadata
+     * for Before you leave, not a learning write), nothing else (#738, product ADR-0039 — a reschedule is
+     * model-neutral again). Never writes a
      * [CareType.CHECK] log, [Plant.wateringConfidence], [Plant.wateringIntervalDays]/
      * [Plant.wateringBaseIntervalDays], or a [WateringAdjustment] row. All learning comes from the
      * next actual watering, which already has its own reason prompt at the moment the gap is
@@ -667,7 +670,8 @@ class QuickLogUseCase(
      * entirely, rather than just narrowing its window.
      */
     suspend fun recordReschedule(plant: Plant, newDueAtMillis: Long) {
-        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, nowProvider())
+        val now = nowProvider()
+        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, now, now)
     }
 
     /**
@@ -861,8 +865,9 @@ class QuickLogUseCase(
         if (p.wateringDueDateOverride == null) return p
         val now = System.currentTimeMillis()
         // Column-specific (#872): nothing between the read above and this write can be reverted by it.
-        plantRepository.updateWateringDueDateOverride(plantId, null, now)
-        return p.copy(wateringDueDateOverride = null, updatedAt = now)
+        // Clearing the override also clears when it was made (#1019).
+        plantRepository.updateWateringDueDateOverride(plantId, null, null, now)
+        return p.copy(wateringDueDateOverride = null, wateringDueDateOverrideMadeAt = null, updatedAt = now)
     }
 
     /**

@@ -1,6 +1,6 @@
 # Product ADR-0026: Computed (not learned) seasonal watering factor
 
-**Status**: accepted
+**Status**: accepted — "single global setting, not per-plant" amplitude clause amended by [ADR-0084](0084-per-plant-seasonal-watering-strength.md)
 
 **Date**: 2026-08-20
 

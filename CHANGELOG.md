@@ -12,13 +12,53 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+### Changed
+- **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0082) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
+
+### Added
+- **Automatic local backups** (#1001, product ADR-0081, technical ADR-0043) — Settings → Backup & Restore has an
+  **Automatic backups** switch. Pick a folder (Storage Access Framework, permission persisted), choose **Daily** or
+  **Weekly** (default), keep the last **3 / 7 / 14** (default 7) and whether to include (optimized) photos. A unique
+  periodic WorkManager job writes `yapt-backup-YYYY-MM-DD.yapt` through the unchanged export, skips runs when nothing
+  changed, and prunes only YAPT's own older files after a successful write. The status line shows the last backup,
+  "N photos skipped" or "Folder unavailable, choose again"; a notification (own channel, ID `-3`) appears on the second
+  consecutive failure or at once when the folder permission is lost. Settings are device-local and not part of `.yapt`
+  files, so there is no schema bump.
+- **A plant can follow its own seasonal watering strength** (#700, product ADR-0084) — Add/Edit Plant and the Water
+  tab have one **Seasonal strength** control: **App default**, **Custom** (Mild, Standard or Strong) or **Pin**,
+  which replaces the old "Pin interval" switch (a pinned plant stays pinned). Pin and Custom exclude each other.
+  A plant on Custom keeps its strength even if the global setting is Off, and the Water tab's curve preview, the
+  due date, the "Why this date?" season row and the learner's de-seasonalised gaps all use the plant's own strength
+  through one resolver. Changing the strength keeps the base interval and logs no adjustment; only today's effective
+  interval moves. Custom has no Off, since that is exactly what Pin does. Room migration 22 to 23 (nullable column);
+  backup schema 26.
+
 ### Fixed
+- **Before you leave leaves out plants you rescheduled today** (#1019, product ADR-0083) — a plant whose active
+  reschedule (including a notification Skip) was made today is in neither **Water today** nor **Check the soil** and
+  is not brought forward, whatever its new date; it counts under "other plants can wait". Adds the nullable
+  `wateringDueDateOverrideMadeAt` column (DB 22, `MIGRATION_21_22`) and backup schema v25. Existing reschedules have no
+  timestamp and are listed by their due date as before.
 - **Quick-logging a watering no longer undoes an edit made at the same moment** (#872) — logging water or liquid
   fertilizer from Care, Plant List or Calendar, and applying or dismissing an interval suggestion there, wrote the
   whole plant row back from the screen's copy. A setting changed on Plant Detail just before (or while) the write
   ran, such as notes or the fertilizing interval, could silently revert. These writes now touch only the watering
   columns they change (confidence, base and effective interval, the reschedule override, the bootstrap's reset
   anchor), and a backdated watering learns from a fresh read of the plant. No schema change.
+
+## [0.42.1] - 2026-11-07
+
+### Fixed
+- **Before you leave no longer suggests plants already watered today** (#1018) — on the last day at home, a plant
+  with a watering logged today is in neither **Water today** nor **Check the soil**, even when its interval is short
+  enough to come due again before the first visit (e.g. a 3-day plant with a 10-day sitter rhythm). A second watering
+  would be rejected as a same-day duplicate anyway. A line under the lists ("3 already watered today") counts them,
+  separately from "N other plants can wait", so plants just logged with **Log N as watered** leave the lists at once.
+  Plants rescheduled today are still listed; that is #1019.
+- **Before you leave rows open the plant** (#1018) — tapping a plant in the last-day lists or the lead-in **Hold for
+  your last day** list opens its Plant Detail page; on the last day the checkbox ticks and unticks it (TalkBack: a
+  checkbox labelled with the plant name, and the row as a button with an "Open plant details" action). The hold list
+  stays read-only: nothing can be ticked or logged from it.
 
 ## [0.42.0] - 2026-11-04
 

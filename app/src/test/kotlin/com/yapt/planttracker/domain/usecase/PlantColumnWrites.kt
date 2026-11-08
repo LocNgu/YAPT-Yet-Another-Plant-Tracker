@@ -54,11 +54,12 @@ internal fun stubPlantColumnWrites(repo: PlantRepository) {
             "updatedAt" to arg<Long>(4)
         )
     }
-    coEvery { repo.updateWateringDueDateOverride(any(), any(), any()) } answers {
+    coEvery { repo.updateWateringDueDateOverride(any(), any(), any(), any()) } answers {
         writes += mapOf(
             "id" to arg<Long>(0),
             "wateringDueDateOverride" to arg<Long?>(1),
-            "updatedAt" to arg<Long>(2)
+            "wateringDueDateOverrideMadeAt" to arg<Long?>(2),
+            "updatedAt" to arg<Long>(3)
         )
     }
 }
@@ -83,5 +84,5 @@ internal fun verifyNoPlantRowWrite(repo: PlantRepository) {
     coVerify(exactly = 0) { repo.updateWateringConfidenceAndBase(any(), any(), any(), any()) }
     coVerify(exactly = 0) { repo.updateWateringModel(any(), any(), any(), any(), any()) }
     coVerify(exactly = 0) { repo.applyWateringBootstrap(any(), any(), any(), any(), any()) }
-    coVerify(exactly = 0) { repo.updateWateringDueDateOverride(any(), any(), any()) }
+    coVerify(exactly = 0) { repo.updateWateringDueDateOverride(any(), any(), any(), any()) }
 }

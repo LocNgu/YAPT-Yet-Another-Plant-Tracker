@@ -66,6 +66,34 @@
         <item quantity="other">Backup saved (%1$d plants, %2$d logs) · %3$d photos skipped</item>
     </plurals>
     <string name="backup_error">Error: %s</string>
+    <string name="auto_backup_title">Automatic backups</string>
+    <string name="auto_backup_folder_title">Backup folder</string>
+    <string name="auto_backup_folder_none">No folder chosen</string>
+    <string name="auto_backup_frequency_title">How often</string>
+    <string name="auto_backup_frequency_daily">Daily</string>
+    <string name="auto_backup_frequency_weekly">Weekly</string>
+    <string name="auto_backup_retention_title">Keep the last</string>
+    <plurals name="auto_backup_retention_option">
+        <item quantity="one">%d backup</item>
+        <item quantity="other">%d backups</item>
+    </plurals>
+    <string name="auto_backup_status_off">Off</string>
+    <string name="auto_backup_status_waiting">On, waiting for the first backup</string>
+    <string name="auto_backup_status_folder_unavailable">Folder unavailable, choose again</string>
+    <string name="auto_backup_status_failed">Last backup failed, will retry</string>
+    <string name="auto_backup_status_failed_storage">Last backup failed: not enough storage</string>
+    <string name="auto_backup_status_success">Last backup: %s</string>
+    <plurals name="auto_backup_status_success_skipped">
+        <item quantity="one">Last backup: %1$s (%2$d photo skipped)</item>
+        <item quantity="other">Last backup: %1$s (%2$d photos skipped)</item>
+    </plurals>
+    <string name="auto_backup_channel_name">Automatic backups</string>
+    <string name="auto_backup_progress_channel_name">Backup in progress</string>
+    <string name="auto_backup_progress_title">Backing up…</string>
+    <string name="auto_backup_progress_body">Saving your plants to your backup folder</string>
+    <string name="auto_backup_notification_title">Automatic backup problem</string>
+    <string name="auto_backup_notification_folder_body">YAPT can no longer reach your backup folder. Open Settings and choose it again.</string>
+    <string name="auto_backup_notification_failed_body">The last automatic backups failed. Check Settings for details.</string>
     <string name="backup_in_progress_title">Please wait…</string>
     <string name="settings_title">Settings</string>
     <string name="settings_section_reminders">Reminders</string>
@@ -342,7 +370,14 @@
         <item quantity="other">%d active issues</item>
     </plurals>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
-    <string name="pin_interval_label">Pin interval</string>
+    <!-- Per-plant seasonal strength (#700): App default / Custom / Pin -->
+    <string name="watering_strength_label">Seasonal strength</string>
+    <string name="watering_strength_mode_default">App default</string>
+    <string name="watering_strength_mode_custom">Custom</string>
+    <string name="watering_strength_mode_pin">Pin</string>
+    <string name="watering_strength_subtitle_default">Follows the seasonal strength set in Settings</string>
+    <string name="watering_strength_subtitle_custom">This plant stretches and compresses with its own strength</string>
+    <string name="watering_strength_custom_options_label">Custom strength</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
     <string name="dormancy_window_label">Dormancy window</string>
     <string name="dormancy_window_subtitle">Use a dormant watering schedule during these months</string>
@@ -728,6 +763,7 @@
     <string name="state_room_chip_has_selection">Contains selected plants</string>
     <string name="state_room_chip_selected_has_selection">Selected, contains selected plants</string>
     <string name="cd_bulk_select_plant">Select plant</string>
+    <string name="cd_open_plant_details">Open plant details</string>
     <string name="cd_bulk_clear_selection">Clear selection</string>
     <string name="cd_bulk_select_all">Select all</string>
     <plurals name="bulk_action_bar_title">
@@ -943,6 +979,10 @@
     <plurals name="before_leave_can_wait">
         <item quantity="one">%d other plant can wait</item>
         <item quantity="other">%d other plants can wait</item>
+    </plurals>
+    <plurals name="before_leave_watered_today">
+        <item quantity="one">%d already watered today</item>
+        <item quantity="other">%d already watered today</item>
     </plurals>
     <plurals name="before_leave_log_action">
         <item quantity="one">Log %d as watered</item>
