@@ -46,6 +46,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   columns they change (confidence, base and effective interval, the reschedule override, the bootstrap's reset
   anchor), and a backdated watering learns from a fresh read of the plant. No schema change.
 
+### Changed
+- **One watering-suggestion gate** (#968, internal, no behaviour change) — the "does the suggested interval differ
+  from today's effective interval?" check now lives only in `WateringSuggestionGate`. `AdaptiveWateringObservation`
+  and Plant Detail's suggestion dialog both call it, and Plant Detail's silent apply commits the effective value the
+  observation already computed instead of re-deriving it. A new test fails if the two sides ever disagree.
+
 ## [0.42.1] - 2026-11-07
 
 ### Fixed
