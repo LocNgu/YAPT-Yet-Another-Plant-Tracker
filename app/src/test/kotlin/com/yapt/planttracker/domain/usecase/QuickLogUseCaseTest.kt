@@ -189,11 +189,12 @@ class QuickLogUseCaseTest {
 
         useCase.quickWaterWithReason(monstera, null)
 
-        coVerify {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == null && it.wateringDueDateOverrideMadeAt == null }
-            )
+        // #872: one column-specific statement clears both, so neither can survive without the other.
+        assertPlantWrite(plantRepo, exactly = 1) {
+            it.containsKey("wateringDueDateOverride") && it["wateringDueDateOverride"] == null &&
+                it.containsKey("wateringDueDateOverrideMadeAt") && it["wateringDueDateOverrideMadeAt"] == null
         }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
