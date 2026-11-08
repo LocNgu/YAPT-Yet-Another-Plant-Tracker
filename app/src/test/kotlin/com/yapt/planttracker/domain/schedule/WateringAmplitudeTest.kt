@@ -9,7 +9,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.util.TimeZone
 
-/** The per-plant strength resolver and its consumers (#700, product ADR-0081). */
+/** The per-plant strength resolver and its consumers (#700, product ADR-0084). */
 class WateringAmplitudeTest {
 
     private val globals = SeasonalAmplitude.entries.map { it.value }

@@ -33,7 +33,7 @@ import org.junit.Test
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Per-plant seasonal strength on Add/Edit Plant (#700, product ADR-0081). */
+/** Per-plant seasonal strength on Add/Edit Plant (#700, product ADR-0084). */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddEditPlantViewModelStrengthTest {
 

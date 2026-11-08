@@ -15,6 +15,7 @@ data class Plant(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val wateringDueDateOverride: Long? = null,
+    val wateringDueDateOverrideMadeAt: Long? = null,
     val useLiquidFertilizer: Boolean = false,
     val archivedAt: Long? = null,
     val repottingIntervalDays: Int? = null,
@@ -34,7 +35,7 @@ data class Plant(
     /** Opts this plant out of the seasonal curve entirely — due dates use [wateringIntervalDays] as-is (#569). */
     val pinIntervalToBase: Boolean = false,
     /**
-     * Per-plant seasonal strength (#700, product ADR-0081): `null` follows the global setting. Mutually
+     * Per-plant seasonal strength (#700, product ADR-0084): `null` follows the global setting. Mutually
      * exclusive with [pinIntervalToBase] — read the effective strength only through
      * [com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude].
      */

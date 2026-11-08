@@ -27,7 +27,7 @@ A quick-water can be backdated (`loggedAt`). Keep the two clocks apart:
 - `WateringLifecycleReset.maybeBootstrap()` likewise takes `displayNow` **only** for the `seasonFn()` conversion of the written `wateringIntervalDays`. `triggeredAt`/`updatedAt` keep the historical `now`.
 - **Override clearing (#679):** a WATER insert clears an active `wateringDueDateOverride` only when its `loggedAt` is at or after the previous newest watering (no prior watering counts as `Long.MIN_VALUE`, so a first watering always clears). Backfilling an old watering never discards a newer reschedule.
 
-## Season row uses the plant's strength (#700, product ADR-0081)
+## Season row uses the plant's strength (#700, product ADR-0084)
 `WateringExplanationBuilder.build()` takes the *global* amplitude and resolves it with `Plant.effectiveWateringAmplitude()`. The multiplier and band use the plant's own amplitude, and the row is hidden whenever that is 0 (Pin, or a global Off with no custom strength). A global Off with a plant on Custom Strong therefore shows the row.
 
 ## Interval-suggestion write path — one choke point (#631, #644, #718, #767, technical ADR-0027)

@@ -273,7 +273,7 @@ fun PlantDetailScreen(
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoRevertReschedule(event.previousOverrideAtMillis)
+                        viewModel.undoRevertReschedule(event.previousOverrideAtMillis, event.previousMadeAtMillis)
                     }
                 }
                 is PlantDetailViewModel.Event.FertilizingSeasonToggleRejected ->

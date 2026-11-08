@@ -4,7 +4,7 @@ import com.yapt.planttracker.domain.model.Plant
 
 /**
  * The one place that decides which seasonal strength a plant's watering interval follows (#700,
- * product ADR-0081): Pin gives `0.0` (no seasonality), a custom [override] wins over everything but
+ * product ADR-0084): Pin gives `0.0` (no seasonality), a custom [override] wins over everything but
  * Pin, and otherwise the [globalAmplitude] applies. Pin outranks an override so a row that somehow
  * carries both (a hand-edited backup) still behaves as pinned.
  */
@@ -22,12 +22,12 @@ fun resolveWateringAmplitude(
 fun Plant.effectiveWateringAmplitude(globalAmplitude: Double): Double =
     resolveWateringAmplitude(pinIntervalToBase, wateringAmplitudeOverride, globalAmplitude)
 
-/** The three choices of the per-plant strength control (#700, product ADR-0081). */
+/** The three choices of the per-plant strength control (#700, product ADR-0084). */
 enum class WateringStrengthMode { APP_DEFAULT, CUSTOM, PIN }
 
 /**
  * Strengths offered under "Custom". Off is deliberately absent: a plant with no seasonal swing is
- * exactly what Pin already is, so a second way to say it would only be a trap (product ADR-0081).
+ * exactly what Pin already is, so a second way to say it would only be a trap (product ADR-0084).
  */
 val CUSTOM_WATERING_STRENGTHS: List<SeasonalAmplitude> =
     listOf(SeasonalAmplitude.MILD, SeasonalAmplitude.STANDARD, SeasonalAmplitude.STRONG)

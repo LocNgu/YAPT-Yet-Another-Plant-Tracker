@@ -97,7 +97,7 @@ class AddEditPlantViewModel(
 
     /**
      * Per-plant opt-out from the seasonal curve (#569). One of the three choices of the strength control
-     * (#700, product ADR-0081), so turning it on clears [wateringAmplitudeOverride].
+     * (#700, product ADR-0084), so turning it on clears [wateringAmplitudeOverride].
      */
     var pinIntervalToBase: Boolean
         get() = pinIntervalToBaseState
@@ -397,6 +397,7 @@ class AddEditPlantViewModel(
                 wateringIntervalDays = literalToStore(existing, newWateringIntervalDays, intervalChanged),
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
+                wateringDueDateOverrideMadeAt = existing?.wateringDueDateOverrideMadeAt,
                 // The one-off repot plan isn't edited on this screen (Plant Detail's Repot tab owns it):
                 // carry the stored values over so an unrelated edit can't silently wipe it (#809).
                 repotPlanSeasonStartAt = existing?.repotPlanSeasonStartAt,

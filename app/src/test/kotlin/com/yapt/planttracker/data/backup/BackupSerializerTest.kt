@@ -47,6 +47,7 @@ class BackupSerializerTest {
         createdAt = 1_000_000_000_000L,
         updatedAt = 1_100_000_000_000L,
         wateringDueDateOverride = 1_700_000_000_000L,
+        wateringDueDateOverrideMadeAt = 1_699_990_000_000L,
         useLiquidFertilizer = true,
         wateringConfidence = 3,
         wateringBaseIntervalDays = 5.18,
@@ -147,6 +148,7 @@ class BackupSerializerTest {
         assertNull(plant.wateringIntervalDays)
         assertNull(plant.fertilizingIntervalDays)
         assertNull(plant.wateringDueDateOverride)
+        assertNull(plant.wateringDueDateOverrideMadeAt)
         assertNull(plant.dormantWateringIntervalDays)
     }
 

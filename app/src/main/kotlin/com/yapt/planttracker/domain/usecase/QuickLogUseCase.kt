@@ -652,8 +652,10 @@ class QuickLogUseCase(
     }
 
     /**
-     * Records a reschedule: a plain [Plant.wateringDueDateOverride] write to [newDueAtMillis],
-     * nothing else (#738, product ADR-0039 — a reschedule is model-neutral again). Never writes a
+     * Records a reschedule: a plain [Plant.wateringDueDateOverride] write to [newDueAtMillis], stamped with
+     * [Plant.wateringDueDateOverrideMadeAt] = now in the same statement (#1019, product ADR-0083: metadata
+     * for Before you leave, not a learning write), nothing else (#738, product ADR-0039 — a reschedule is
+     * model-neutral again). Never writes a
      * [CareType.CHECK] log, [Plant.wateringConfidence], [Plant.wateringIntervalDays]/
      * [Plant.wateringBaseIntervalDays], or a [WateringAdjustment] row. All learning comes from the
      * next actual watering, which already has its own reason prompt at the moment the gap is
@@ -666,7 +668,8 @@ class QuickLogUseCase(
      * entirely, rather than just narrowing its window.
      */
     suspend fun recordReschedule(plant: Plant, newDueAtMillis: Long) {
-        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, nowProvider())
+        val now = nowProvider()
+        plantRepository.updateWateringDueDateOverride(plant.id, newDueAtMillis, now, now)
     }
 
     /**
@@ -858,7 +861,11 @@ class QuickLogUseCase(
     private suspend fun clearWateringOverrideIfActive(plantId: Long): Plant? {
         val p = plantRepository.getPlantById(plantId).first() ?: return null
         if (p.wateringDueDateOverride == null) return p
-        val cleared = p.copy(wateringDueDateOverride = null, updatedAt = System.currentTimeMillis())
+        val cleared = p.copy(
+            wateringDueDateOverride = null,
+            wateringDueDateOverrideMadeAt = null,
+            updatedAt = System.currentTimeMillis()
+        )
         plantRepository.updatePlant(cleared)
         return cleared
     }

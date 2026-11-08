@@ -69,8 +69,12 @@ class PlantRepository(
         plantDao.updateWateringBaseInterval(id, wateringBaseIntervalDays, updatedAt)
 
     /** Column-specific update — see [PlantDao.updateWateringDueDateOverride]'s doc for why this exists. */
-    suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long) =
-        plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)
+    suspend fun updateWateringDueDateOverride(
+        id: Long,
+        wateringDueDateOverride: Long?,
+        wateringDueDateOverrideMadeAt: Long?,
+        updatedAt: Long
+    ) = plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, wateringDueDateOverrideMadeAt, updatedAt)
 
     /** Column-specific update — see [PlantDao.updateCoverPhotoUri]'s doc for why this exists. */
     suspend fun updateCoverPhotoUri(id: Long, coverPhotoUri: String?, updatedAt: Long) =
@@ -146,6 +150,7 @@ private fun PlantEntity.toDomain() = Plant(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
+    wateringDueDateOverrideMadeAt = wateringDueDateOverrideMadeAt,
     useLiquidFertilizer = useLiquidFertilizer,
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,
@@ -180,6 +185,7 @@ private fun Plant.toEntity() = PlantEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
+    wateringDueDateOverrideMadeAt = wateringDueDateOverrideMadeAt,
     useLiquidFertilizer = useLiquidFertilizer,
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,

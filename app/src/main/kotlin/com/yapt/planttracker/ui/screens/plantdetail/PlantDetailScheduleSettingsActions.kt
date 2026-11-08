@@ -14,7 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
 /**
- * The Water tab's strength control (#700, product ADR-0081): App default (`pinned = false`,
+ * The Water tab's strength control (#700, product ADR-0084): App default (`pinned = false`,
  * `override = null`), Custom (`override` set) or Pin. Pin and Custom are mutually exclusive here, not
  * just in the UI: pinning clears the override and a custom strength clears the pin. Only these two
  * columns change — the base interval stays and no `WateringAdjustment` row is logged, so the effective

@@ -22,7 +22,7 @@ import com.yapt.planttracker.domain.schedule.WateringStrengthMode
 import com.yapt.planttracker.ui.util.labelRes
 
 /**
- * The 3-way per-plant seasonal strength control (#700, product ADR-0081): App default, Custom (Mild /
+ * The 3-way per-plant seasonal strength control (#700, product ADR-0084): App default, Custom (Mild /
  * Standard / Strong) or Pin. Shared by Add/Edit Plant and the Plant Detail Water tab so the two
  * surfaces can never disagree. Picking Custom starts at [SeasonalAmplitude.STANDARD].
  */

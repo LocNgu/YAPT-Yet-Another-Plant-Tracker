@@ -109,7 +109,7 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
-        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any()) } returns Unit
+        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any(), any()) } returns Unit
         // #809: a REPOT log reads the plant fresh to decide whether it clears a planned repot; none of
         // these tests set up a plan, so an absent plant is the "nothing to clear" default.
         every { plantRepo.getPlantById(any()) } returns flowOf(null)
@@ -179,6 +179,21 @@ class QuickLogUseCaseTest {
         useCase.quickLog(monstera, CareType.FERTILIZE)
 
         coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+    }
+
+    @Test
+    fun `quickWaterWithReason clears the made-at stamp together with the override`() = runTest {
+        val override = System.currentTimeMillis() + 86_400_000L
+        val monstera = plant(wateringDueDateOverride = override).copy(wateringDueDateOverrideMadeAt = 1_000L)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+
+        useCase.quickWaterWithReason(monstera, null)
+
+        coVerify {
+            plantRepo.updatePlant(
+                match { it.wateringDueDateOverride == null && it.wateringDueDateOverrideMadeAt == null }
+            )
+        }
     }
 
     @Test
@@ -586,7 +601,7 @@ class QuickLogUseCaseTest {
 
         useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any(), any()) }
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
         coVerify(exactly = 0) { careLogRepo.addLog(any()) }
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
@@ -601,7 +616,7 @@ class QuickLogUseCaseTest {
 
         useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
+        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any(), any()) }
     }
 
     @Test
@@ -621,7 +636,7 @@ class QuickLogUseCaseTest {
 
         fixedClockUseCase.recordReschedule(monstera, newDueAt)
 
-        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, updatedAt) }
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, updatedAt, updatedAt) }
     }
 
     @Test
@@ -630,7 +645,7 @@ class QuickLogUseCaseTest {
 
         useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
+        coVerify { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any(), any()) }
     }
 
     // #714, superseded by #738: with no CHECK log written on reschedule, there is no same-day
@@ -643,7 +658,7 @@ class QuickLogUseCaseTest {
 
         useCase.recordReschedule(monstera, newDueAt)
 
-        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any()) }
+        coVerify(exactly = 1) { plantRepo.updateWateringDueDateOverride(monstera.id, newDueAt, any(), any()) }
     }
 
     // maybeBuildPhotoReminderRequest

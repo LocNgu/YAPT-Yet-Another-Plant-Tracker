@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 22,
-    "identityHash": "69a1eaf13ba0d75056890f1bea3e60b3",
+    "identityHash": "b956e8853c39887df862e7b2dd539c9d",
     "entities": [
       {
         "tableName": "plants",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER, `repottingIntervalDays` INTEGER, `wateringConfidence` INTEGER, `wateringBaseIntervalDays` REAL, `pinIntervalToBase` INTEGER NOT NULL, `wateringAmplitudeOverride` TEXT, `wateringResetAt` INTEGER, `wateringFreezeUntil` INTEGER, `dormancyStartMonth` INTEGER, `dormancyEndMonth` INTEGER, `fertilizingSeasons` TEXT, `dormantWateringIntervalDays` INTEGER, `repotPlanSeasonStartAt` INTEGER, `repotPlanMadeAt` INTEGER, `repottingSeasons` TEXT, `hiddenAt` INTEGER, `propagatedFromId` INTEGER, FOREIGN KEY(`propagatedFromId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `species` TEXT, `room` TEXT, `coverPhotoUri` TEXT, `notes` TEXT, `wateringIntervalDays` INTEGER, `fertilizingIntervalDays` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `wateringDueDateOverride` INTEGER, `wateringDueDateOverrideMadeAt` INTEGER, `useLiquidFertilizer` INTEGER NOT NULL, `archivedAt` INTEGER, `repottingIntervalDays` INTEGER, `wateringConfidence` INTEGER, `wateringBaseIntervalDays` REAL, `pinIntervalToBase` INTEGER NOT NULL, `wateringResetAt` INTEGER, `wateringFreezeUntil` INTEGER, `dormancyStartMonth` INTEGER, `dormancyEndMonth` INTEGER, `fertilizingSeasons` TEXT, `dormantWateringIntervalDays` INTEGER, `repotPlanSeasonStartAt` INTEGER, `repotPlanMadeAt` INTEGER, `repottingSeasons` TEXT, `hiddenAt` INTEGER, `propagatedFromId` INTEGER, FOREIGN KEY(`propagatedFromId`) REFERENCES `plants`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "id",
@@ -68,6 +68,11 @@
             "affinity": "INTEGER"
           },
           {
+            "fieldPath": "wateringDueDateOverrideMadeAt",
+            "columnName": "wateringDueDateOverrideMadeAt",
+            "affinity": "INTEGER"
+          },
+          {
             "fieldPath": "useLiquidFertilizer",
             "columnName": "useLiquidFertilizer",
             "affinity": "INTEGER",
@@ -98,11 +103,6 @@
             "columnName": "pinIntervalToBase",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "wateringAmplitudeOverride",
-            "columnName": "wateringAmplitudeOverride",
-            "affinity": "TEXT"
           },
           {
             "fieldPath": "wateringResetAt",
@@ -740,7 +740,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '69a1eaf13ba0d75056890f1bea3e60b3')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b956e8853c39887df862e7b2dd539c9d')"
     ]
   }
 }

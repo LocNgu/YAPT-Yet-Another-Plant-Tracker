@@ -1,4 +1,4 @@
-# Product ADR-0081: A plant can follow its own seasonal watering strength
+# Product ADR-0084: A plant can follow its own seasonal watering strength
 
 **Status**: accepted
 
@@ -27,7 +27,7 @@ Considered:
 ## Decision
 
 - **Storage:** a nullable `wateringAmplitudeOverride` (a `SeasonalAmplitude` name, `TEXT` in Room, `String?` in
-  backup). `null` means "App default", which is every existing plant and every pre-v25 backup. An unknown stored
+  backup). `null` means "App default", which is every existing plant and every pre-v26 backup. An unknown stored
   value reads as `null`.
 - **One 3-way control: App default / Custom / Pin.** Custom offers Mild, Standard and Strong; Pin is the existing
   `pinIntervalToBase` column, so pinned plants and old backups are untouched. Pin and Custom are mutually exclusive in
@@ -56,7 +56,7 @@ Considered:
 
 - Product ADR-0026's "single global setting" clause no longer holds; its Status line points here. The curve, the
   computed-not-learned principle and `pinIntervalToBase` stand.
-- One Room migration (`MIGRATION_21_22`, a pure nullable `ALTER TABLE`) and backup schema 25.
+- One Room migration (`MIGRATION_22_23`, a pure nullable `ALTER TABLE`) and backup schema 26.
 - Any new code that reads the global amplitude for a plant's interval must resolve it per plant first; a raw global
   read for a plant is now a bug.
 - #995 can build detect-and-prompt on this storage without a second schema change.

@@ -22,8 +22,28 @@ class PlantFamilyBackupTest {
     )
 
     @Test
-    fun `schema version is 25`() {
-        assertEquals(25, CURRENT_SCHEMA_VERSION)
+    fun `schema version is 26`() {
+        assertEquals(26, CURRENT_SCHEMA_VERSION)
+    }
+
+    @Test
+    fun `wateringDueDateOverrideMadeAt round-trips and an older backup restores it as null`() {
+        val withStamp = root(null).let {
+            it.copy(plants = listOf(it.plants[0].copy(wateringDueDateOverrideMadeAt = 1_699_990_000_000L)))
+        }
+        val json = backupJson.encodeToString(BackupRoot.serializer(), withStamp)
+        assertEquals(
+            1_699_990_000_000L,
+            backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0].wateringDueDateOverrideMadeAt
+        )
+
+        val old = """
+            {"schemaVersion":24,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1,"updatedAt":1,"wateringDueDateOverride":5}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+        assertNull(backupJson.decodeFromString(BackupRoot.serializer(), old).plants[0].wateringDueDateOverrideMadeAt)
     }
 
     @Test
@@ -82,7 +102,7 @@ class PlantFamilyBackupTest {
     }
 
     @Test
-    fun `wateringAmplitudeOverride round-trips through the v25 json`() {
+    fun `wateringAmplitudeOverride round-trips through the v26 json`() {
         val json = backupJson.encodeToString(
             BackupRoot.serializer(),
             root(null).copy(
@@ -104,9 +124,9 @@ class PlantFamilyBackupTest {
     }
 
     @Test
-    fun `a v24 backup imports with the app default strength`() {
+    fun `a v25 backup imports with the app default strength`() {
         val json = """
-            {"schemaVersion":24,"exportedAt":1700000000000,"appVersion":"1.0",
+            {"schemaVersion":25,"exportedAt":1700000000000,"appVersion":"1.0",
              "plants":[{"id":1,"name":"Aloe","createdAt":1,"updatedAt":1,"pinIntervalToBase":true}],
              "careLogs":[],
              "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}

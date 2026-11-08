@@ -1050,6 +1050,35 @@ class BackupManagerTest {
     }
 
     @Test
+    fun overrideMadeAt_roundTrip_restoresTheStamp() = runBlocking {
+        db.plantDao().insertPlant(
+            PlantEntity(
+                id = 1L,
+                name = "Rescheduled",
+                species = null,
+                room = null,
+                coverPhotoUri = null,
+                notes = null,
+                wateringIntervalDays = 7,
+                fertilizingIntervalDays = null,
+                createdAt = 1000L,
+                updatedAt = 1000L,
+                wateringDueDateOverride = 9000L,
+                wateringDueDateOverrideMadeAt = 8000L
+            )
+        )
+
+        val exportFile = tmpFolder.newFile("override_made_at_backup.yapt")
+        val exportUri = Uri.fromFile(exportFile)
+        assertTrue(backupManager.exportBackup(exportUri, includePhotos = false) is BackupResult.ExportSuccess)
+        assertTrue(backupManager.importBackup(exportUri) is BackupResult.ImportSuccess)
+
+        val restored = db.plantDao().getAllPlants().first().single()
+        assertEquals(9000L, restored.wateringDueDateOverride)
+        assertEquals(8000L, restored.wateringDueDateOverrideMadeAt)
+    }
+
+    @Test
     fun plantFamily_roundTrip_restoresLinksAndPropagateLogs() = runBlocking {
         fun plant(id: Long, name: String) = PlantEntity(
             id = id,
