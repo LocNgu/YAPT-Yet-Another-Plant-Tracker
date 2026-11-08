@@ -179,6 +179,37 @@ class PlantDetailPlantEditLockTest {
                 updatedAt = at
             )
         }
+        // #872: the shared suggestion apply/dismiss write only their own columns.
+        coEvery { plantRepo.updateWateringModel(any(), any(), any(), any(), any()) } coAnswers {
+            val interval = secondArg<Int?>()
+            val base = thirdArg<Double?>()
+            val confidence = arg<Int?>(3)
+            val at = arg<Long>(4)
+            delay(WRITE_MS)
+            stored.value = stored.value?.copy(
+                wateringIntervalDays = interval,
+                wateringBaseIntervalDays = base,
+                wateringConfidence = confidence,
+                updatedAt = at
+            )
+        }
+        coEvery { plantRepo.updateWateringConfidence(any(), any(), any()) } coAnswers {
+            val confidence = secondArg<Int?>()
+            val at = thirdArg<Long>()
+            delay(WRITE_MS)
+            stored.value = stored.value?.copy(wateringConfidence = confidence, updatedAt = at)
+        }
+        coEvery { plantRepo.updateWateringConfidenceAndBase(any(), any(), any(), any()) } coAnswers {
+            val confidence = secondArg<Int?>()
+            val base = thirdArg<Double?>()
+            val at = arg<Long>(3)
+            delay(WRITE_MS)
+            stored.value = stored.value?.copy(
+                wateringConfidence = confidence,
+                wateringBaseIntervalDays = base,
+                updatedAt = at
+            )
+        }
         coEvery { plantRepo.updateCoverPhotoUri(any(), any(), any()) } coAnswers {
             val uri = secondArg<String?>()
             val at = thirdArg<Long>()

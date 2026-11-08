@@ -87,6 +87,7 @@ class AdaptiveWateringObservationTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
     }
 
     @After
@@ -164,7 +165,7 @@ class AdaptiveWateringObservationTest {
         )
 
         assertNull(result)
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         coVerify {
             wateringAdjustmentRepo.addAdjustment(
                 match {
@@ -192,7 +193,7 @@ class AdaptiveWateringObservationTest {
             displayNow = marchFirst
         )
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.updatedAt == marchFirst }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 2 && it["updatedAt"] == marchFirst }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
         }
@@ -248,7 +249,7 @@ class AdaptiveWateringObservationTest {
         )
 
         assertEquals(1, recorded.count { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
-        coVerify(exactly = 1) { plantRepo.updatePlant(match { it.wateringConfidence == 2 }) }
+        assertPlantWrite(plantRepo, exactly = 1) { it["wateringConfidence"] == 2 }
     }
 
     // ---- Bootstrap precedence ----
@@ -276,7 +277,7 @@ class AdaptiveWateringObservationTest {
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.HISTORY_BOOTSTRAP })
         }
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 1 }
     }
 
     @Test
@@ -344,7 +345,7 @@ class AdaptiveWateringObservationTest {
                     }
                 )
             }
-            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 4 && it.updatedAt == loggedAt }) }
+            assertPlantWrite(plantRepo) { it["wateringConfidence"] == 4 && it["updatedAt"] == loggedAt }
         }
 
     // ---- Observation time versus display time (#716) ----
@@ -366,10 +367,8 @@ class AdaptiveWateringObservationTest {
         )
 
         assertNull(result)
-        coVerify {
-            plantRepo.updatePlant(
-                match { it.wateringBaseIntervalDays == 20.45 && it.wateringConfidence == 5 && it.updatedAt == loggedAt }
-            )
+        assertPlantWrite(plantRepo) {
+            it["wateringBaseIntervalDays"] == 20.45 && it["wateringConfidence"] == 5 && it["updatedAt"] == loggedAt
         }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.triggeredAt == loggedAt })
@@ -402,7 +401,7 @@ class AdaptiveWateringObservationTest {
                 ),
                 result
             )
-            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+            verifyNoPlantRowWrite(plantRepo)
         }
 
     // ---- Predecessor policy ----
@@ -422,6 +421,6 @@ class AdaptiveWateringObservationTest {
 
         assertNull(result)
         coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
     }
 }

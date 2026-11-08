@@ -109,7 +109,7 @@ class QuickLogUseCaseTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getLastLogOfType(any(), any()) } returns null
         coEvery { plantRepo.updatePlant(any()) } returns Unit
-        coEvery { plantRepo.updateWateringDueDateOverride(any(), any(), any(), any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         // #809: a REPOT log reads the plant fresh to decide whether it clears a planned repot; none of
         // these tests set up a plan, so an absent plant is the "nothing to clear" default.
         every { plantRepo.getPlantById(any()) } returns flowOf(null)
@@ -178,7 +178,7 @@ class QuickLogUseCaseTest {
 
         useCase.quickLog(monstera, CareType.FERTILIZE)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+        assertPlantWrite(plantRepo) { it["wateringDueDateOverride"] == null }
     }
 
     @Test
@@ -189,11 +189,12 @@ class QuickLogUseCaseTest {
 
         useCase.quickWaterWithReason(monstera, null)
 
-        coVerify {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == null && it.wateringDueDateOverrideMadeAt == null }
-            )
+        // #872: one column-specific statement clears both, so neither can survive without the other.
+        assertPlantWrite(plantRepo, exactly = 1) {
+            it.containsKey("wateringDueDateOverride") && it["wateringDueDateOverride"] == null &&
+                it.containsKey("wateringDueDateOverrideMadeAt") && it["wateringDueDateOverrideMadeAt"] == null
         }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
     }
 
     @Test
@@ -203,7 +204,7 @@ class QuickLogUseCaseTest {
 
         useCase.quickLog(monstera, CareType.FERTILIZE)
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
     }
 
     @Test
@@ -333,7 +334,7 @@ class QuickLogUseCaseTest {
 
         useCase.quickWaterWithReason(monstera, null)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+        assertPlantWrite(plantRepo) { it["wateringDueDateOverride"] == null }
     }
 
     @Test
@@ -343,7 +344,7 @@ class QuickLogUseCaseTest {
 
         useCase.quickWaterWithReason(monstera, null)
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
     }
 
     // #614 regression coverage (does not revert an active override when adaptive watering changes
@@ -387,14 +388,10 @@ class QuickLogUseCaseTest {
 
             // Bootstrap already silently committed the interval, so no suggestion dialog fires.
             assertNull(outcome.suggestion)
-            coVerify(exactly = 1) {
-                plantRepo.updatePlant(
-                    match {
-                        it.wateringConfidence == 1 &&
-                            it.wateringIntervalDays == 7 &&
-                            it.wateringResetAt == null
-                    }
-                )
+            assertPlantWrite(plantRepo, exactly = 1) {
+                it["wateringConfidence"] == 1 &&
+                    it["wateringIntervalDays"] == 7 &&
+                    it.containsKey("wateringResetAt") && it["wateringResetAt"] == null
             }
             coVerify {
                 wateringAdjustmentRepo.addAdjustment(
@@ -520,7 +517,7 @@ class QuickLogUseCaseTest {
 
         useCase.quickLiquidFertilizeWithReason(monstera, null)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+        assertPlantWrite(plantRepo) { it["wateringDueDateOverride"] == null }
     }
 
     @Test

@@ -430,6 +430,10 @@ internal class AdaptiveWateringObservation(
      * left for the user's suggestion Apply path (#717/#718, technical ADR-0027). Use [loggedAt] for
      * [Plant.updatedAt] too: the form used to stamp this one update with entry-time wall clock while
      * all other adaptive observation writes used the logged date (#780 follow-up to #776, P1).
+     *
+     * Column-specific (#872): [plant] may be a quick-log caller's stale snapshot, so the write names only
+     * the columns this observation owns — confidence always, the base only when it actually moves — and
+     * can't revert a concurrent write to any other column (or to the base, when it leaves it alone).
      */
     private suspend fun persistAdaptiveState(
         plant: Plant,
@@ -440,14 +444,10 @@ internal class AdaptiveWateringObservation(
         val seasonAdjustable = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0) != 0.0
         val newBase = result.baseIntervalDays.takeIf { persistBase && seasonAdjustable }
             ?: plant.wateringBaseIntervalDays
-        if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
-            plantRepository.updatePlant(
-                plant.copy(
-                    wateringConfidence = result.confidence,
-                    wateringBaseIntervalDays = newBase,
-                    updatedAt = loggedAt
-                )
-            )
+        if (newBase != plant.wateringBaseIntervalDays) {
+            plantRepository.updateWateringConfidenceAndBase(plant.id, result.confidence, newBase, loggedAt)
+        } else if (result.confidence != plant.wateringConfidence) {
+            plantRepository.updateWateringConfidence(plant.id, result.confidence, loggedAt)
         }
     }
 
