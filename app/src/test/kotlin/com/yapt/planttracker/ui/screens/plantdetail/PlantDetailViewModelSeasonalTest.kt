@@ -447,4 +447,66 @@ class PlantDetailViewModelSeasonalTest {
 
         coVerify { plantRepo.updatePlant(match { it.pinIntervalToBase }) }
     }
+
+    @Test
+    fun `setWateringStrength with a custom strength clears the pin and keeps base and literal`() = runTest {
+        val monstera = plant().copy(
+            pinIntervalToBase = true,
+            wateringIntervalDays = 9,
+            wateringBaseIntervalDays = 8.0
+        )
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setWateringStrength(false, SeasonalAmplitude.STRONG)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify {
+            plantRepo.updatePlant(
+                match {
+                    !it.pinIntervalToBase &&
+                        it.wateringAmplitudeOverride == SeasonalAmplitude.STRONG &&
+                        it.wateringBaseIntervalDays == 8.0 &&
+                        it.wateringIntervalDays == 9
+                }
+            )
+        }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+    }
+
+    @Test
+    fun `setPinIntervalToBase clears a custom strength`() = runTest {
+        val monstera = plant().copy(wateringAmplitudeOverride = SeasonalAmplitude.MILD)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setPinIntervalToBase(true)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { it.pinIntervalToBase && it.wateringAmplitudeOverride == null }) }
+    }
+
+    @Test
+    fun `back to app default clears both the pin and the override`() = runTest {
+        val monstera = plant().copy(wateringAmplitudeOverride = SeasonalAmplitude.MILD)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { plantRepo.updatePlant(any()) } just runs
+        val vm = makeVm()
+
+        vm.plant.test {
+            assertEquals(monstera, awaitItem())
+            vm.setWateringStrength(false, null)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { plantRepo.updatePlant(match { !it.pinIntervalToBase && it.wateringAmplitudeOverride == null }) }
+    }
 }

@@ -37,6 +37,8 @@ data class PlantEntity(
     val wateringConfidence: Int? = null,
     val wateringBaseIntervalDays: Double? = null,
     val pinIntervalToBase: Boolean = false,
+    /** [com.yapt.planttracker.domain.schedule.SeasonalAmplitude] name; `null` = follow the global strength (#700). */
+    val wateringAmplitudeOverride: String? = null,
     val wateringResetAt: Long? = null,
     val wateringFreezeUntil: Long? = null,
     val dormancyStartMonth: Int? = null,

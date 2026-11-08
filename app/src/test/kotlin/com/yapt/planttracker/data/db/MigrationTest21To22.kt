@@ -19,11 +19,6 @@ class MigrationTest21To22 {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), PlantDatabase::class.java)
 
     @Test
-    fun `database version is 22`() {
-        assertEquals(22, PlantDatabase.DB_VERSION)
-    }
-
-    @Test
     fun `migration adds a null made-at column and keeps existing rows and overrides`() {
         helper.createDatabase(TEST_DB, 21).use { db ->
             insertPlant(db, 1, override = "5000")

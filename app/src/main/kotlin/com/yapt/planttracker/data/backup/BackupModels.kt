@@ -21,6 +21,7 @@ data class BackupPlant(
     val wateringConfidence: Int? = null,
     val wateringBaseIntervalDays: Double? = null,
     val pinIntervalToBase: Boolean = false,
+    val wateringAmplitudeOverride: String? = null,
     val wateringResetAt: Long? = null,
     val wateringFreezeUntil: Long? = null,
     val dormancyStartMonth: Int? = null,

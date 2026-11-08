@@ -1,6 +1,7 @@
 package com.yapt.planttracker.domain.model
 
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 
 data class Plant(
     val id: Long = 0,
@@ -33,6 +34,12 @@ data class Plant(
     val wateringBaseIntervalDays: Double? = null,
     /** Opts this plant out of the seasonal curve entirely — due dates use [wateringIntervalDays] as-is (#569). */
     val pinIntervalToBase: Boolean = false,
+    /**
+     * Per-plant seasonal strength (#700, product ADR-0084): `null` follows the global setting. Mutually
+     * exclusive with [pinIntervalToBase] — read the effective strength only through
+     * [com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude].
+     */
+    val wateringAmplitudeOverride: SeasonalAmplitude? = null,
     /**
      * Anchor timestamp of the most recent lifecycle reset (a REPOT log or a qualifying [room] change,
      * #571) — written once as a side effect at reset time, never derived live from querying REPOT log

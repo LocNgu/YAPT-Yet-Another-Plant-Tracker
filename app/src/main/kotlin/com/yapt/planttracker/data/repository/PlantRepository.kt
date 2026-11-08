@@ -3,6 +3,7 @@ package com.yapt.planttracker.data.repository
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -155,6 +156,9 @@ private fun PlantEntity.toDomain() = Plant(
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
+    wateringAmplitudeOverride = wateringAmplitudeOverride?.let {
+        runCatching { SeasonalAmplitude.valueOf(it) }.getOrDefault(null)
+    },
     wateringResetAt = wateringResetAt,
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
@@ -187,6 +191,7 @@ private fun Plant.toEntity() = PlantEntity(
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
+    wateringAmplitudeOverride = wateringAmplitudeOverride?.name,
     wateringResetAt = wateringResetAt,
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,

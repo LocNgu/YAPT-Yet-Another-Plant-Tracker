@@ -67,6 +67,7 @@ gallery-owned source image.
 | v23 | `BackupPlant.hiddenAt: Long?` (hidden from operational surfaces; export already includes every plant) | `null` = visible (#915, product ADR-0066) |
 | v24 | `BackupPlant.propagatedFromId: Long?` (plant-family parent link); PROPAGATE logs round-trip as plain `careType` strings | `null` = no recorded parent (#960, product ADR-0073) |
 | v25 | `BackupPlant.wateringDueDateOverrideMadeAt: Long?` (when the active reschedule was made) | `null` = made on an earlier day (#1019, product ADR-0083) |
+| v26 | `BackupPlant.wateringAmplitudeOverride: String?` (per-plant seasonal strength, a `SeasonalAmplitude` name) | `null` = follow the global setting (#700, product ADR-0084) |
 
 **Removing a field needs no version bump** (#442): `BackupCareLog.amount` was dropped, the version stays at v24, and `BackupCareLogAmountRemovalTest` pins that an older backup carrying `amount` still deserializes (`ignoreUnknownKeys = true`). Older apps reading a newer backup see the field default to `null`. Only additions get a row above.
 
@@ -77,7 +78,7 @@ excluded from `BackupSettings`; import clears it together with pending post-wate
 
 ## Tests
 - `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
-- `PlantFamilyBackupTest` (plain JVM) pins `CURRENT_SCHEMA_VERSION == 25` and covers v24 (link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
+- `PlantFamilyBackupTest` (plain JVM) pins `CURRENT_SCHEMA_VERSION == 26` and covers v26 (the strength override round trip, a v25 backup -> `null`), v25 (`wateringDueDateOverrideMadeAt` round trip, a v24 backup -> `null`), v24 (link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
 - `AwayPeriodBackupTest` (plain JVM) covers the away-trip restore rules: bad dates skipped, visits re-filtered into their trip, visit plants of missing plants dropped.
 - Instrumented `BackupManager` tests cover:
   - round-trips with and without photos, an empty DB, and settings

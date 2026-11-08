@@ -370,7 +370,14 @@
         <item quantity="other">%d active issues</item>
     </plurals>
     <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
-    <string name="pin_interval_label">Pin interval</string>
+    <!-- Per-plant seasonal strength (#700): App default / Custom / Pin -->
+    <string name="watering_strength_label">Seasonal strength</string>
+    <string name="watering_strength_mode_default">App default</string>
+    <string name="watering_strength_mode_custom">Custom</string>
+    <string name="watering_strength_mode_pin">Pin</string>
+    <string name="watering_strength_subtitle_default">Follows the seasonal strength set in Settings</string>
+    <string name="watering_strength_subtitle_custom">This plant stretches and compresses with its own strength</string>
+    <string name="watering_strength_custom_options_label">Custom strength</string>
     <string name="pin_interval_subtitle">Keep this plant\'s watering interval fixed, ignoring the seasonal curve</string>
     <string name="dormancy_window_label">Dormancy window</string>
     <string name="dormancy_window_subtitle">Use a dormant watering schedule during these months</string>

@@ -21,7 +21,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   "N photos skipped" or "Folder unavailable, choose again"; a notification (own channel, ID `-3`) appears on the second
   consecutive failure or at once when the folder permission is lost. Settings are device-local and not part of `.yapt`
   files, so there is no schema bump.
-  
+- **A plant can follow its own seasonal watering strength** (#700, product ADR-0084) — Add/Edit Plant and the Water
+  tab have one **Seasonal strength** control: **App default**, **Custom** (Mild, Standard or Strong) or **Pin**,
+  which replaces the old "Pin interval" switch (a pinned plant stays pinned). Pin and Custom exclude each other.
+  A plant on Custom keeps its strength even if the global setting is Off, and the Water tab's curve preview, the
+  due date, the "Why this date?" season row and the learner's de-seasonalised gaps all use the plant's own strength
+  through one resolver. Changing the strength keeps the base interval and logs no adjustment; only today's effective
+  interval moves. Custom has no Off, since that is exactly what Pin does. Room migration 22 to 23 (nullable column);
+  backup schema 26.
+
 ### Fixed
 - **Before you leave leaves out plants you rescheduled today** (#1019, product ADR-0083) — a plant whose active
   reschedule (including a notification Skip) was made today is in neither **Water today** nor **Check the soil** and

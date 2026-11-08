@@ -31,6 +31,7 @@ class BackupModelsTest {
         wateringConfidence = wateringConfidence,
         wateringBaseIntervalDays = wateringBaseIntervalDays,
         pinIntervalToBase = pinIntervalToBase,
+        wateringAmplitudeOverride = wateringAmplitudeOverride,
         wateringResetAt = wateringResetAt,
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
@@ -60,6 +61,7 @@ class BackupModelsTest {
         wateringConfidence = wateringConfidence,
         wateringBaseIntervalDays = wateringBaseIntervalDays,
         pinIntervalToBase = pinIntervalToBase,
+        wateringAmplitudeOverride = wateringAmplitudeOverride,
         wateringResetAt = wateringResetAt,
         wateringFreezeUntil = wateringFreezeUntil,
         dormancyStartMonth = dormancyStartMonth,
@@ -154,6 +156,7 @@ class BackupModelsTest {
         assertEquals(fullPlant.wateringConfidence, bp.wateringConfidence)
         assertEquals(fullPlant.wateringBaseIntervalDays, bp.wateringBaseIntervalDays)
         assertEquals(fullPlant.pinIntervalToBase, bp.pinIntervalToBase)
+        assertEquals(fullPlant.wateringAmplitudeOverride, bp.wateringAmplitudeOverride)
         assertEquals(fullPlant.wateringResetAt, bp.wateringResetAt)
         assertEquals(fullPlant.wateringFreezeUntil, bp.wateringFreezeUntil)
         assertEquals(fullPlant.dormancyStartMonth, bp.dormancyStartMonth)
@@ -171,6 +174,15 @@ class BackupModelsTest {
     @Test
     fun `PlantEntity round-trip preserves all fields`() {
         assertEquals(fullPlant, fullPlant.toBackupPlant().toPlantEntity())
+    }
+
+    @Test
+    fun `wateringAmplitudeOverride round-trips and defaults to null`() {
+        val custom = fullPlant.copy(pinIntervalToBase = false, wateringAmplitudeOverride = "STRONG")
+        assertEquals("STRONG", custom.toBackupPlant().wateringAmplitudeOverride)
+        assertEquals(custom, custom.toBackupPlant().toPlantEntity())
+        assertNull(fullPlant.toBackupPlant().wateringAmplitudeOverride)
+        assertNull(BackupPlant(id = 1L, name = "Old", createdAt = 1L, updatedAt = 1L).wateringAmplitudeOverride)
     }
 
     @Test

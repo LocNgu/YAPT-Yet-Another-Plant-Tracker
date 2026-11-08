@@ -14,7 +14,10 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
-        added = listOf("Back up automatically to a folder you choose, daily or weekly, from Settings"),
+        added = listOf(
+            "Back up automatically to a folder you choose, daily or weekly, from Settings",
+            "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"
+        ),
         fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
     )
 

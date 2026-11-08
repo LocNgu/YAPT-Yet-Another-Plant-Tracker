@@ -3661,9 +3661,9 @@ class PlantDetailScreenTest {
             .assertDoesNotExist()
     }
 
-    /** Toggling "Pin interval" (#578) surfaces the chart's pinned-state note (#579). */
+    /** Choosing "Pin" (#578, #700) surfaces the chart's pinned-state note (#579). */
     @Test
-    fun seasonalCurveChart_pinnedNote_appearsWhenPinToggled() {
+    fun seasonalCurveChart_pinnedNote_appearsWhenPinChosen() {
         val plant = Plant(id = 71L, name = "Fern", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 10)
         val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
 
@@ -3678,17 +3678,18 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("pin_interval_switch"))
-        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOff()
+            .performScrollToNode(hasTestTag("watering_strength_mode_PIN"))
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("watering_strength_mode_APP_DEFAULT").assertIsSelected()
         composeTestRule.onNodeWithText(seasonalCurvePinnedNoteText()).assertDoesNotExist()
 
-        composeTestRule.onNodeWithTag("pin_interval_switch").performClick()
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             composeTestRule.onAllNodesWithText(seasonalCurvePinnedNoteText())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOn()
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertIsSelected()
     }
 
     /**
