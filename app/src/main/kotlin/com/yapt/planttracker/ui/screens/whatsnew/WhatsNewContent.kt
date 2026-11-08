@@ -14,6 +14,9 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        changed = listOf(
+            "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
+        ),
         added = listOf(
             "Back up automatically to a folder you choose, daily or weekly, from Settings",
             "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"

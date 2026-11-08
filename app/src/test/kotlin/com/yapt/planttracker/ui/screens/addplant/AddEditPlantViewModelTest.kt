@@ -691,6 +691,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk()
         coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
+        coEvery { wateringAdjustmentRepo.recordManualEdit(any()) } returns 1L
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(emptyPreferences())
         }
@@ -702,7 +703,7 @@ class AddEditPlantViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            wateringAdjustmentRepo.addAdjustment(
+            wateringAdjustmentRepo.recordManualEdit(
                 match { it.trigger == WateringAdjustmentTrigger.MANUAL_EDIT && it.beforeIntervalDays == 6 }
             )
         }

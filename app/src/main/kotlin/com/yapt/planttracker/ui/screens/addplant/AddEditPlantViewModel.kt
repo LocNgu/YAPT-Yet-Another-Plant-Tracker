@@ -462,7 +462,7 @@ class AddEditPlantViewModel(
         }
         // #928: gated on a base-space change, not on the typed literal differing from the stored one.
         if (loggedAfter == loggedBefore) return
-        wateringAdjustmentRepository?.addAdjustment(
+        wateringAdjustmentRepository?.recordManualEdit(
             WateringAdjustment(
                 plantId = plantId!!,
                 triggeredAt = now,
