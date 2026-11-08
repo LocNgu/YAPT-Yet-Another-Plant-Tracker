@@ -84,11 +84,13 @@ class PlantDetailSuggestionGateAgreementTest {
         every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to amplitude))
     }
 
+    private fun predecessor(case: Case, now: Long) =
+        CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now.plusCalendarDays(-case.gapDays.toLong()))
+
     private suspend fun observe(case: Case, now: Long): AdaptiveWateringObservation.Suggestion? {
         val plantRepo: PlantRepository = mockk(relaxed = true)
         val careLogRepo: CareLogRepository = mockk {
-            coEvery { getLastWateringBefore(1L, now) } returns
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now.plusCalendarDays(-case.gapDays.toLong()))
+            coEvery { getLastWateringBefore(1L, now) } returns predecessor(case, now)
             coEvery { getRecentWaterings(any(), limit = any()) } returns emptyList()
             coEvery { getWaterLogTimestampsAscending(any()) } returns emptyList()
         }
@@ -179,20 +181,21 @@ class PlantDetailSuggestionGateAgreementTest {
             coEvery { updatePlant(capture(captured)) } returns Unit
         }
         val careLogRepo: CareLogRepository = mockk {
-            coEvery { getLastWateringBefore(1L, now) } returns
-                CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = now.plusCalendarDays(-case.gapDays.toLong()))
+            coEvery { getLastWateringBefore(1L, now) } returns predecessor(case, now)
             coEvery { getRecentWaterings(any(), limit = any()) } returns emptyList()
             coEvery { getWaterLogTimestampsAscending(any()) } returns emptyList()
         }
         AdaptiveWateringObservation(plantRepo, careLogRepo, dataStore(case.amplitude), mockk(relaxed = true))
             .observe(case.plant, case.feedback, loggedAt = now, displayNow = now)
-        val base = captured.lastOrNull()?.wateringBaseIntervalDays ?: return null
-        if (base == case.plant.wateringBaseIntervalDays) return null
-        return AdaptiveWateringObservation.Suggestion(
-            intervalDays = base.roundToInt(),
-            effectiveIntervalDays = 0,
-            baseIntervalDays = base,
-            currentEffectiveIntervalDays = 0
-        )
+        val base = captured.lastOrNull()?.wateringBaseIntervalDays
+            ?.takeIf { it != case.plant.wateringBaseIntervalDays }
+        return base?.let {
+            AdaptiveWateringObservation.Suggestion(
+                intervalDays = it.roundToInt(),
+                effectiveIntervalDays = 0,
+                baseIntervalDays = it,
+                currentEffectiveIntervalDays = 0
+            )
+        }
     }
 }
