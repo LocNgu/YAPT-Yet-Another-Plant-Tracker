@@ -111,8 +111,8 @@ internal class AdaptiveWateringObservation(
      *
      * **Two separate clocks, on purpose (#716 review round 1).** [loggedAt] is the just-inserted
      * log's observation time (possibly backdated) and drives the gap, model input, freeze check,
-     * [WateringAdjustment.triggeredAt], and [Plant.updatedAt]. [displayNow] drives only the two
-     * [effectiveIntervalForDisplay] calls: the suggested and current values are what the user reads
+     * [WateringAdjustment.triggeredAt], and [Plant.updatedAt]. [displayNow] drives only the
+     * [WateringSuggestionGate.evaluate] call: the suggested and current values are what the user reads
      * **today**, regardless of the date the log claims to have happened. Evaluating them at a
      * backdated [loggedAt] could show a spurious dialog for a number that would not change today or,
      * worse, silently apply a real display change without asking. The caller defaults this
@@ -140,21 +140,22 @@ internal class AdaptiveWateringObservation(
         if (actual <= 0 && !exclusion.any) return null
         val observationFeedback = feedback.takeUnless { exclusion.any }
         val result = adapt(plant, observationFeedback, actual, current, loggedAt, exclusion) ?: return null
-        val effectiveSuggested = effectiveIntervalForDisplay(
-            plant,
-            result.baseIntervalDays,
-            result.intervalDays,
-            displayNow
+        // The one gate (#968): PlantDetailViewModel.pendingWateringSuggestion calls the same function.
+        val gate = WateringSuggestionGate.evaluate(
+            plant = plant,
+            suggestedIntervalDays = result.intervalDays,
+            suggestedBaseIntervalDays = result.baseIntervalDays,
+            nowDate = displayNow.toLocalDate(),
+            seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
         )
-        val currentEffective = effectiveIntervalForDisplay(
-            plant,
-            currentAdaptiveBaseIntervalDays(plant, current),
-            current,
-            displayNow
-        )
-        persistAdaptiveState(plant, result, effectiveSuggested == currentEffective, loggedAt)
-        return if (effectiveSuggested != currentEffective) {
-            Suggestion(result.intervalDays, effectiveSuggested, result.baseIntervalDays, currentEffective)
+        persistAdaptiveState(plant, result, !gate.differs, loggedAt)
+        return if (gate.differs) {
+            Suggestion(
+                result.intervalDays,
+                gate.suggestedEffectiveIntervalDays,
+                result.baseIntervalDays,
+                gate.currentEffectiveIntervalDays ?: current
+            )
         } else {
             null
         }
@@ -450,30 +451,6 @@ internal class AdaptiveWateringObservation(
             )
         }
     }
-
-    /**
-     * Converts a base-space [suggestion] to effective display space through the same
-     * [CareSchedule.effectiveWateringIntervalDaysForDisplay] wrapper used by "Why this date?" and
-     * Plant Detail (#620), so the suggestion gate cannot drift from the displayed due-date math.
-     * Treats [suggestion] as if it were the plant's new base; this is a display-only, one-way
-     * conversion and does not round or rewrite the precise base passed to the Apply path.
-     *
-     * **[displayNow], not the observation's `loggedAt` (#716 review round 1).** Both sides of the
-     * comparison are values shown *today*. The #654-era conversion used the logged day because the
-     * other side was the stale `wateringIntervalDays` literal. Once #716 made both sides live,
-     * converting on a backdated day could silently reintroduce the same mismatch. Observation
-     * gap math and adjustment timestamps remain anchored to the logged day.
-     */
-    private suspend fun effectiveIntervalForDisplay(
-        plant: Plant,
-        suggestionBase: Double,
-        suggestion: Int,
-        displayNow: Long
-    ): Int = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-        plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
-        nowDate = displayNow.toLocalDate(),
-        seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
-    ) ?: suggestion
 
     /**
      * The watering-model input for `currentBaseIntervalDays` (#572, amending technical ADR-0021):

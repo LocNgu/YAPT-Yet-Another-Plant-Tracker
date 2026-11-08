@@ -29,6 +29,12 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   `wateringDueDateOverrideMadeAt` column (DB 22, `MIGRATION_21_22`) and backup schema v25. Existing reschedules have no
   timestamp and are listed by their due date as before.
 
+### Changed
+- **One watering-suggestion gate** (#968, internal, no behaviour change) — the "does the suggested interval differ
+  from today's effective interval?" check now lives only in `WateringSuggestionGate`. `AdaptiveWateringObservation`
+  and Plant Detail's suggestion dialog both call it, and Plant Detail's silent apply commits the effective value the
+  observation already computed instead of re-deriving it. A new test fails if the two sides ever disagree.
+
 ## [0.42.1] - 2026-11-07
 
 ### Fixed

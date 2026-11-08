@@ -6,6 +6,7 @@ paths:
   - "app/src/test/**/SeasonalWatering*.kt"
   - "app/src/test/**/SeasonalGraduationFixup*.kt"
   - "app/src/test/**/CareScheduleSeasonal*.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/usecase/WateringSuggestionGate*.kt"
 ---
 
 # Seasonal watering rules (#569, product ADR-0026)
@@ -31,7 +32,7 @@ Computed, not learned (rationale in product ADR-0026); ships unconditionally (#6
 - So never read the stored `wateringIntervalDays` as "today's effective interval"; use `CareSchedule.effectiveWateringIntervalDaysForDisplay()`. When comparing "the interval", say which of the two numbers you mean.
 - **The model's input:** `AdaptiveWateringObservation.currentAdaptiveBaseIntervalDays(plant, configured)` uses the base when amplitude is on and the plant is unpinned, else the configured literal. It also de-seasonalizes the *observed gap* before `computeAdaptiveInterval()`, so a seasonal swing isn't learned as a thirst change.
 - **The suggestion-dialog gate compares live with live (#716):** `effectiveWateringIntervalDaysForDisplay()` of the base before vs. after the observation, both evaluated **today** (display clock, `rules/watering-transparency.md`). Comparing against the stored literal fired dialogs on pure calendar drift. A base that moves but rounds to the same effective value today stays silent (technical ADR-0027). `QuickWaterSuggestion.currentIntervalEffective` carries the live value to Calendar/Plant List.
-  - `AdaptiveWateringObservation` owns the gate for quick-log, its only caller (Add Care Log is edit-only and never observes, technical ADR-0037). **`PlantDetailViewModel.pendingWateringSuggestion` is still a separate copy**, so a gate fix must land in both places.
+  - **One gate (#968):** `WateringSuggestionGate.evaluate()` (`domain/usecase/WateringSuggestionGate.kt`) is the only place the comparison is made. `AdaptiveWateringObservation.observe()` calls it for quick-log, its only caller (Add Care Log is edit-only and never observes, technical ADR-0037); `PlantDetailViewModel.pendingWateringSuggestion` calls it again on the raw suggestion so the dialog stays live; Plant Detail's silent apply (`applySuggestionOrPrompt`) commits `QuickWaterSuggestion.suggestedIntervalEffective` as computed. Never re-derive either effective value at a call site; `PlantDetailSuggestionGateAgreementTest` fails if the two sides disagree.
   - Displayed drift is stepped: it moves when `base × season` crosses a whole-day boundary, mostly around Apr 6 / Oct 6, where the curve is steepest.
 
 ## Data model and migration
