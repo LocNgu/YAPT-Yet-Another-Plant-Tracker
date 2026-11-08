@@ -29,6 +29,7 @@ import com.yapt.planttracker.domain.model.WateringReason
 import com.yapt.planttracker.domain.reminder.PhotoReminderPolicy
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.today.TodayCareTask
 import com.yapt.planttracker.ui.util.labelRes
@@ -548,8 +549,8 @@ class QuickLogUseCase(
         // *literal* value, not base-space-convertible, so it's used as-is for the confidence check
         // and the base is left untouched below rather than clobbered with a never-seasonally-converted
         // value (#584 review round 2, still applies post-#644).
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        val seasonAdjustable = !plant.pinIntervalToBase && amplitude != 0.0
+        val amplitude = plant.effectiveWateringAmplitude(dataStore.seasonalAmplitudeOnce())
+        val seasonAdjustable = amplitude != 0.0
         val newIntervalBaseSpace = if (seasonAdjustable && suggestedBaseInterval != null) {
             suggestedBaseInterval
         } else if (seasonAdjustable) {

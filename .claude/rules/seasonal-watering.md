@@ -3,6 +3,9 @@ description: Computed seasonal watering factor (curve, hemisphere, base interval
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/SeasonalWatering*.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/usecase/SeasonalGraduationFixup*.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/domain/schedule/WateringAmplitude.kt"
+  - "app/src/main/kotlin/com/yapt/planttracker/ui/components/WateringStrengthSetting.kt"
+  - "app/src/test/**/WateringAmplitude*.kt"
   - "app/src/test/**/SeasonalWatering*.kt"
   - "app/src/test/**/SeasonalGraduationFixup*.kt"
   - "app/src/test/**/CareScheduleSeasonal*.kt"
@@ -17,12 +20,18 @@ Computed, not learned (rationale in product ADR-0026); ships unconditionally (#6
   - `season(date, amplitude, hemisphere) = 1 + amplitude · cos(2π · (dayOfYear − peakDay) / 365)`. `peakDayOfYear(hemisphere)` is day 5 in the north and +182 in the south; it is the single source, also used by the chart caption.
   - `effectiveInterval(base, …) = round(base × season)`, clamped to `[1, 180]`.
   - `deseasonalize(value, …)` is the inverse (`deseasonalizeToDays` is its `Int` wrapper for observed gaps).
-- **Amplitude:** `SeasonalAmplitude` `OFF`/`MILD`/`STANDARD`/`STRONG` = 0.0/0.2/0.35/0.5. It is a DataStore setting (`SettingsKeys.SEASONAL_AMPLITUDE`, default `STANDARD`) and lives in this file because `MIGRATION_10_11` needs it. Every call site reads it through `seasonalAmplitudeFlow()`/`seasonalAmplitudeOnce()`.
+- **Amplitude:** `SeasonalAmplitude` `OFF`/`MILD`/`STANDARD`/`STRONG` = 0.0/0.2/0.35/0.5. It is a DataStore setting (`SettingsKeys.SEASONAL_AMPLITUDE`, default `STANDARD`) and lives in this file because `MIGRATION_10_11` needs it. Every call site reads it through `seasonalAmplitudeFlow()`/`seasonalAmplitudeOnce()`, then resolves it per plant (below).
+- **Per-plant strength (#700, product ADR-0084):** `Plant.wateringAmplitudeOverride: SeasonalAmplitude?` (`null` = App default; Room `TEXT`, read with `runCatching { valueOf }.getOrDefault(null)`; backup v25). The global setting is the default, not the final word.
+  - **One resolver** in `domain/schedule/WateringAmplitude.kt`: `resolveWateringAmplitude(pinned, override, global)` / `Plant.effectiveWateringAmplitude(global)`. Pin gives 0, Custom gives its own value, otherwise the global one.
+  - **Call sites keep passing the raw global amplitude** (the `seasonalAmplitude: Double` parameters) and the layer that holds the `Plant` resolves it: `CareSchedule.effectiveWateringIntervalDays()`, `LiveWateringInterval`, `WateringExplanationBuilder`, `QuickLogUseCase.applyWateringIntervalSuggestion()`, `AdaptiveWateringObservation` (season fn, observed-gap de-seasonalisation, base input, persist gate), `SeasonalGraduationFixup`, `AddEditPlantViewModel` and the Plant Detail manual-edit helpers. Never pre-resolve at a VM and never read the global for a plant's interval without resolving.
+  - **One 3-way control** (`WateringStrengthSetting`, `wateringStrengthMode()`): App default / Custom (`CUSTOM_WATERING_STRENGTHS` = Mild, Standard, Strong; **no Off**, it equals Pin) / Pin. Pin and Custom are mutually exclusive in the UI and the setters (`AddEditPlantViewModel` property setters, `PlantDetailViewModel.setWateringStrength()`). Picking Custom starts at Standard. A stray `OFF` override still resolves to 0 and displays as Pin.
+  - **A strength change keeps `wateringBaseIntervalDays` and logs no `WateringAdjustment`;** only the effective interval moves. Add/Edit treats an untouched slider as unchanged, so a strength-only save leaves base, literal and confidence alone; a typed interval de-seasonalises with the strength the form shows.
+  - The Water tab chart draws `resolveWateringAmplitude(pinned = false, plant override, global)`; a pinned plant still shows the dimmed curve of the strength it would follow.
 - **Hemisphere:** `currentHemisphere()` matches `TimeZone.getDefault().id` against an allowlist of southern zone prefixes. No location permission is needed; unmatched zones default to northern.
 
 ## Wiring into CareSchedule
 - `computeStatus(seasonalAmplitude = 0.0, hemisphere = currentHemisphere())`. The defaults keep old behaviour for callers that don't pass them.
-- The private `effectiveWateringIntervalDays()` is the single decision point: the literal `wateringIntervalDays` when amplitude is 0 or the plant is pinned, otherwise `effectiveInterval(wateringBaseIntervalDays ?: wateringIntervalDays)`.
+- The private `effectiveWateringIntervalDays()` is the single decision point: the literal `wateringIntervalDays` when the plant's effective amplitude (`Plant.effectiveWateringAmplitude`) is 0, otherwise `effectiveInterval(wateringBaseIntervalDays ?: wateringIntervalDays)`.
 - Every due-date consumer (`ReminderWorker`, Plant List, Calendar, Plant Detail) passes the amplitude through. Never re-derive season math at a call site.
 
 ## Two interval numbers — the recurring trap
@@ -39,7 +48,7 @@ Computed, not learned (rationale in product ADR-0026); ships unconditionally (#6
 - The migration isn't a pure `ALTER`: it sets `base = wateringIntervalDays / season(migrationDay, STANDARD, currentHemisphere())` row by row via a `Cursor` (SQLite has no `cos()`). It always uses STANDARD (it can't read DataStore), so migration-day effective intervals are unchanged (`MigrationTest10To11`).
 
 ## Manual edits reset the base
-`AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterval()` set `base = edited / season(today)` when amplitude is on and the plant is unpinned. With amplitude Off they preserve the prior base, so turning amplitude on later doesn't lose it. A "Pin interval" `Switch` (`pinIntervalToBase`) is always visible on Add/Edit and the Water tab.
+`AddEditPlantViewModel.save()` and `PlantDetailViewModel.setWateringInterval()` set `base = edited / season(today)` when amplitude is on and the plant is unpinned. With amplitude Off they preserve the prior base, so turning amplitude on later doesn't lose it. The strength control (App default / Custom / Pin, `pinIntervalToBase` backs Pin) is always visible on Add/Edit and the Water tab.
 
 On Plant Detail, committing the *live* value (`LiveWateringInterval`, #927) is a no-op: `setWateringInterval()` compares it, inside `plantEditMutex`, with `effectiveWateringIntervalDaysForDisplay()` of the freshly read plant. A `MANUAL_EDIT` row is written only when `round(newBase) != round(storedBase)`. The hero line and the Water card display the live value plus, when it differs from `round(base)`, the season (`SeasonalFertilizing.season()`) and the base; they never display the stored literal (product ADR-0068). Add/Edit Plant (#928, product ADR-0070) seeds its slider with the same live value and treats a slider equal to that seed as untouched: `save()` then re-anchors no base, resets no confidence and logs no `MANUAL_EDIT` row; its row is gated on a base-space change like Plant Detail's.
 

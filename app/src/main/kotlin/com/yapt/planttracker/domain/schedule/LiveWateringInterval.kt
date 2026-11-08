@@ -30,7 +30,7 @@ data class LiveWateringInterval(
                 seasonalAmplitude = seasonalAmplitude,
                 hemisphere = hemisphere
             ) ?: return null
-            val seasonal = seasonalAmplitude != 0.0 && !plant.pinIntervalToBase
+            val seasonal = plant.effectiveWateringAmplitude(seasonalAmplitude) != 0.0
             // Mirrors CareSchedule's fallback: a never-recorded base is the literal.
             val base = plant.wateringBaseIntervalDays?.roundToInt() ?: plant.wateringIntervalDays ?: effective
             return if (seasonal && effective != base) {

@@ -17,7 +17,10 @@ object WhatsNewContent {
         changed = listOf(
             "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
         ),
-        added = listOf("Back up automatically to a folder you choose, daily or weekly, from Settings"),
+        added = listOf(
+            "Back up automatically to a folder you choose, daily or weekly, from Settings",
+            "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"
+        ),
         fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
     )
 

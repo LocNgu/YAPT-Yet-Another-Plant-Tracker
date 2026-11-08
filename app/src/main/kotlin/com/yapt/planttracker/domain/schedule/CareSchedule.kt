@@ -287,8 +287,9 @@ object CareSchedule {
 
     /**
      * The watering interval actually used for due-date math (#569, product ADR-0026):
-     * [Plant.wateringIntervalDays] unchanged when [seasonalAmplitude] is 0.0 (flag off or
-     * [SeasonalAmplitude.OFF]) or the plant opted out ([Plant.pinIntervalToBase]) — this is what
+     * [Plant.wateringIntervalDays] unchanged when the plant's effective amplitude is 0.0 — [seasonalAmplitude]
+     * is the *global* setting, resolved per plant by [effectiveWateringAmplitude] (#700), so a pinned plant
+     * or a custom [SeasonalAmplitude.OFF] strength both land here — this is what
      * makes the flag genuinely reversible. Otherwise the seasonal curve applied to
      * [Plant.wateringBaseIntervalDays], falling back to the literal [Plant.wateringIntervalDays] as
      * the base when one was never recorded (e.g. a plant created while the flag was off).
@@ -301,9 +302,10 @@ object CareSchedule {
         hemisphere: Hemisphere
     ): Int? {
         val configuredIntervalDays = plant.wateringIntervalDays ?: return null
-        if (seasonalAmplitude == 0.0 || plant.pinIntervalToBase) return configuredIntervalDays
+        val amplitude = plant.effectiveWateringAmplitude(seasonalAmplitude)
+        if (amplitude == 0.0) return configuredIntervalDays
         val base = plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
-        return SeasonalWatering.effectiveInterval(base, nowDate, seasonalAmplitude, hemisphere)
+        return SeasonalWatering.effectiveInterval(base, nowDate, amplitude, hemisphere)
     }
 
     /**
