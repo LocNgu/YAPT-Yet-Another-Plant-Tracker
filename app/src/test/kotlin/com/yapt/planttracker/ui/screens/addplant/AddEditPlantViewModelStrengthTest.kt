@@ -53,7 +53,7 @@ class AddEditPlantViewModelStrengthTest {
         coEvery { plantPhotoRepo.addPhotos(any()) } just runs
         coEvery { plantRepo.updatePlant(any()) } just runs
         coEvery { plantRepo.addPlant(any()) } returns 5L
-        coEvery { adjustmentRepo.addAdjustment(capture(adjustments)) } returns 1L
+        coEvery { adjustmentRepo.recordManualEdit(capture(adjustments)) } returns 1L
     }
 
     private fun dataStore(global: SeasonalAmplitude): DataStore<Preferences> =
