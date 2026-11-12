@@ -1,85 +1,60 @@
 package com.yapt.planttracker.ui.screens.addplant
 
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
-import com.yapt.planttracker.domain.schedule.wateringStrengthMode
-import com.yapt.planttracker.ui.components.CameraPhotoDialogs
-import com.yapt.planttracker.ui.components.DormancyWindowSetting
-import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
-import com.yapt.planttracker.ui.components.PhotoSourceBottomSheet
-import com.yapt.planttracker.ui.components.PlantPhoto
-import com.yapt.planttracker.ui.components.SteppedSlider
-import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
-import com.yapt.planttracker.ui.components.SteppedSliderLabels
-import com.yapt.planttracker.ui.components.WateringStrengthCallbacks
-import com.yapt.planttracker.ui.components.WateringStrengthSetting
-import com.yapt.planttracker.ui.components.rememberCameraPhotoState
-import com.yapt.planttracker.ui.util.sentenceLabelRes
-import com.yapt.planttracker.ui.util.showSnackbarOnce
-import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+internal data class FormActions(
+    val onPickPhoto: () -> Unit,
+    val onFertilizingLastSeasonLocked: () -> Unit,
+    val onRepottingLastSeasonLocked: () -> Unit
+)
+
+internal data class FormNavigation(
+    val onNavigateBack: () -> Unit,
+    val onPlantArchived: (plantId: Long, plantName: String) -> Unit,
+    val onPlantHidden: (plantId: Long, plantName: String) -> Unit
+)
+
 @Composable
 fun AddEditPlantScreen(
     viewModel: AddEditPlantViewModel,
@@ -87,440 +62,191 @@ fun AddEditPlantScreen(
     onPlantArchived: (plantId: Long, plantName: String) -> Unit = { _, _ -> },
     onPlantHidden: (plantId: Long, plantName: String) -> Unit = { _, _ -> }
 ) {
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
-    var showDeleteDialog by remember { mutableStateOf(false) }
     val rooms by viewModel.rooms.collectAsStateWithLifecycle()
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val unhiddenMessage = stringResource(R.string.snackbar_plant_unhidden)
-    val lastSeasonLockedMessage = stringResource(R.string.fertilizing_last_season_locked_snackbar)
-    val repottingLastSeasonLockedMessage = stringResource(R.string.repotting_last_season_locked_snackbar)
+    val form by viewModel.uiState.collectAsStateWithLifecycle()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable { mutableStateOf(false) }
+    val isWizard = !viewModel.isEditMode
 
-    var showPhotoSourceSheet by remember { mutableStateOf(false) }
+    PlantFormEvents(viewModel, snackbarHostState, FormNavigation(onNavigateBack, onPlantArchived, onPlantHidden))
+    val actions = rememberFormActions(viewModel, snackbarHostState)
 
-    val cameraState = rememberCameraPhotoState(snackbarHostState) { uri ->
-        viewModel.addPhoto(uri.toString())
-    }
-
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? ->
-        uri?.let {
-            cameraState.onGallerySelected()
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    it,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (_: SecurityException) {}
-            viewModel.addPhoto(it.toString())
+    val handleBack = {
+        if (!isWizard) {
+            onNavigateBack()
+        } else if (!viewModel.goBack()) {
+            if (viewModel.hasUnsavedInput) showDiscardDialog = true else onNavigateBack()
         }
     }
-
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is AddEditPlantViewModel.Event.Saved -> onNavigateBack()
-                is AddEditPlantViewModel.Event.ArchivedForUndo ->
-                    onPlantArchived(event.plantId, event.plantName)
-                is AddEditPlantViewModel.Event.HiddenForUndo ->
-                    onPlantHidden(event.plantId, event.plantName)
-                is AddEditPlantViewModel.Event.Unhidden ->
-                    snackbarHostState.showSnackbar(unhiddenMessage)
-                is AddEditPlantViewModel.Event.ValidationError ->
-                    snackbarHostState.showSnackbar(event.message)
-            }
-        }
-    }
+    if (isWizard) BackHandler(onBack = handleBack)
 
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.archive_plant)) },
-            text = { Text(stringResource(R.string.archive_plant_confirm)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    viewModel.deletePlant()
-                }) { Text(stringResource(R.string.move_to_graveyard)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.cancel)) }
-            }
-        )
+        ArchiveDialog(onDismiss = { showDeleteDialog = false }, onConfirm = {
+            showDeleteDialog = false
+            viewModel.deletePlant()
+        })
     }
-
-    CameraPhotoDialogs(cameraState)
-
-    if (showPhotoSourceSheet) {
-        PhotoSourceBottomSheet(
-            onDismiss = { showPhotoSourceSheet = false },
-            onTakePhoto = {
-                showPhotoSourceSheet = false
-                cameraState.launch()
-            },
-            onChooseGallery = {
-                showPhotoSourceSheet = false
-                cameraState.onGallerySelected()
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            }
-        )
+    if (showDiscardDialog) {
+        DiscardDialog(onDismiss = { showDiscardDialog = false }, onConfirm = {
+            showDiscardDialog = false
+            onNavigateBack()
+        })
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (viewModel.isEditMode) {
-                            stringResource(
-                                R.string.edit_plant
-                            )
-                        } else {
-                            stringResource(R.string.add_plant)
-                        }
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-                actions = {
-                    if (viewModel.isEditMode) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(
-                                Icons.Filled.Delete,
-                                contentDescription = stringResource(R.string.delete),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
+            PlantFormTopBar(
+                isEditMode = viewModel.isEditMode,
+                step = form.step,
+                onBack = handleBack,
+                onDelete = { showDeleteDialog = true }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { viewModel.save() }) {
-                Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.save))
-            }
-        }
+        bottomBar = {
+            if (isWizard) WizardNavigationBar(form.step, handleBack, viewModel::goNext, viewModel::save)
+        },
+        floatingActionButton = { if (!isWizard) SaveFab(viewModel::save) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                PlantPhoto(
-                    uri = viewModel.coverPhotoUri,
-                    size = 120.dp,
-                    rounded = true
-                )
-                FloatingActionButton(
-                    onClick = { showPhotoSourceSheet = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(40.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.AddAPhoto,
-                        contentDescription = stringResource(R.string.cd_add_photo),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+        FormScrollBody(padding) {
+            if (isWizard) {
+                WizardStepContent(viewModel, form, rooms, actions)
+            } else {
+                EditForm(viewModel, form, rooms, actions)
             }
-
-            viewModel.propagatedFromName?.let { parentName ->
-                Column {
-                    Text(
-                        text = stringResource(R.string.add_plant_propagated_from, parentName),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = stringResource(R.string.add_plant_care_settings_copied, parentName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = viewModel.name,
-                onValueChange = { viewModel.name = it },
-                label = { Text(stringResource(R.string.field_plant_name)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            OutlinedTextField(
-                value = viewModel.species,
-                onValueChange = { viewModel.species = it },
-                label = { Text(stringResource(R.string.field_species)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            OutlinedTextField(
-                value = viewModel.room,
-                onValueChange = { viewModel.room = it },
-                label = { Text(stringResource(R.string.field_location)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.placeholder_location)) }
-            )
-
-            if (rooms.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rooms.forEach { chip ->
-                        val isMatch = chip.equals(viewModel.room, ignoreCase = true) && chip != viewModel.room
-                        SuggestionChip(
-                            onClick = {
-                                viewModel.room = chip
-                                keyboardController?.hide()
-                            },
-                            label = { Text(chip) },
-                            colors = if (isMatch) {
-                                SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            } else {
-                                SuggestionChipDefaults.suggestionChipColors()
-                            }
-                        )
-                    }
-                }
-            }
-
-            Column {
-                val wateringIntervalLabel =
-                    stringResource(R.string.watering_interval_label, viewModel.wateringIntervalDays)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (viewModel.wateringIntervalEnabled) {
-                            wateringIntervalLabel
-                        } else {
-                            stringResource(R.string.watering_reminder_label)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = viewModel.wateringIntervalEnabled,
-                        onCheckedChange = { viewModel.wateringIntervalEnabled = it }
-                    )
-                }
-                if (viewModel.wateringIntervalEnabled) {
-                    SteppedSlider(
-                        value = viewModel.wateringIntervalDays,
-                        range = 1..60,
-                        callbacks = SteppedSliderCallbacks(
-                            onValueChange = { viewModel.wateringIntervalDays = it }
-                        ),
-                        labels = SteppedSliderLabels(
-                            decreaseContentDescription = stringResource(R.string.watering_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.watering_interval_increase_cd),
-                            stateDescription = wateringIntervalLabel
-                        )
-                    )
-                    val adjustment = viewModel.seasonalAdjustment
-                    if (adjustment != null && viewModel.showSeasonalAdjustment) {
-                        Text(
-                            text = pluralStringResource(
-                                R.plurals.watering_seasonal_adjustment,
-                                adjustment.baseDays,
-                                stringResource(adjustment.season.sentenceLabelRes()),
-                                adjustment.baseDays
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    WateringStrengthSetting(
-                        mode = wateringStrengthMode(viewModel.pinIntervalToBase, viewModel.wateringAmplitudeOverride),
-                        customStrength = viewModel.wateringAmplitudeOverride,
-                        callbacks = WateringStrengthCallbacks(
-                            onSelectAppDefault = {
-                                viewModel.pinIntervalToBase = false
-                                viewModel.wateringAmplitudeOverride = null
-                            },
-                            onSelectCustom = { viewModel.wateringAmplitudeOverride = it },
-                            onSelectPin = { viewModel.pinIntervalToBase = true }
-                        )
-                    )
-                }
-            }
-
-            DormancyWindowSetting(
-                startMonth = viewModel.dormancyStartMonth,
-                endMonth = viewModel.dormancyEndMonth,
-                dormantWateringIntervalDays = viewModel.dormantWateringIntervalDays,
-                onWindowChange = viewModel::setDormancyWindow
-            )
-
-            Column {
-                val fertilizingIntervalLabel =
-                    stringResource(R.string.fertilizing_interval_label, viewModel.fertilizingIntervalDays)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (viewModel.fertilizingIntervalEnabled) {
-                            fertilizingIntervalLabel
-                        } else {
-                            stringResource(R.string.fertilizing_reminder_label)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = viewModel.fertilizingIntervalEnabled,
-                        onCheckedChange = { viewModel.fertilizingIntervalEnabled = it }
-                    )
-                }
-                if (viewModel.fertilizingIntervalEnabled) {
-                    SteppedSlider(
-                        value = viewModel.fertilizingIntervalDays,
-                        range = 1..180,
-                        callbacks = SteppedSliderCallbacks(
-                            onValueChange = { viewModel.fertilizingIntervalDays = it }
-                        ),
-                        labels = SteppedSliderLabels(
-                            decreaseContentDescription = stringResource(R.string.fertilizing_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.fertilizing_interval_increase_cd),
-                            stateDescription = fertilizingIntervalLabel
-                        )
-                    )
-                    FertilizingSeasonsSelector(
-                        selected = viewModel.fertilizingSeasons,
-                        onToggle = viewModel::toggleFertilizingSeason,
-                        onLastSeasonLocked = {
-                            coroutineScope.launch { snackbarHostState.showSnackbarOnce(lastSeasonLockedMessage) }
-                        }
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.liquid_fertilizer_label),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Switch(
-                            checked = viewModel.useLiquidFertilizer,
-                            onCheckedChange = { viewModel.useLiquidFertilizer = it }
-                        )
-                    }
-                }
-            }
-
-            Column {
-                val repottingIntervalLabel = pluralStringResource(
-                    R.plurals.repotting_interval_label,
-                    viewModel.repottingIntervalMonths,
-                    viewModel.repottingIntervalMonths
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (viewModel.repottingIntervalEnabled) {
-                            repottingIntervalLabel
-                        } else {
-                            stringResource(R.string.repotting_reminder_label)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Switch(
-                        checked = viewModel.repottingIntervalEnabled,
-                        onCheckedChange = { viewModel.repottingIntervalEnabled = it }
-                    )
-                }
-                if (viewModel.repottingIntervalEnabled) {
-                    val minMonths = AddEditPlantViewModel.MIN_REPOTTING_MONTHS
-                    val maxMonths = AddEditPlantViewModel.MAX_REPOTTING_MONTHS
-                    SteppedSlider(
-                        value = viewModel.repottingIntervalMonths,
-                        range = minMonths..maxMonths,
-                        callbacks = SteppedSliderCallbacks(
-                            onValueChange = { viewModel.repottingIntervalMonths = it }
-                        ),
-                        labels = SteppedSliderLabels(
-                            decreaseContentDescription = stringResource(R.string.repotting_interval_decrease_cd),
-                            increaseContentDescription = stringResource(R.string.repotting_interval_increase_cd),
-                            stateDescription = repottingIntervalLabel
-                        )
-                    )
-                    FertilizingSeasonsSelector(
-                        selected = viewModel.repottingSeasons,
-                        onToggle = viewModel::toggleRepottingSeason,
-                        onLastSeasonLocked = {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbarOnce(repottingLastSeasonLockedMessage)
-                            }
-                        },
-                        labelRes = R.string.repotting_preferred_seasons_label
-                    )
-                }
-            }
-
-            OutlinedTextField(
-                value = viewModel.notes,
-                onValueChange = { viewModel.notes = it },
-                label = { Text(stringResource(R.string.field_notes)) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 6
-            )
-
-            if (viewModel.isEditMode) {
-                HorizontalDivider()
-                ListItem(
-                    modifier = Modifier.clickable(role = Role.Button) {
-                        if (viewModel.isHidden) viewModel.unhidePlant() else viewModel.hidePlant()
-                    },
-                    leadingContent = {
-                        Icon(
-                            if (viewModel.isHidden) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
-                            contentDescription = null
-                        )
-                    },
-                    headlineContent = {
-                        Text(
-                            stringResource(
-                                if (viewModel.isHidden) R.string.unhide_plant else R.string.hide_plant
-                            )
-                        )
-                    },
-                    supportingContent = {
-                        Text(
-                            stringResource(
-                                if (viewModel.isHidden) R.string.unhide_plant_hint else R.string.hide_plant_hint
-                            )
-                        )
-                    }
-                )
-            }
-
-            Spacer(Modifier.height(72.dp))
         }
     }
+}
+
+@Composable
+private fun FormScrollBody(padding: PaddingValues, content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        content()
+        Spacer(Modifier.height(72.dp))
+    }
+}
+
+@Composable
+private fun PlantFormEvents(
+    viewModel: AddEditPlantViewModel,
+    snackbarHostState: SnackbarHostState,
+    navigation: FormNavigation
+) {
+    val resources = LocalResources.current
+    val unhiddenMessage = stringResource(R.string.snackbar_plant_unhidden)
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is AddEditPlantViewModel.Event.Saved -> navigation.onNavigateBack()
+                is AddEditPlantViewModel.Event.ArchivedForUndo ->
+                    navigation.onPlantArchived(event.plantId, event.plantName)
+                is AddEditPlantViewModel.Event.HiddenForUndo ->
+                    navigation.onPlantHidden(event.plantId, event.plantName)
+                is AddEditPlantViewModel.Event.Unhidden ->
+                    snackbarHostState.showSnackbar(unhiddenMessage)
+                is AddEditPlantViewModel.Event.ValidationError ->
+                    snackbarHostState.showSnackbar(resources.getString(event.messageRes))
+            }
+        }
+    }
+}
+
+/** Camera/gallery plumbing for the cover photo; returns the action that opens the source sheet. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlantFormTopBar(isEditMode: Boolean, step: AddPlantStep, onBack: () -> Unit, onDelete: () -> Unit) {
+    Column {
+        TopAppBar(
+            title = { Text(stringResource(if (isEditMode) R.string.edit_plant else R.string.add_plant)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
+                }
+            },
+            actions = {
+                if (isEditMode) {
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = stringResource(R.string.delete),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        )
+        if (!isEditMode) WizardProgressHeader(step)
+    }
+}
+
+@Composable
+private fun WizardStepContent(
+    viewModel: AddEditPlantViewModel,
+    form: AddEditPlantFormState,
+    rooms: List<String>,
+    actions: FormActions
+) {
+    when (form.step) {
+        AddPlantStep.PHOTO -> PhotoStep(form, actions.onPickPhoto)
+        AddPlantStep.DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            form.propagatedFromName?.let { PropagatedFromNote(it) }
+            PlantIdentityFields(viewModel, rooms)
+        }
+        AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            form.propagatedFromName?.let { PropagatedFromNote(it) }
+            CareSections(viewModel, form, actions)
+        }
+        AddPlantStep.REVIEW -> ReviewStep(viewModel, form, onEditStep = viewModel::goToStep)
+    }
+}
+
+@Composable
+private fun EditForm(
+    viewModel: AddEditPlantViewModel,
+    form: AddEditPlantFormState,
+    rooms: List<String>,
+    actions: FormActions
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        CoverPhotoPicker(uri = form.coverPhotoUri, onPickPhoto = actions.onPickPhoto)
+        PlantIdentityFields(viewModel, rooms)
+        CareSections(viewModel, form, actions)
+        PlantNotesField(viewModel)
+        HorizontalDivider()
+        HidePlantItem(viewModel)
+    }
+}
+
+@Composable
+private fun HidePlantItem(viewModel: AddEditPlantViewModel) {
+    ListItem(
+        modifier = Modifier.clickable(role = Role.Button) {
+            if (viewModel.isHidden) viewModel.unhidePlant() else viewModel.hidePlant()
+        },
+        leadingContent = {
+            Icon(
+                if (viewModel.isHidden) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                contentDescription = null
+            )
+        },
+        headlineContent = {
+            Text(stringResource(if (viewModel.isHidden) R.string.unhide_plant else R.string.hide_plant))
+        },
+        supportingContent = {
+            Text(
+                stringResource(
+                    if (viewModel.isHidden) R.string.unhide_plant_hint else R.string.hide_plant_hint
+                )
+            )
+        }
+    )
 }

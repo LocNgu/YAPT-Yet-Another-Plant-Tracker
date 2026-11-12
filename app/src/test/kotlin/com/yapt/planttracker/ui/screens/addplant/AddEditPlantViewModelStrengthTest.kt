@@ -97,14 +97,14 @@ class AddEditPlantViewModelStrengthTest {
     fun `choosing pin clears the custom strength and choosing a custom strength clears the pin`() = runTest {
         val vm = makeVm(null)
 
-        vm.wateringAmplitudeOverride = SeasonalAmplitude.STRONG
-        vm.pinIntervalToBase = true
-        assertTrue(vm.pinIntervalToBase)
-        assertNull(vm.wateringAmplitudeOverride)
+        vm.setWateringAmplitudeOverride(SeasonalAmplitude.STRONG)
+        vm.setPinIntervalToBase(true)
+        assertTrue(vm.uiState.value.pinIntervalToBase)
+        assertNull(vm.uiState.value.wateringAmplitudeOverride)
 
-        vm.wateringAmplitudeOverride = SeasonalAmplitude.MILD
-        assertFalse(vm.pinIntervalToBase)
-        assertEquals(SeasonalAmplitude.MILD, vm.wateringAmplitudeOverride)
+        vm.setWateringAmplitudeOverride(SeasonalAmplitude.MILD)
+        assertFalse(vm.uiState.value.pinIntervalToBase)
+        assertEquals(SeasonalAmplitude.MILD, vm.uiState.value.wateringAmplitudeOverride)
     }
 
     @Test
@@ -112,8 +112,8 @@ class AddEditPlantViewModelStrengthTest {
         val vm = makeVm(plant(override = SeasonalAmplitude.MILD))
         advanceUntilIdle()
 
-        assertEquals(SeasonalAmplitude.MILD, vm.wateringAmplitudeOverride)
-        assertFalse(vm.pinIntervalToBase)
+        assertEquals(SeasonalAmplitude.MILD, vm.uiState.value.wateringAmplitudeOverride)
+        assertFalse(vm.uiState.value.pinIntervalToBase)
     }
 
     @Test
@@ -121,7 +121,7 @@ class AddEditPlantViewModelStrengthTest {
         val vm = makeVm(plant(override = SeasonalAmplitude.STRONG))
         advanceUntilIdle()
 
-        vm.name = "Renamed"
+        vm.setName("Renamed")
         vm.save()
         advanceUntilIdle()
 
@@ -133,7 +133,7 @@ class AddEditPlantViewModelStrengthTest {
         val vm = makeVm(plant())
         advanceUntilIdle()
 
-        vm.wateringAmplitudeOverride = SeasonalAmplitude.STRONG
+        vm.setWateringAmplitudeOverride(SeasonalAmplitude.STRONG)
         vm.save()
         advanceUntilIdle()
 
@@ -150,7 +150,7 @@ class AddEditPlantViewModelStrengthTest {
         val vm = makeVm(plant(override = SeasonalAmplitude.MILD))
         advanceUntilIdle()
 
-        vm.pinIntervalToBase = true
+        vm.setPinIntervalToBase(true)
         vm.save()
         advanceUntilIdle()
 
@@ -164,8 +164,8 @@ class AddEditPlantViewModelStrengthTest {
         val vm = makeVm(plant(), global = SeasonalAmplitude.OFF)
         advanceUntilIdle()
 
-        vm.wateringAmplitudeOverride = SeasonalAmplitude.STRONG
-        vm.wateringIntervalDays = 12
+        vm.setWateringAmplitudeOverride(SeasonalAmplitude.STRONG)
+        vm.setWateringIntervalDays(12)
         vm.save()
         advanceUntilIdle()
 
@@ -176,8 +176,8 @@ class AddEditPlantViewModelStrengthTest {
     @Test
     fun `a new plant stores its chosen strength`() = runTest {
         val vm = makeVm(null)
-        vm.name = "Cutting"
-        vm.wateringAmplitudeOverride = SeasonalAmplitude.MILD
+        vm.setName("Cutting")
+        vm.setWateringAmplitudeOverride(SeasonalAmplitude.MILD)
         vm.save()
         advanceUntilIdle()
 

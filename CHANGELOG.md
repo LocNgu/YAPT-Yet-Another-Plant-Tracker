@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- **Adding a plant is a four-step guided form** (#943, product ADR-0085, technical ADR-0044) — **Add plant** and Add-from-Propagate now walk through Photo, Name and location, Care and Review ("Step N of 4", progress bar, announced to TalkBack) instead of one long form. Only the name is required, care reminders stay off unless switched on, the Review step holds the optional notes and a summary whose lines jump back to their step, and **Add plant** there is the single save. Back (arrow and system) goes one step back; on step 1 it asks to discard when anything was entered. The draft and current step survive process death (`SavedStateHandle`). Edit Plant stays the single form. The form state is now one `uiState` StateFlow changed through setters (typed text stays synchronous), and the "Plant name is required" message moved to `strings.xml`. No schema change.
 - **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0082) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
 
 ### Added

@@ -21,7 +21,7 @@ paths:
   - A non-blank query with no results shows its own empty state, ahead of the sort/room messages.
 - **State:**
   - `searchQueryText`/`isSearchActive` are in-memory and ViewModel-scoped like `selectedRoom`: they survive Plant Detail → back and reset on process death. There is no DataStore key.
-  - `searchQueryText` is a synchronous `var … by mutableStateOf("")` for the TextField. The same `setSearchQuery()` also updates the private `MutableStateFlow` the combine reads, so the two can't drift.
+  - `searchQueryText` is a synchronous `var … by mutableStateOf("")` for the TextField (the documented exception to "StateFlow for UI state", shared with `AddEditPlantViewModel`'s typed text, technical ADR-0044). The same `setSearchQuery()` also updates the private `MutableStateFlow` the combine reads, so the two can't drift.
   - Auto-focus on a fresh icon tap uses a consumed-once `pendingSearchAutoFocus` field, not a `Flow` (a `SharedFlow` emission can race its `LaunchedEffect` collector).
 
 ## Hidden plants (#915, product ADR-0066)

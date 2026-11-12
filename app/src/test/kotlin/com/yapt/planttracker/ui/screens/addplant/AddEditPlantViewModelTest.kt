@@ -56,7 +56,7 @@ class AddEditPlantViewModelTest {
     @Test
     fun `blank name emits ValidationError`() = runTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = ""
+        vm.setName("")
 
         vm.events.test {
             vm.save()
@@ -70,7 +70,7 @@ class AddEditPlantViewModelTest {
     fun `valid name in new plant mode calls addPlant and emits Saved with new id`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Monstera"
+        vm.setName("Monstera")
 
         vm.events.test {
             vm.save()
@@ -118,7 +118,7 @@ class AddEditPlantViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        vm.name = "Monstera Updated"
+        vm.setName("Monstera Updated")
 
         vm.events.test {
             vm.save()
@@ -142,9 +142,9 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertEquals(11, vm.dormancyStartMonth)
-        assertEquals(2, vm.dormancyEndMonth)
-        assertEquals(35, vm.dormantWateringIntervalDays)
+        assertEquals(11, vm.uiState.value.dormancyStartMonth)
+        assertEquals(2, vm.uiState.value.dormancyEndMonth)
+        assertEquals(35, vm.uiState.value.dormantWateringIntervalDays)
         vm.setDormancyWindow(12, 3, 56)
         vm.save()
         advanceUntilIdle()
@@ -171,14 +171,14 @@ class AddEditPlantViewModelTest {
 
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertEquals(null, vm.dormantWateringIntervalDays)
+        assertEquals(null, vm.uiState.value.dormantWateringIntervalDays)
     }
 
     @Test
     fun `new plant can save a wrapping dormancy window without a watering schedule`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Cactus"
+        vm.setName("Cactus")
         vm.setDormancyWindow(11, 2, 28)
 
         vm.save()
@@ -229,7 +229,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.uiState.value.fertilizingSeasons)
         vm.save()
         advanceUntilIdle()
 
@@ -254,7 +254,7 @@ class AddEditPlantViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        vm.name = "Renamed"
+        vm.setName("Renamed")
 
         vm.save()
         advanceUntilIdle()
@@ -276,8 +276,8 @@ class AddEditPlantViewModelTest {
     fun `new plant defaults the preferred repotting seasons to every season`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Fern"
-        vm.repottingIntervalEnabled = true
+        vm.setName("Fern")
+        vm.setRepottingIntervalEnabled(true)
 
         vm.save()
         advanceUntilIdle()
@@ -289,8 +289,8 @@ class AddEditPlantViewModelTest {
     fun `toggleRepottingSeason saves the newly chosen set for a new plant`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Fern"
-        vm.repottingIntervalEnabled = true
+        vm.setName("Fern")
+        vm.setRepottingIntervalEnabled(true)
         vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
         vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
         vm.toggleRepottingSeason(FertilizingSeason.WINTER)
@@ -299,7 +299,7 @@ class AddEditPlantViewModelTest {
         advanceUntilIdle()
 
         coVerify { plantRepo.addPlant(match { it.repottingSeasons == setOf(FertilizingSeason.SPRING) }) }
-        assertEquals(FertilizingSeason.entries.toSet(), vm.fertilizingSeasons)
+        assertEquals(FertilizingSeason.entries.toSet(), vm.uiState.value.fertilizingSeasons)
     }
 
     @Test
@@ -309,11 +309,11 @@ class AddEditPlantViewModelTest {
             vm.toggleRepottingSeason(FertilizingSeason.SPRING)
             vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
             vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
-            assertEquals(setOf(FertilizingSeason.WINTER), vm.repottingSeasons)
+            assertEquals(setOf(FertilizingSeason.WINTER), vm.uiState.value.repottingSeasons)
 
             vm.toggleRepottingSeason(FertilizingSeason.WINTER)
 
-            assertEquals(setOf(FertilizingSeason.WINTER), vm.repottingSeasons)
+            assertEquals(setOf(FertilizingSeason.WINTER), vm.uiState.value.repottingSeasons)
         }
 
     @Test
@@ -325,7 +325,7 @@ class AddEditPlantViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN), vm.repottingSeasons)
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.AUTUMN), vm.uiState.value.repottingSeasons)
 
         vm.toggleRepottingSeason(FertilizingSeason.AUTUMN)
         vm.toggleRepottingSeason(FertilizingSeason.SUMMER)
@@ -349,7 +349,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        vm.repottingIntervalEnabled = false
+        vm.setRepottingIntervalEnabled(false)
         vm.save()
         advanceUntilIdle()
 
@@ -366,8 +366,8 @@ class AddEditPlantViewModelTest {
     fun `toggleFertilizingSeason saves the newly chosen set`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Fern"
-        vm.fertilizingIntervalEnabled = true
+        vm.setName("Fern")
+        vm.setFertilizingIntervalEnabled(true)
         // Starts at every season (the default); toggling the other three off leaves only WINTER.
         vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
         vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
@@ -388,20 +388,20 @@ class AddEditPlantViewModelTest {
             vm.toggleFertilizingSeason(FertilizingSeason.SPRING)
             vm.toggleFertilizingSeason(FertilizingSeason.AUTUMN)
             vm.toggleFertilizingSeason(FertilizingSeason.WINTER)
-            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.uiState.value.fertilizingSeasons)
 
             vm.toggleFertilizingSeason(FertilizingSeason.SUMMER)
 
-            assertEquals(setOf(FertilizingSeason.SUMMER), vm.fertilizingSeasons)
+            assertEquals(setOf(FertilizingSeason.SUMMER), vm.uiState.value.fertilizingSeasons)
         }
 
     @Test
     fun `useLiquidFertilizer true saved in new plant mode`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 5L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Pothos"
-        vm.fertilizingIntervalEnabled = true
-        vm.useLiquidFertilizer = true
+        vm.setName("Pothos")
+        vm.setFertilizingIntervalEnabled(true)
+        vm.setUseLiquidFertilizer(true)
 
         vm.events.test {
             vm.save()
@@ -416,9 +416,9 @@ class AddEditPlantViewModelTest {
     fun `repotting interval saved when enabled in new plant mode`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 7L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Calathea"
-        vm.repottingIntervalEnabled = true
-        vm.repottingIntervalMonths = 12
+        vm.setName("Calathea")
+        vm.setRepottingIntervalEnabled(true)
+        vm.setRepottingIntervalMonths(12)
 
         vm.events.test {
             vm.save()
@@ -436,7 +436,7 @@ class AddEditPlantViewModelTest {
     fun `disabled repotting interval is saved as null`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 8L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Snake Plant"
+        vm.setName("Snake Plant")
         // repottingIntervalMonths has a non-zero default but the toggle is off
 
         vm.events.test {
@@ -457,9 +457,9 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertTrue(vm.repottingIntervalEnabled)
+        assertTrue(vm.uiState.value.repottingIntervalEnabled)
         // 720 stored days -> 24 months in the picker.
-        assertEquals(24, vm.repottingIntervalMonths)
+        assertEquals(24, vm.uiState.value.repottingIntervalMonths)
 
         vm.events.test {
             vm.save()
@@ -480,8 +480,8 @@ class AddEditPlantViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(imported)
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertTrue(vm.repottingIntervalEnabled)
-        assertEquals(14, vm.repottingIntervalMonths)
+        assertTrue(vm.uiState.value.repottingIntervalEnabled)
+        assertEquals(14, vm.uiState.value.repottingIntervalMonths)
     }
 
     @Test
@@ -491,8 +491,8 @@ class AddEditPlantViewModelTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(fastGrower)
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertTrue(vm.repottingIntervalEnabled)
-        assertEquals(AddEditPlantViewModel.MIN_REPOTTING_MONTHS, vm.repottingIntervalMonths)
+        assertTrue(vm.uiState.value.repottingIntervalEnabled)
+        assertEquals(AddEditPlantViewModel.MIN_REPOTTING_MONTHS, vm.uiState.value.repottingIntervalMonths)
     }
 
     @Test
@@ -502,7 +502,7 @@ class AddEditPlantViewModelTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
 
-        assertTrue(vm.useLiquidFertilizer)
+        assertTrue(vm.uiState.value.useLiquidFertilizer)
 
         vm.events.test {
             vm.save()
@@ -518,9 +518,9 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
         vm.addPhoto("file:///photo1.jpg")
 
-        assertEquals("file:///photo1.jpg", vm.coverPhotoUri)
-        assertEquals(1, vm.pendingPhotos.size)
-        assertEquals("file:///photo1.jpg", vm.pendingPhotos[0])
+        assertEquals("file:///photo1.jpg", vm.uiState.value.coverPhotoUri)
+        assertEquals(1, vm.uiState.value.pendingPhotos.size)
+        assertEquals("file:///photo1.jpg", vm.uiState.value.pendingPhotos[0])
     }
 
     @Test
@@ -529,8 +529,8 @@ class AddEditPlantViewModelTest {
         vm.addPhoto("file:///photo1.jpg")
         vm.addPhoto("file:///photo2.jpg")
 
-        assertEquals("file:///photo2.jpg", vm.coverPhotoUri)
-        assertEquals(2, vm.pendingPhotos.size)
+        assertEquals("file:///photo2.jpg", vm.uiState.value.coverPhotoUri)
+        assertEquals(2, vm.uiState.value.pendingPhotos.size)
     }
 
     @Test
@@ -539,15 +539,15 @@ class AddEditPlantViewModelTest {
         vm.addPhoto("file:///photo1.jpg")
         vm.addPhoto("file:///photo1.jpg")
 
-        assertEquals(1, vm.pendingPhotos.size)
-        assertEquals("file:///photo1.jpg", vm.coverPhotoUri)
+        assertEquals(1, vm.uiState.value.pendingPhotos.size)
+        assertEquals("file:///photo1.jpg", vm.uiState.value.coverPhotoUri)
     }
 
     @Test
     fun `save in new mode inserts pending photos via plantPhotoRepo`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 10L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Cactus"
+        vm.setName("Cactus")
         vm.addPhoto("file:///cactus.jpg")
 
         vm.events.test {
@@ -598,9 +598,9 @@ class AddEditPlantViewModelTest {
     fun `wateringBaseIntervalDays stays null when dataStore is absent (test-convenience seam)`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null)
-        vm.name = "Monstera"
-        vm.wateringIntervalEnabled = true
-        vm.wateringIntervalDays = 7
+        vm.setName("Monstera")
+        vm.setWateringIntervalEnabled(true)
+        vm.setWateringIntervalDays(7)
 
         vm.save()
         advanceUntilIdle()
@@ -612,9 +612,9 @@ class AddEditPlantViewModelTest {
     fun `new plant de-seasonalizes the typed interval to today`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
-        vm.name = "Monstera"
-        vm.wateringIntervalEnabled = true
-        vm.wateringIntervalDays = 7
+        vm.setName("Monstera")
+        vm.setWateringIntervalEnabled(true)
+        vm.setWateringIntervalDays(7)
 
         vm.save()
         advanceUntilIdle()
@@ -630,10 +630,10 @@ class AddEditPlantViewModelTest {
     fun `pinIntervalToBase true keeps wateringBaseIntervalDays null`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = null, seasonalWateringDataStore())
-        vm.name = "Monstera"
-        vm.wateringIntervalEnabled = true
-        vm.wateringIntervalDays = 7
-        vm.pinIntervalToBase = true
+        vm.setName("Monstera")
+        vm.setWateringIntervalEnabled(true)
+        vm.setWateringIntervalDays(7)
+        vm.setPinIntervalToBase(true)
 
         vm.save()
         advanceUntilIdle()
@@ -654,7 +654,7 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, seasonalWateringDataStore())
         advanceUntilIdle()
 
-        vm.name = "Monstera Renamed"
+        vm.setName("Monstera Renamed")
         vm.save()
         advanceUntilIdle()
 
@@ -672,7 +672,7 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, seasonalWateringDataStore())
         advanceUntilIdle()
 
-        vm.wateringIntervalDays = 10
+        vm.setWateringIntervalDays(10)
         vm.save()
         advanceUntilIdle()
 
@@ -698,7 +698,7 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
         advanceUntilIdle()
 
-        vm.wateringIntervalDays = 9
+        vm.setWateringIntervalDays(9)
         vm.save()
         advanceUntilIdle()
 
@@ -725,7 +725,7 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore, wateringAdjustmentRepo)
         advanceUntilIdle()
 
-        vm.room = "Bedroom"
+        vm.setRoom("Bedroom")
         vm.save()
         advanceUntilIdle()
 
@@ -754,7 +754,7 @@ class AddEditPlantViewModelTest {
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L, dataStore)
         advanceUntilIdle()
 
-        vm.room = "Living room"
+        vm.setRoom("Living room")
         vm.save()
         advanceUntilIdle()
 

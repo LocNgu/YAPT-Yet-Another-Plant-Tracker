@@ -46,7 +46,7 @@ class AddEditPlantOverrideMadeAtTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(existing)
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        vm.name = "Renamed"
+        vm.setName("Renamed")
 
         vm.save()
         advanceUntilIdle()

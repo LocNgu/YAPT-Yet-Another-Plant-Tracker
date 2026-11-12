@@ -1,15 +1,18 @@
 package com.yapt.planttracker.ui.screens.addplant
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
+import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
@@ -29,19 +32,21 @@ import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 // #571 added the room-change lifecycle-reset check alongside the existing manual-edit reset; splitting
 // it out into its own class would scatter one cohesive save flow across files for no readability gain
 // (cf. QuickLogUseCase/CareLogRepository's identical justification).
-@Suppress("TooManyFunctions", "LongParameterList")
+@Suppress("TooManyFunctions", "LongParameterList", "LargeClass")
 class AddEditPlantViewModel(
     private val plantRepository: PlantRepository,
     private val plantPhotoRepository: PlantPhotoRepository,
@@ -58,80 +63,35 @@ class AddEditPlantViewModel(
     /** Set when Add Plant was opened from Propagate's "New plant" offer (#960, product ADR-0073); add mode only. */
     private val propagatedFromId: Long? = null,
     /** Builds the prefilled "<Parent> (cutting)" name from the parent's name; the string lives in resources. */
-    private val childNameFor: (parentName: String) -> String = { it }
+    private val childNameFor: (parentName: String) -> String = { it },
+    /** Mirror of the whole draft (technical ADR-0044); a fresh handle in tests that don't exercise restore. */
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle()
 ) : ViewModel() {
 
     val isEditMode: Boolean = plantId != null
 
-    var name by mutableStateOf("")
-    var species by mutableStateOf("")
-    var room by mutableStateOf("")
-    var notes by mutableStateOf("")
-    var coverPhotoUri by mutableStateOf<String?>(null)
-    var wateringIntervalDays by mutableIntStateOf(DEFAULT_WATERING_INTERVAL_DAYS)
-    var wateringIntervalEnabled by mutableStateOf(false)
-    var fertilizingIntervalDays by mutableIntStateOf(DEFAULT_FERTILIZING_INTERVAL_DAYS)
-    var fertilizingIntervalEnabled by mutableStateOf(false)
-    var fertilizingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
-    var useLiquidFertilizer by mutableStateOf(false)
+    private val _form = MutableStateFlow(
+        AddEditPlantFormState.fromJsonOrNull(savedStateHandle.get<String>(KEY_FORM)) ?: AddEditPlantFormState()
+    )
 
-    /**
-     * Repotting is scheduled in **months**, not days — nobody repots on a day-precise cadence, and
-     * the sane floor is roughly a quarter (fast-growing young plants) with most plants on a 1–3 year
-     * cycle. Persisted as `months * DAYS_PER_MONTH` in `Plant.repottingIntervalDays` so the schedule
-     * logic and the DB schema stay day-based (see product ADR-0022).
-     */
-    var repottingIntervalMonths by mutableIntStateOf(DEFAULT_REPOTTING_MONTHS)
-    var repottingIntervalEnabled by mutableStateOf(false)
+    /** Every non-text input plus the wizard step; changed only through the setters below. */
+    val uiState: StateFlow<AddEditPlantFormState> = _form.asStateFlow()
 
-    /**
-     * Preferred seasons for the recurring repotting date (#809, product ADR-0057), all four by default.
-     * Persisted as-is even while [repottingIntervalEnabled] is off: with no interval there is no date to
-     * shift so the value is inert, and keeping it means toggling the reminder off and on again doesn't
-     * silently forget the owner's choice. The chip row is only shown while the reminder is enabled.
-     */
-    var repottingSeasons by mutableStateOf<Set<FertilizingSeason>>(FertilizingSeason.entries.toSet())
-
-    private var pinIntervalToBaseState by mutableStateOf(false)
-    private var wateringAmplitudeOverrideState by mutableStateOf<SeasonalAmplitude?>(null)
-
-    /**
-     * Per-plant opt-out from the seasonal curve (#569). One of the three choices of the strength control
-     * (#700, product ADR-0084), so turning it on clears [wateringAmplitudeOverride].
-     */
-    var pinIntervalToBase: Boolean
-        get() = pinIntervalToBaseState
-        set(value) {
-            pinIntervalToBaseState = value
-            if (value) wateringAmplitudeOverrideState = null
-        }
-
-    /** Per-plant custom strength (#700); choosing one clears [pinIntervalToBase], `null` = follow the app default. */
-    var wateringAmplitudeOverride: SeasonalAmplitude?
-        get() = wateringAmplitudeOverrideState
-        set(value) {
-            wateringAmplitudeOverrideState = value
-            if (value != null) pinIntervalToBaseState = false
-        }
-
-    private var loadedAmplitudeOverride: SeasonalAmplitude? = null
+    // Typed text stays synchronous Compose state, not part of [uiState]: feeding a TextField from an
+    // asynchronously collected StateFlow can drop keystrokes or jump the cursor (same exception as
+    // PlantListViewModel.searchQueryText, technical ADR-0044). Each setter also mirrors into the handle.
+    private var nameState by mutableStateOf(savedStateHandle.get<String>(KEY_NAME).orEmpty())
+    val name: String get() = nameState
+    private var speciesState by mutableStateOf(savedStateHandle.get<String>(KEY_SPECIES).orEmpty())
+    val species: String get() = speciesState
+    private var roomState by mutableStateOf(savedStateHandle.get<String>(KEY_ROOM).orEmpty())
+    val room: String get() = roomState
+    private var notesState by mutableStateOf(savedStateHandle.get<String>(KEY_NOTES).orEmpty())
+    val notes: String get() = notesState
 
     /** The "adjusted for winter" hint describes the stored strength, so it hides once the form picks another one. */
     val showSeasonalAdjustment: Boolean
-        get() = seasonalAdjustment != null && !pinIntervalToBase && wateringAmplitudeOverride == loadedAmplitudeOverride
-    var dormancyStartMonth by mutableStateOf<Int?>(null)
-    var dormancyEndMonth by mutableStateOf<Int?>(null)
-    var dormantWateringIntervalDays by mutableStateOf<Int?>(null)
-
-    /**
-     * The watering interval the slider was seeded with: today's live value (#928, product ADR-0070), not
-     * the stored literal — `null` for a new plant or when the schedule was off. Save compares the slider
-     * with this, so only a real change counts as an unprompted edit on this screen (as opposed to applying
-     * a product ADR-0006 suggestion, which never routes through here). An edit is a full
-     * [Plant.wateringConfidence] reset (#568): the user is asserting a new baseline (moved the plant,
-     * repotted, changed pot size), unlike fine-tuning the number inside the suggestion dialog itself.
-     */
-    private var seededWateringIntervalDays: Int? = null
+        get() = seasonalAdjustment != null && _form.value.seasonalHintApplies
 
     /** Edit mode only: non-null when today's seasonal value differs from the rounded base and the plant isn't dormant today. */
     var seasonalAdjustment by mutableStateOf<LiveWateringInterval.SeasonalAdjustment?>(null)
@@ -141,17 +101,13 @@ class AddEditPlantViewModel(
     var isHidden by mutableStateOf(false)
         private set
 
-    /**
-     * Add mode only: the parent's name for the read-only "Propagated from" line (#960). Not editable here —
-     * the link is set only through the Propagate tab's Family card, so this form stays uncluttered. `null`
-     * when not opened from the offer, or when the parent no longer exists.
-     */
-    var propagatedFromName by mutableStateOf<String?>(null)
-        private set
+    /** Add mode only: the parent's name for the read-only "Propagated from" line (#960); see [uiState]. */
+    val propagatedFromName: String? get() = _form.value.propagatedFromName
 
-    private var linkedParentId: Long? = null
-
-    val pendingPhotos = mutableStateListOf<String>()
+    /** True when there is anything to lose by leaving the wizard (drives the discard dialog). */
+    val hasUnsavedInput: Boolean
+        get() = name.isNotBlank() || species.isNotBlank() || room.isNotBlank() || notes.isNotBlank() ||
+            _form.value.hasCareOrPhotoInput
 
     val rooms: StateFlow<List<String>> = plantRepository.getAllRooms()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -160,7 +116,7 @@ class AddEditPlantViewModel(
     val events: SharedFlow<Event> = _events
 
     init {
-        if (plantId == null && propagatedFromId != null) {
+        if (plantId == null && propagatedFromId != null && !_form.value.prefillDone) {
             viewModelScope.launch {
                 plantRepository.getPlantById(propagatedFromId).first()?.let { parent ->
                     // The only suspending step, so every guarded write below sees the user's edits so far.
@@ -170,118 +126,114 @@ class AddEditPlantViewModel(
                         dataStore?.seasonalAmplitudeOnce() ?: 0.0,
                         hemisphere()
                     )
-                    linkedParentId = parent.id
-                    propagatedFromName = parent.name
-                    if (name.isEmpty()) name = childNameFor(parent.name)
-                    if (species.isEmpty()) species = parent.species.orEmpty()
-                    if (room.isEmpty()) room = parent.room.orEmpty()
-                    prefillCareSettings(parent, live)
+                    if (name.isEmpty()) setName(childNameFor(parent.name))
+                    if (species.isEmpty()) setSpecies(parent.species.orEmpty())
+                    if (room.isEmpty()) setRoom(parent.room.orEmpty())
+                    mutate { it.withParentCarePrefill(parent, live) }
                 }
             }
         }
         plantId?.let { id ->
             viewModelScope.launch {
-                plantRepository.getPlantById(id).first()?.let { plant ->
-                    val today = nowProvider().toLocalDate()
-                    val live = LiveWateringInterval.compute(
-                        plant,
-                        today,
-                        dataStore?.seasonalAmplitudeOnce() ?: 0.0,
-                        hemisphere()
-                    )
-                    name = plant.name
-                    species = plant.species ?: ""
-                    room = plant.room ?: ""
-                    notes = plant.notes ?: ""
-                    coverPhotoUri = plant.coverPhotoUri
-                    isHidden = plant.hiddenAt != null
-                    plant.wateringIntervalDays?.let {
-                        val shown = live?.effectiveDays ?: it
-                        wateringIntervalDays = shown
-                        wateringIntervalEnabled = true
-                        seededWateringIntervalDays = shown
-                    }
-                    val dormantToday = DormancyWindow.isDormant(
-                        today.monthValue,
-                        plant.dormancyStartMonth,
-                        plant.dormancyEndMonth
-                    )
-                    seasonalAdjustment = live?.adjustment.takeUnless { dormantToday }
-                    plant.fertilizingIntervalDays?.let {
-                        fertilizingIntervalDays = it
-                        fertilizingIntervalEnabled = true
-                    }
-                    fertilizingSeasons = plant.fertilizingSeasons
-                    plant.repottingIntervalDays?.let {
-                        repottingIntervalMonths = daysToRepottingMonths(it)
-                        repottingIntervalEnabled = true
-                    }
-                    repottingSeasons = plant.repottingSeasons
-                    useLiquidFertilizer = plant.useLiquidFertilizer
-                    pinIntervalToBase = plant.pinIntervalToBase
-                    wateringAmplitudeOverride = plant.wateringAmplitudeOverride.takeUnless { plant.pinIntervalToBase }
-                    loadedAmplitudeOverride = wateringAmplitudeOverride
-                    dormancyStartMonth = plant.dormancyStartMonth
-                    dormancyEndMonth = plant.dormancyEndMonth
-                    dormantWateringIntervalDays = DormancyWindow.validWateringInterval(
-                        plant.dormantWateringIntervalDays
-                    )
-                }
+                plantRepository.getPlantById(id).first()?.let { plant -> loadForEdit(plant) }
             }
         }
     }
 
-    /**
-     * A new plant from a propagation starts with the parent's care settings (#960, product ADR-0073), all
-     * still editable. Each one is written only while it holds its untouched default, like name, species and
-     * room, so a slow parent read never overwrites what the user already changed. Copied: the dormancy
-     * window and its watering cadence, the fertilizing reminder (on/off, interval, seasons, liquid), the
-     * repotting seasons, the pin switch and the watering reminder with the parent's live effective interval
-     * for today ([live]), never the stored literal. Not copied: the repotting reminder and plan, learned
-     * watering state (the cutting learns from scratch), notes, photos, reminders, issues, hidden/archived.
-     */
-    private fun prefillCareSettings(parent: Plant, live: LiveWateringInterval?) {
-        if (!wateringIntervalEnabled && wateringIntervalDays == DEFAULT_WATERING_INTERVAL_DAYS && live != null) {
-            wateringIntervalDays = live.effectiveDays
-            wateringIntervalEnabled = true
-        }
-        prefillFertilizing(parent)
-        if (repottingSeasons == ALL_SEASONS) repottingSeasons = parent.repottingSeasons
-        if (!pinIntervalToBase) pinIntervalToBase = parent.pinIntervalToBase
-        if (!pinIntervalToBase && wateringAmplitudeOverride == null) {
-            wateringAmplitudeOverride = parent.wateringAmplitudeOverride
-        }
-        val dormancyUntouched = dormancyStartMonth == null && dormancyEndMonth == null &&
-            dormantWateringIntervalDays == null
-        val parentStart = parent.dormancyStartMonth
-        val parentEnd = parent.dormancyEndMonth
-        if (dormancyUntouched && parentStart != null && parentEnd != null) {
-            setDormancyWindow(
-                parentStart,
-                parentEnd,
-                DormancyWindow.validWateringInterval(parent.dormantWateringIntervalDays)
+    private suspend fun loadForEdit(plant: Plant) {
+        val today = nowProvider().toLocalDate()
+        val live = LiveWateringInterval.compute(
+            plant,
+            today,
+            dataStore?.seasonalAmplitudeOnce() ?: 0.0,
+            hemisphere()
+        )
+        isHidden = plant.hiddenAt != null
+        val dormantToday = DormancyWindow.isDormant(
+            today.monthValue,
+            plant.dormancyStartMonth,
+            plant.dormancyEndMonth
+        )
+        seasonalAdjustment = live?.adjustment.takeUnless { dormantToday }
+        // A restored draft holds the user's edits: the plant row only refreshes the display-only fields above.
+        if (_form.value.editLoaded) return
+        setName(plant.name)
+        setSpecies(plant.species ?: "")
+        setRoom(plant.room ?: "")
+        setNotes(plant.notes ?: "")
+        val shownWatering = plant.wateringIntervalDays?.let { live?.effectiveDays ?: it }
+        mutate { it.withPlantLoaded(plant, shownWatering) }
+    }
+
+    private fun mutate(transform: (AddEditPlantFormState) -> AddEditPlantFormState) {
+        val updated = _form.updateAndGet(transform)
+        savedStateHandle[KEY_FORM] = updated.toJson()
+    }
+
+    fun setName(value: String) {
+        nameState = value
+        savedStateHandle[KEY_NAME] = value
+    }
+
+    fun setSpecies(value: String) {
+        speciesState = value
+        savedStateHandle[KEY_SPECIES] = value
+    }
+
+    fun setRoom(value: String) {
+        roomState = value
+        savedStateHandle[KEY_ROOM] = value
+    }
+
+    fun setNotes(value: String) {
+        notesState = value
+        savedStateHandle[KEY_NOTES] = value
+    }
+
+    fun addPhoto(uri: String) {
+        mutate { form ->
+            form.copy(
+                pendingPhotos = if (uri in form.pendingPhotos) form.pendingPhotos else form.pendingPhotos + uri,
+                coverPhotoUri = uri
             )
         }
     }
 
-    private fun prefillFertilizing(parent: Plant) {
-        val parentFertilizing = parent.fertilizingIntervalDays
-        if (!fertilizingIntervalEnabled && fertilizingIntervalDays == DEFAULT_FERTILIZING_INTERVAL_DAYS &&
-            parentFertilizing != null
-        ) {
-            fertilizingIntervalDays = parentFertilizing
-            fertilizingIntervalEnabled = true
-        }
-        if (fertilizingSeasons == ALL_SEASONS) fertilizingSeasons = parent.fertilizingSeasons
-        if (!useLiquidFertilizer) useLiquidFertilizer = parent.useLiquidFertilizer
+    fun setWateringIntervalEnabled(enabled: Boolean) = mutate { it.copy(wateringIntervalEnabled = enabled) }
+
+    fun setWateringIntervalDays(days: Int) = mutate { it.copy(wateringIntervalDays = days) }
+
+    fun setFertilizingIntervalEnabled(enabled: Boolean) = mutate { it.copy(fertilizingIntervalEnabled = enabled) }
+
+    fun setFertilizingIntervalDays(days: Int) = mutate { it.copy(fertilizingIntervalDays = days) }
+
+    fun setUseLiquidFertilizer(enabled: Boolean) = mutate { it.copy(useLiquidFertilizer = enabled) }
+
+    fun setRepottingIntervalEnabled(enabled: Boolean) = mutate { it.copy(repottingIntervalEnabled = enabled) }
+
+    fun setRepottingIntervalMonths(months: Int) = mutate { it.copy(repottingIntervalMonths = months) }
+
+    /**
+     * Per-plant opt-out from the seasonal curve (#569). One of the three choices of the strength control
+     * (#700, product ADR-0084), so turning it on clears the custom strength.
+     */
+    fun setPinIntervalToBase(pinned: Boolean) = mutate {
+        it.copy(
+            pinIntervalToBase = pinned,
+            wateringAmplitudeOverride = if (pinned) null else it.wateringAmplitudeOverride
+        )
     }
 
-    fun addPhoto(uri: String) {
-        if (pendingPhotos.none { it == uri }) {
-            pendingPhotos.add(uri)
-        }
-        coverPhotoUri = uri
+    /** Per-plant custom strength (#700); choosing one clears the pin, `null` = follow the app default. */
+    fun setWateringAmplitudeOverride(amplitude: SeasonalAmplitude?) = mutate {
+        it.copy(
+            wateringAmplitudeOverride = amplitude,
+            pinIntervalToBase = if (amplitude != null) false else it.pinIntervalToBase
+        )
     }
+
+    /** The strength control's "App default" choice: neither pinned nor a custom strength. */
+    fun selectAppDefaultStrength() = mutate { it.copy(pinIntervalToBase = false, wateringAmplitudeOverride = null) }
 
     fun setDormancyWindow(startMonth: Int?, endMonth: Int?, dormantIntervalDays: Int? = null) {
         require(
@@ -289,71 +241,89 @@ class AddEditPlantViewModel(
                 (startMonth != null && endMonth != null && startMonth in 1..12 && endMonth in 1..12)
         )
         require(dormantIntervalDays == null || DormancyWindow.validWateringInterval(dormantIntervalDays) != null)
-        dormancyStartMonth = startMonth
-        dormancyEndMonth = endMonth
-        dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
+        mutate {
+            it.copy(
+                dormancyStartMonth = startMonth,
+                dormancyEndMonth = endMonth,
+                dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
+            )
+        }
     }
 
     /**
-     * [FertilizingSeasonsSelector] reports the tapped season, not a full replacement set (#804) —
-     * this applies it to the local [fertilizingSeasons] form state, which this screen never shares
-     * with another writer, so no staleness guard beyond the plain in-memory read is needed here (see
-     * `PlantDetailViewModel.toggleFertilizingSeason` for the fresh-read-under-lock equivalent). At
-     * least one season must always stay active — a toggle that would empty the set is rejected,
-     * keeping the previous selection (#795).
+     * [FertilizingSeasonsSelector] reports the tapped season, not a full replacement set (#804) — the
+     * toggle is applied to the latest [uiState] inside one atomic update. At least one season must
+     * always stay active — a toggle that would empty the set is rejected, keeping the previous
+     * selection (#795).
      */
-    fun toggleFertilizingSeason(season: FertilizingSeason) {
-        fertilizingSeasons = toggledSeasons(fertilizingSeasons, season)
-    }
+    fun toggleFertilizingSeason(season: FertilizingSeason) =
+        mutate { it.copy(fertilizingSeasons = toggledSeasons(it.fertilizingSeasons, season)) }
 
     /** Same toggle contract as [toggleFertilizingSeason], for the repotting reminder's preferred seasons (#809). */
-    fun toggleRepottingSeason(season: FertilizingSeason) {
-        repottingSeasons = toggledSeasons(repottingSeasons, season)
+    fun toggleRepottingSeason(season: FertilizingSeason) =
+        mutate { it.copy(repottingSeasons = toggledSeasons(it.repottingSeasons, season)) }
+
+    /** Advances the wizard; a blank name keeps step 2 and explains why. */
+    fun goNext() {
+        val current = _form.value.step
+        if (current == AddPlantStep.DETAILS && name.isBlank()) {
+            viewModelScope.launch { _events.emit(Event.ValidationError(R.string.add_plant_name_required)) }
+            return
+        }
+        val next = AddPlantStep.entries.getOrNull(current.ordinal + 1) ?: return
+        mutate { it.copy(step = next) }
     }
 
-    private fun toggledSeasons(current: Set<FertilizingSeason>, season: FertilizingSeason): Set<FertilizingSeason> {
-        val newSeasons = if (season in current) current - season else current + season
-        return if (newSeasons.isEmpty()) current else newSeasons
+    /** Steps back; `false` means there is no earlier step (first step, or edit mode) and the caller leaves. */
+    fun goBack(): Boolean {
+        val previous = AddPlantStep.entries.getOrNull(_form.value.step.ordinal - 1)
+        if (isEditMode || previous == null) return false
+        mutate { it.copy(step = previous) }
+        return true
     }
+
+    fun goToStep(step: AddPlantStep) = mutate { it.copy(step = step) }
 
     fun save() {
         if (name.isBlank()) {
-            viewModelScope.launch { _events.emit(Event.ValidationError("Plant name is required")) }
+            if (!isEditMode) goToStep(AddPlantStep.DETAILS)
+            viewModelScope.launch { _events.emit(Event.ValidationError(R.string.add_plant_name_required)) }
             return
         }
+        val form = _form.value
         viewModelScope.launch {
             val now = nowProvider()
-            val newWateringIntervalDays = if (wateringIntervalEnabled) wateringIntervalDays else null
-            val intervalChanged = newWateringIntervalDays != seededWateringIntervalDays
+            val newWateringIntervalDays = if (form.wateringIntervalEnabled) form.wateringIntervalDays else null
+            val intervalChanged = newWateringIntervalDays != form.seededWateringIntervalDays
             val plant = Plant(
                 id = plantId ?: 0,
                 name = name.trim(),
                 species = species.trim().ifBlank { null },
                 room = room.trim().ifBlank { null },
                 notes = notes.trim().ifBlank { null },
-                coverPhotoUri = coverPhotoUri,
+                coverPhotoUri = form.coverPhotoUri,
                 wateringIntervalDays = newWateringIntervalDays,
-                fertilizingIntervalDays = if (fertilizingIntervalEnabled) fertilizingIntervalDays else null,
-                repottingIntervalDays = if (repottingIntervalEnabled) {
-                    repottingIntervalMonths * DAYS_PER_MONTH
+                fertilizingIntervalDays = if (form.fertilizingIntervalEnabled) form.fertilizingIntervalDays else null,
+                repottingIntervalDays = if (form.repottingIntervalEnabled) {
+                    form.repottingIntervalMonths * DAYS_PER_MONTH
                 } else {
                     null
                 },
                 createdAt = if (isEditMode) 0L else now,
                 updatedAt = now,
-                useLiquidFertilizer = useLiquidFertilizer,
-                pinIntervalToBase = pinIntervalToBase,
-                wateringAmplitudeOverride = wateringAmplitudeOverride,
-                dormancyStartMonth = dormancyStartMonth,
-                dormancyEndMonth = dormancyEndMonth,
-                fertilizingSeasons = fertilizingSeasons,
-                repottingSeasons = repottingSeasons,
-                dormantWateringIntervalDays = dormantWateringIntervalDays
+                useLiquidFertilizer = form.useLiquidFertilizer,
+                pinIntervalToBase = form.pinIntervalToBase,
+                wateringAmplitudeOverride = form.wateringAmplitudeOverride,
+                dormancyStartMonth = form.dormancyStartMonth,
+                dormancyEndMonth = form.dormancyEndMonth,
+                fertilizingSeasons = form.fertilizingSeasons,
+                repottingSeasons = form.repottingSeasons,
+                dormantWateringIntervalDays = form.dormantWateringIntervalDays
             )
             if (isEditMode) {
-                saveEdit(plant, newWateringIntervalDays, intervalChanged, now)
+                saveEdit(form, plant, newWateringIntervalDays, intervalChanged, now)
             } else {
-                saveNew(plant, newWateringIntervalDays, now)
+                saveNew(form, plant, newWateringIntervalDays, now)
             }
         }
     }
@@ -369,18 +339,25 @@ class AddEditPlantViewModel(
      * `CyclomaticComplexMethod` threshold.
      */
     private suspend fun recomputeWateringBase(
+        form: AddEditPlantFormState,
         existing: Plant?,
         newWateringIntervalDays: Int?,
         intervalChanged: Boolean,
         now: Long
     ): RecomputedBase {
-        val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !pinIntervalToBase
+        val baseShouldBeRecomputed = newWateringIntervalDays != null && intervalChanged && !form.pinIntervalToBase
         if (!baseShouldBeRecomputed) return RecomputedBase(null, existing?.wateringBaseIntervalDays)
-        val deseasonalizedNewBase = deseasonalizedBaseOrNull(newWateringIntervalDays!!, now)
+        val deseasonalizedNewBase = deseasonalizedBaseOrNull(form, newWateringIntervalDays!!, now)
         return RecomputedBase(deseasonalizedNewBase, deseasonalizedNewBase ?: existing?.wateringBaseIntervalDays)
     }
 
-    private suspend fun saveEdit(plant: Plant, newWateringIntervalDays: Int?, intervalChanged: Boolean, now: Long) {
+    private suspend fun saveEdit(
+        form: AddEditPlantFormState,
+        plant: Plant,
+        newWateringIntervalDays: Int?,
+        intervalChanged: Boolean,
+        now: Long
+    ) {
         val existing = plantRepository.getPlantById(plantId!!).first()
         // A room change is a lifecycle reset too (#571), except blank/empty -> filled for the first
         // time (data entry, not a physical move).
@@ -391,10 +368,10 @@ class AddEditPlantViewModel(
         // dialog, which never routes through here.
         val wateringConfidence = if (intervalChanged || roomChangeResetFires) 0 else existing?.wateringConfidence
         val (deseasonalizedNewBase, wateringBaseIntervalDays) =
-            recomputeWateringBase(existing, newWateringIntervalDays, intervalChanged, now)
+            recomputeWateringBase(form, existing, newWateringIntervalDays, intervalChanged, now)
         plantRepository.updatePlant(
             plant.copy(
-                wateringIntervalDays = literalToStore(existing, newWateringIntervalDays, intervalChanged),
+                wateringIntervalDays = literalToStore(form, existing, newWateringIntervalDays, intervalChanged),
                 createdAt = existing?.createdAt ?: now,
                 wateringDueDateOverride = existing?.wateringDueDateOverride,
                 wateringDueDateOverrideMadeAt = existing?.wateringDueDateOverrideMadeAt,
@@ -419,12 +396,12 @@ class AddEditPlantViewModel(
             )
         )
         if (intervalChanged && newWateringIntervalDays != null) {
-            logManualEditAdjustment(existing, newWateringIntervalDays, deseasonalizedNewBase, now)
+            logManualEditAdjustment(form, existing, newWateringIntervalDays, deseasonalizedNewBase, now)
         }
         if (roomChangeResetFires) {
             logRoomChangeResetAdjustment(existing, now)
         }
-        savePendingPhotos(plantId!!, now)
+        savePendingPhotos(form, plantId!!, now)
         _events.emit(Event.Saved(plantId))
     }
 
@@ -434,8 +411,13 @@ class AddEditPlantViewModel(
      * (#928, product ADR-0070). Turning the pin on is the exception: a pinned plant's interval is the literal,
      * so it pins the value the slider shows.
      */
-    private fun literalToStore(existing: Plant?, newWateringIntervalDays: Int?, intervalChanged: Boolean): Int? {
-        val newlyPinned = pinIntervalToBase && existing?.pinIntervalToBase != true
+    private fun literalToStore(
+        form: AddEditPlantFormState,
+        existing: Plant?,
+        newWateringIntervalDays: Int?,
+        intervalChanged: Boolean
+    ): Int? {
+        val newlyPinned = form.pinIntervalToBase && existing?.pinIntervalToBase != true
         return if (intervalChanged || newlyPinned) newWateringIntervalDays else existing?.wateringIntervalDays
     }
 
@@ -446,6 +428,7 @@ class AddEditPlantViewModel(
      * [saveEdit] to keep it under Detekt's `LongMethod`/`CyclomaticComplexMethod` thresholds.
      */
     private suspend fun logManualEditAdjustment(
+        form: AddEditPlantFormState,
         existing: Plant?,
         newWateringIntervalDays: Int,
         deseasonalizedNewBase: Double?,
@@ -455,7 +438,7 @@ class AddEditPlantViewModel(
             existing,
             existing?.wateringIntervalDays ?: newWateringIntervalDays
         )
-        val loggedAfter = if (!pinIntervalToBase) {
+        val loggedAfter = if (!form.pinIntervalToBase) {
             (deseasonalizedNewBase ?: newWateringIntervalDays.toDouble()).roundToInt()
         } else {
             newWateringIntervalDays
@@ -487,29 +470,29 @@ class AddEditPlantViewModel(
         )
     }
 
-    private suspend fun saveNew(plant: Plant, newWateringIntervalDays: Int?, now: Long) {
-        val wateringBaseIntervalDays = if (newWateringIntervalDays != null && !pinIntervalToBase) {
-            deseasonalizedBaseOrNull(newWateringIntervalDays, now)
+    private suspend fun saveNew(form: AddEditPlantFormState, plant: Plant, newWateringIntervalDays: Int?, now: Long) {
+        val wateringBaseIntervalDays = if (newWateringIntervalDays != null && !form.pinIntervalToBase) {
+            deseasonalizedBaseOrNull(form, newWateringIntervalDays, now)
         } else {
             null
         }
         // Re-read the parent: it may have been deleted since the form opened, and a dangling id would fail the FK.
-        val parentId = linkedParentId?.takeIf { plantRepository.getPlantById(it).first() != null }
+        val parentId = form.linkedParentId?.takeIf { plantRepository.getPlantById(it).first() != null }
         val newId = plantRepository.addPlant(
             plant.copy(wateringBaseIntervalDays = wateringBaseIntervalDays, propagatedFromId = parentId)
         )
-        savePendingPhotos(newId, now)
+        savePendingPhotos(form, newId, now)
         _events.emit(Event.Saved(newId))
     }
 
     /**
      * `null` when [dataStore] is null (test-convenience seam) or the form's effective amplitude reads Off.
      */
-    private suspend fun deseasonalizedBaseOrNull(intervalDays: Int, now: Long): Double? {
+    private suspend fun deseasonalizedBaseOrNull(form: AddEditPlantFormState, intervalDays: Int, now: Long): Double? {
         val store = dataStore ?: return null
         val amplitude = resolveWateringAmplitude(
-            pinIntervalToBase,
-            wateringAmplitudeOverride,
+            form.pinIntervalToBase,
+            form.wateringAmplitudeOverride,
             store.seasonalAmplitudeOnce()
         )
         return if (amplitude == 0.0) {
@@ -569,10 +552,10 @@ class AddEditPlantViewModel(
         }
     }
 
-    private suspend fun savePendingPhotos(plantId: Long, now: Long) {
-        if (pendingPhotos.isEmpty()) return
+    private suspend fun savePendingPhotos(form: AddEditPlantFormState, plantId: Long, now: Long) {
+        if (form.pendingPhotos.isEmpty()) return
         plantPhotoRepository.addPhotos(
-            pendingPhotos.map { PlantPhoto(plantId = plantId, uri = it, capturedAt = now) }
+            form.pendingPhotos.map { PlantPhoto(plantId = plantId, uri = it, capturedAt = now) }
         )
     }
 
@@ -581,7 +564,7 @@ class AddEditPlantViewModel(
         data class ArchivedForUndo(val plantId: Long, val plantName: String) : Event()
         data class HiddenForUndo(val plantId: Long, val plantName: String) : Event()
         object Unhidden : Event()
-        data class ValidationError(val message: String) : Event()
+        data class ValidationError(@StringRes val messageRes: Int) : Event()
     }
 
     companion object {
@@ -602,11 +585,14 @@ class AddEditPlantViewModel(
         const val MIN_REPOTTING_MONTHS = 3
         const val MAX_REPOTTING_MONTHS = 36
         const val DEFAULT_REPOTTING_MONTHS = 12
-        private const val DEFAULT_WATERING_INTERVAL_DAYS = 7
-        private const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
-        private val ALL_SEASONS = FertilizingSeason.entries.toSet()
+        private const val KEY_FORM = "add_edit_plant_form"
+        private const val KEY_NAME = "add_edit_plant_name"
+        private const val KEY_SPECIES = "add_edit_plant_species"
+        private const val KEY_ROOM = "add_edit_plant_room"
+        private const val KEY_NOTES = "add_edit_plant_notes"
     }
 
+    @Suppress("UNCHECKED_CAST")
     class Factory(
         private val plantRepository: PlantRepository,
         private val plantPhotoRepository: PlantPhotoRepository,
@@ -616,8 +602,12 @@ class AddEditPlantViewModel(
         private val propagatedFromId: Long? = null,
         private val childNameFor: (parentName: String) -> String = { it }
     ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T =
+            build(extras.createSavedStateHandle()) as T
+
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = build(SavedStateHandle()) as T
+
+        private fun build(savedStateHandle: SavedStateHandle) =
             AddEditPlantViewModel(
                 plantRepository,
                 plantPhotoRepository,
@@ -625,7 +615,8 @@ class AddEditPlantViewModel(
                 dataStore,
                 wateringAdjustmentRepository,
                 propagatedFromId = propagatedFromId,
-                childNameFor = childNameFor
-            ) as T
+                childNameFor = childNameFor,
+                savedStateHandle = savedStateHandle
+            )
     }
 }
