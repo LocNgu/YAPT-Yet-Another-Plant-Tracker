@@ -147,6 +147,17 @@ class AddEditPlantViewModelWizardTest {
         }
     }
 
+    @Test
+    fun `a second Add plant tap while the first save runs does not create a second plant`() = runTest {
+        coEvery { plantRepo.addPlant(any()) } returns 5L
+        val vm = newVm()
+        vm.setName("Fern")
+        vm.save()
+        vm.save()
+        advanceUntilIdle()
+        coVerify(exactly = 1) { plantRepo.addPlant(any()) }
+    }
+
     // ---- hasUnsavedInput ----
 
     @Test

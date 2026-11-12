@@ -284,47 +284,66 @@ class AddEditPlantViewModel(
 
     fun goToStep(step: AddPlantStep) = mutate { it.copy(step = step) }
 
+    /**
+     * Set once a valid save starts, so a second tap on Add plant / Save while the first write is still
+     * running can't create a duplicate plant (the screen leaves on [Event.Saved]). Cleared only if the
+     * save throws, so the user can retry.
+     */
+    private var saveInFlight = false
+
     fun save() {
+        if (saveInFlight) return
         if (name.isBlank()) {
             if (!isEditMode) goToStep(AddPlantStep.DETAILS)
             viewModelScope.launch { _events.emit(Event.ValidationError(R.string.add_plant_name_required)) }
             return
         }
         val form = _form.value
+        saveInFlight = true
         viewModelScope.launch {
-            val now = nowProvider()
-            val newWateringIntervalDays = if (form.wateringIntervalEnabled) form.wateringIntervalDays else null
-            val intervalChanged = newWateringIntervalDays != form.seededWateringIntervalDays
-            val plant = Plant(
-                id = plantId ?: 0,
-                name = name.trim(),
-                species = species.trim().ifBlank { null },
-                room = room.trim().ifBlank { null },
-                notes = notes.trim().ifBlank { null },
-                coverPhotoUri = form.coverPhotoUri,
-                wateringIntervalDays = newWateringIntervalDays,
-                fertilizingIntervalDays = if (form.fertilizingIntervalEnabled) form.fertilizingIntervalDays else null,
-                repottingIntervalDays = if (form.repottingIntervalEnabled) {
-                    form.repottingIntervalMonths * DAYS_PER_MONTH
-                } else {
-                    null
-                },
-                createdAt = if (isEditMode) 0L else now,
-                updatedAt = now,
-                useLiquidFertilizer = form.useLiquidFertilizer,
-                pinIntervalToBase = form.pinIntervalToBase,
-                wateringAmplitudeOverride = form.wateringAmplitudeOverride,
-                dormancyStartMonth = form.dormancyStartMonth,
-                dormancyEndMonth = form.dormancyEndMonth,
-                fertilizingSeasons = form.fertilizingSeasons,
-                repottingSeasons = form.repottingSeasons,
-                dormantWateringIntervalDays = form.dormantWateringIntervalDays
-            )
-            if (isEditMode) {
-                saveEdit(form, plant, newWateringIntervalDays, intervalChanged, now)
-            } else {
-                saveNew(form, plant, newWateringIntervalDays, now)
+            var saved = false
+            try {
+                persist(form)
+                saved = true
+            } finally {
+                if (!saved) saveInFlight = false
             }
+        }
+    }
+
+    private suspend fun persist(form: AddEditPlantFormState) {
+        val now = nowProvider()
+        val newWateringIntervalDays = if (form.wateringIntervalEnabled) form.wateringIntervalDays else null
+        val intervalChanged = newWateringIntervalDays != form.seededWateringIntervalDays
+        val plant = Plant(
+            id = plantId ?: 0,
+            name = name.trim(),
+            species = species.trim().ifBlank { null },
+            room = room.trim().ifBlank { null },
+            notes = notes.trim().ifBlank { null },
+            coverPhotoUri = form.coverPhotoUri,
+            wateringIntervalDays = newWateringIntervalDays,
+            fertilizingIntervalDays = if (form.fertilizingIntervalEnabled) form.fertilizingIntervalDays else null,
+            repottingIntervalDays = if (form.repottingIntervalEnabled) {
+                form.repottingIntervalMonths * DAYS_PER_MONTH
+            } else {
+                null
+            },
+            createdAt = if (isEditMode) 0L else now,
+            updatedAt = now,
+            useLiquidFertilizer = form.useLiquidFertilizer,
+            pinIntervalToBase = form.pinIntervalToBase,
+            wateringAmplitudeOverride = form.wateringAmplitudeOverride,
+            dormancyStartMonth = form.dormancyStartMonth,
+            dormancyEndMonth = form.dormancyEndMonth,
+            fertilizingSeasons = form.fertilizingSeasons,
+            repottingSeasons = form.repottingSeasons,
+            dormantWateringIntervalDays = form.dormantWateringIntervalDays
+        )
+        if (isEditMode) {
+            saveEdit(form, plant, newWateringIntervalDays, intervalChanged, now)
+        } else {
+            saveNew(form, plant, newWateringIntervalDays, now)
         }
     }
 
