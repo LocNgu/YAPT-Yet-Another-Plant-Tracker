@@ -76,8 +76,8 @@ class PlantListViewModel(
     // Search (#512): same in-memory lifetime as [selectedRoom] above — a plain ViewModel field
     // survives Plant Detail -> back (same instance across the nav back-stack) and resets on process
     // death, with no DataStore key. `searchQueryText` is a synchronous Compose value for the
-    // TextField (mirroring AddEditPlantViewModel's `var name by mutableStateOf("")` — avoids driving
-    // a TextField off an asynchronously-collected StateFlow); `searchQuery` is the StateFlow the
+    // TextField (the same documented exception AddEditPlantViewModel makes for its typed text, technical
+    // ADR-0044 — avoids driving a TextField off an asynchronously-collected StateFlow); `searchQuery` is the StateFlow the
     // `combine` pipeline below reads. [setSearchQuery] is the one setter that writes both so they
     // can never drift.
     var searchQueryText by mutableStateOf("")

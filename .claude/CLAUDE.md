@@ -96,6 +96,6 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 
 ## Pointers — `.claude/rules/` (path-scoped: each loads automatically when you touch matching files)
 - Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md` · `hidden-plants.md` · `away-mode.md` (trip storage, date logic, backup; feature design is product ADR-0065)
-- Screens: `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
+- Screens: `add-edit-plant.md` (Add wizard, form state, restore) · `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
 - Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `whats-new.md` (What's New writing rule, length test, collapsible sheet) · `adr.md` · `permissions.md` · `github-access.md` (MCP vs `gh`, allowlisted `gh` writes)
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference.

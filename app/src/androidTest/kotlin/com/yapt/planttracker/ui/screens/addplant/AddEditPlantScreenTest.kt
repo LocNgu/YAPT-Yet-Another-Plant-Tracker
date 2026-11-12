@@ -87,8 +87,8 @@ class AddEditPlantScreenTest {
     }
 
     @Test
-    fun saveFab_isDisplayedInInitialState() {
-        val viewModel = makeViewModel()
+    fun editMode_showsTheSaveFabAndNoWizard() {
+        val viewModel = makeEditViewModel(seasonalPlant())
 
         composeTestRule.setContent {
             AddEditPlantScreen(
@@ -98,6 +98,11 @@ class AddEditPlantScreenTest {
         }
 
         composeTestRule.onNodeWithContentDescription("Save").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Step 1 of 4").assertDoesNotExist()
+    }
+
+    private fun goToStep(viewModel: AddEditPlantViewModel, step: AddPlantStep) {
+        composeTestRule.runOnIdle { viewModel.goToStep(step) }
     }
 
     @Test
@@ -106,6 +111,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
+        goToStep(viewModel, AddPlantStep.CARE)
 
         composeTestRule.onNodeWithContentDescription("Dormancy window")
             .performScrollTo()
@@ -124,7 +130,8 @@ class AddEditPlantScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Save").performClick()
+        goToStep(viewModel, AddPlantStep.DETAILS)
+        composeTestRule.onNodeWithText(str(R.string.add_plant_next)).performClick()
 
         composeTestRule.onNodeWithText("Plant name is required").assertIsDisplayed()
     }
@@ -242,10 +249,11 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
+        goToStep(viewModel, AddPlantStep.CARE)
 
         composeTestRule.onNodeWithText("Repotting reminder").performScrollTo().assertIsDisplayed()
 
-        composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
+        composeTestRule.runOnIdle { viewModel.setRepottingIntervalEnabled(true) }
 
         composeTestRule.onNodeWithText("Repot every 12 months").performScrollTo().assertIsDisplayed()
     }
@@ -258,6 +266,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
+        goToStep(viewModel, AddPlantStep.CARE)
 
         composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).performScrollTo().assertIsDisplayed()
         assertTrue(
@@ -272,8 +281,9 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
+        goToStep(viewModel, AddPlantStep.CARE)
 
-        composeTestRule.runOnIdle { viewModel.repottingIntervalEnabled = true }
+        composeTestRule.runOnIdle { viewModel.setRepottingIntervalEnabled(true) }
 
         composeTestRule.onNodeWithText(str(R.string.repotting_preferred_seasons_label)).performScrollTo()
             .assertIsDisplayed()
@@ -289,9 +299,11 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
+        goToStep(viewModel, AddPlantStep.CARE)
         composeTestRule.runOnIdle {
-            viewModel.repottingIntervalEnabled = true
-            viewModel.repottingSeasons = setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER)
+            viewModel.setRepottingIntervalEnabled(true)
+            viewModel.toggleRepottingSeason(FertilizingSeason.AUTUMN)
+            viewModel.toggleRepottingSeason(FertilizingSeason.WINTER)
         }
 
         composeTestRule.onNodeWithText(str(R.string.season_summer)).performScrollTo().performClick()
@@ -375,7 +387,7 @@ class AddEditPlantScreenTest {
         }
         composeTestRule.onNodeWithText(winterHint(8)).performScrollTo().assertIsDisplayed()
 
-        composeTestRule.runOnIdle { viewModel.pinIntervalToBase = true }
+        composeTestRule.runOnIdle { viewModel.setPinIntervalToBase(true) }
 
         composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
@@ -410,7 +422,7 @@ class AddEditPlantScreenTest {
         }
         composeTestRule.onNodeWithText(winterHint(8)).performScrollTo().assertIsDisplayed()
 
-        composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = false }
+        composeTestRule.runOnIdle { viewModel.setWateringIntervalEnabled(false) }
 
         composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()
     }
@@ -421,7 +433,8 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        composeTestRule.runOnIdle { viewModel.wateringIntervalEnabled = true }
+        goToStep(viewModel, AddPlantStep.CARE)
+        composeTestRule.runOnIdle { viewModel.setWateringIntervalEnabled(true) }
 
         composeTestRule.onNodeWithText(wateringLabel(7)).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(hintPrefix(), substring = true).assertDoesNotExist()

@@ -15,6 +15,7 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
+            "Adding a plant now guides you through four short steps instead of one long form",
             "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
         ),
         added = listOf(
