@@ -62,6 +62,7 @@ class QuickLogUseCaseSeasonalTest {
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
     }
 
     private fun plant(id: Long = 1L, name: String = "Monstera", wateringIntervalDays: Int? = null) = Plant(
@@ -214,6 +215,34 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(expectedSuggestion, outcome.suggestion?.suggestedInterval)
     }
 
+    @Test
+    fun `quickWaterWithReason de-seasonalizes the gap with the plant's custom strength (#700)`() = runTest {
+        val peakDay = localDateUtcMillis(2023, 1, 5)
+        val useCase = useCaseWithSeasonOn(peakDay)
+        val monstera = plant(wateringIntervalDays = 10).copy(wateringAmplitudeOverride = SeasonalAmplitude.MILD)
+        every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
+        coEvery { careLogRepo.getLastWateringBefore(1L, peakDay) } returns
+            CareLog(
+                plantId = 1L,
+                careType = CareType.WATER,
+                loggedAt = peakDay - TimeUnit.DAYS.toMillis(20),
+                wateringFeedback = WateringFeedback.JUST_RIGHT
+            )
+        coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
+
+        val outcome = useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT, loggedAt = peakDay)
+
+        // Global is STANDARD (1.35) but the plant is Mild (1.2): round(20 / 1.2) = 17, not round(20 / 1.35) = 15.
+        val expected = CareSchedule.computeAdaptiveInterval(
+            feedback = WateringFeedback.TOO_LATE,
+            observedIntervalDays = 17,
+            currentBaseIntervalDays = 10,
+            currentConfidence = null,
+            recentFeedback = emptyList()
+        )
+        assertEquals(expected.intervalDays.takeIf { it != 10 }, outcome.suggestion?.suggestedInterval)
+    }
+
     /**
      * #620's own gate, at the choke point ([QuickLogUseCase.computeSuggestion]) shared by Calendar,
      * Plant List, and Plant Detail: when the base-space suggestion's effective-space conversion equals
@@ -337,9 +366,7 @@ class QuickLogUseCaseSeasonalTest {
         assertEquals(null, outcome.suggestion)
         // technical ADR-0027: the sub-threshold base correction still persists immediately even
         // though nothing crossed a rounding boundary for display.
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringBaseIntervalDays != null && it.wateringBaseIntervalDays!! < 8.8 })
-        }
+        assertPlantWrite(plantRepo) { (it["wateringBaseIntervalDays"] as Double?)?.let { base -> base < 8.8 } == true }
     }
 
     /**
@@ -485,9 +512,9 @@ class QuickLogUseCaseSeasonalTest {
             assertTrue(outcome != null)
             assertEquals(5, outcome?.currentIntervalEffective)
             assertEquals(6, outcome?.suggestedIntervalEffective)
-            coVerify {
-                plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 5.6 })
-            }
+            // The base stays at 5.6: only confidence is written, and no write names the base column (#872).
+            assertPlantWrite(plantRepo, exactly = 0) { it.containsKey("wateringBaseIntervalDays") }
+            assertPlantWrite(plantRepo) { it.containsKey("wateringConfidence") }
         }
 }
 

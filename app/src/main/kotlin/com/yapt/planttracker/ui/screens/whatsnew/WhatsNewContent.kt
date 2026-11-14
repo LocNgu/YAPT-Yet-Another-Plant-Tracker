@@ -17,6 +17,19 @@ object WhatsNewContent {
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
         ReleaseNotes(
+            versionCode = 625,
+            versionName = "0.43.0",
+            changed = listOf(
+                "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\".",
+                "The plant-sitter PDF no longer has a \"Please don't water these\" page; it lists only what to water."
+            ),
+            added = listOf(
+                "Back up automatically to a folder you choose, daily or weekly, from Settings",
+                "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"
+            ),
+            fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
+        ),
+        ReleaseNotes(
             versionCode = 613,
             versionName = "0.42.1",
             fixed = listOf(

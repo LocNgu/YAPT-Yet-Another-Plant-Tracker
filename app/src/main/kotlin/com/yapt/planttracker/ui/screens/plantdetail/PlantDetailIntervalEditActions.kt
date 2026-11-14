@@ -6,6 +6,7 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.LiveWateringInterval
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
 import kotlinx.coroutines.delay
@@ -79,7 +80,7 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
         // pinned, or the schedule was just switched off (`days == null`); the prior base
         // (if any) is preserved rather than cleared.
         val deseasonalizedDays = if (days != null && !p.pinIntervalToBase) {
-            deseasonalizedBaseOrNull(days)
+            deseasonalizedBaseOrNull(p, days)
         } else {
             null
         }
@@ -109,7 +110,7 @@ private suspend fun PlantDetailViewModel.writeWateringIntervalLocked(days: Int?)
             val loggedBefore = currentBaseIntervalDaysOrLiteral(p, p.wateringIntervalDays ?: days)
             // #927: gated on a base-space change, not on the typed literal differing from the stored one.
             if (loggedAfter != loggedBefore) {
-                wateringAdjustmentRepository.addAdjustment(
+                wateringAdjustmentRepository.recordManualEdit(
                     WateringAdjustment(
                         plantId = p.id,
                         triggeredAt = now,
@@ -131,8 +132,8 @@ private suspend fun PlantDetailViewModel.liveIntervalDaysOrNull(plant: Plant): I
         hemisphere()
     )?.effectiveDays
 
-private suspend fun PlantDetailViewModel.deseasonalizedBaseOrNull(intervalDays: Int): Double? {
-    val amplitude = dataStore.seasonalAmplitudeOnce()
+private suspend fun PlantDetailViewModel.deseasonalizedBaseOrNull(plant: Plant, intervalDays: Int): Double? {
+    val amplitude = plant.effectiveWateringAmplitude(dataStore.seasonalAmplitudeOnce())
     if (amplitude == 0.0) return null
     return SeasonalWatering.deseasonalize(
         intervalDays.toDouble(),

@@ -21,7 +21,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -58,6 +57,7 @@ class QuickLogUseCaseIntervalApplyTest {
     @Before
     fun setUp() {
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         coEvery { wateringAdjustmentRepo.addAdjustment(any()) } returns 1L
     }
 
@@ -111,7 +111,7 @@ class QuickLogUseCaseIntervalApplyTest {
                 suggestedBaseInterval = null
             )
 
-            coVerify { plantRepo.updatePlant(match { it.wateringIntervalDays == 13 }) }
+            assertPlantWrite(plantRepo) { it["wateringIntervalDays"] == 13 }
         }
 
     @Test
@@ -139,7 +139,7 @@ class QuickLogUseCaseIntervalApplyTest {
                 suggestedBaseInterval = null
             )
 
-            coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == expectedBase }) }
+            assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == expectedBase }
         }
 
     @Test
@@ -180,13 +180,9 @@ class QuickLogUseCaseIntervalApplyTest {
         )
 
         assertEquals(1, clockReads)
-        coVerify {
-            plantRepo.updatePlant(
-                match {
-                    it.wateringIntervalDays == retypedInterval &&
-                        it.wateringBaseIntervalDays == expectedBase && it.updatedAt == appliedAt
-                }
-            )
+        assertPlantWrite(plantRepo) {
+            it["wateringIntervalDays"] == retypedInterval &&
+                it["wateringBaseIntervalDays"] == expectedBase && it["updatedAt"] == appliedAt
         }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(
@@ -231,7 +227,7 @@ class QuickLogUseCaseIntervalApplyTest {
             )
             // The two must genuinely differ, or this case would silently become vacuous.
             assertTrue(abs(preciseModelBase - ratchetedBase) > 0.01)
-            coVerify { plantRepo.updatePlant(match { it.wateringBaseIntervalDays == preciseModelBase }) }
+            assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == preciseModelBase }
         }
 
     @Test
@@ -271,17 +267,20 @@ class QuickLogUseCaseIntervalApplyTest {
             suggestedBaseInterval = preciseModelBase
         )
 
-        val writtenPlant = slot<Plant>()
-        coVerify(exactly = 1) { plantRepo.updatePlant(capture(writtenPlant)) }
-        assertEquals(preciseModelBase, writtenPlant.captured.wateringBaseIntervalDays)
-        assertEquals(effectiveFromPreciseBase, writtenPlant.captured.wateringIntervalDays)
+        val write = plantColumnWrites(plantRepo).single()
+        val writtenPlant = monstera.copy(
+            wateringIntervalDays = write["wateringIntervalDays"] as Int?,
+            wateringBaseIntervalDays = write["wateringBaseIntervalDays"] as Double?
+        )
+        assertEquals(preciseModelBase, writtenPlant.wateringBaseIntervalDays)
+        assertEquals(effectiveFromPreciseBase, writtenPlant.wateringIntervalDays)
         val effectiveFromWrittenBase = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = writtenPlant.captured,
+            plant = writtenPlant,
             nowDate = applyDate,
             seasonalAmplitude = amplitude,
             hemisphere = hemisphere
         )
-        assertEquals(writtenPlant.captured.wateringIntervalDays, effectiveFromWrittenBase)
+        assertEquals(writtenPlant.wateringIntervalDays, effectiveFromWrittenBase)
     }
 
     @Test
@@ -301,9 +300,7 @@ class QuickLogUseCaseIntervalApplyTest {
                 suggestedBaseInterval = null
             )
 
-            coVerify {
-                plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
-            }
+            assertPlantWrite(plantRepo) { it["wateringIntervalDays"] == 8 && it["wateringBaseIntervalDays"] == 6.0 }
         }
 
     @Test
@@ -322,9 +319,7 @@ class QuickLogUseCaseIntervalApplyTest {
                 suggestedBaseInterval = 8.85
             )
 
-            coVerify {
-                plantRepo.updatePlant(match { it.wateringIntervalDays == 8 && it.wateringBaseIntervalDays == 6.0 })
-            }
+            assertPlantWrite(plantRepo) { it["wateringIntervalDays"] == 8 && it["wateringBaseIntervalDays"] == 6.0 }
         }
 
     @Test
@@ -339,9 +334,7 @@ class QuickLogUseCaseIntervalApplyTest {
             suggestedBaseInterval = null
         )
 
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
-        }
+        assertPlantWrite(plantRepo) { it["wateringIntervalDays"] == 14 && it["wateringBaseIntervalDays"] == null }
     }
 
     @Test
@@ -359,9 +352,7 @@ class QuickLogUseCaseIntervalApplyTest {
             suggestedBaseInterval = 8.85
         )
 
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringIntervalDays == 14 && it.wateringBaseIntervalDays == null })
-        }
+        assertPlantWrite(plantRepo) { it["wateringIntervalDays"] == 14 && it["wateringBaseIntervalDays"] == null }
     }
 
     @Test
@@ -453,7 +444,7 @@ class QuickLogUseCaseIntervalApplyTest {
             suggestedBaseInterval = null
         )
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == expectedConfidence }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == expectedConfidence }
     }
 
     @Test
@@ -484,7 +475,7 @@ class QuickLogUseCaseIntervalApplyTest {
 
             // An untouched apply must never lower confidence, regardless of what the seasonal multiplier
             // did to the displayed/applied number.
-            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 }) }
+            assertPlantWrite(plantRepo) { it["wateringConfidence"] == 3 }
         }
 }
 

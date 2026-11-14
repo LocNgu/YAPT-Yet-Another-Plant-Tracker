@@ -31,6 +31,15 @@ gallery-owned source image.
 - A non-dismissable progress dialog (`SettingsScreen`'s `isBackupInProgress` block, plus a `BackHandler`) blocks navigation during export/import (#365). The Settings tab also disables the bottom bar (`rules/navigation.md`).
 - After a successful restore, `BackupManager.onImportCompleted` schedules the orphan photo sweep (`rules/photos.md`).
 
+## Automatic local backups (#1001, product ADR-0081, technical ADR-0043)
+- `AutoBackupWorker` (unique periodic `yapt_auto_backup`, 1 or 7 days, re-enqueued with `UPDATE` on a frequency change) drives `AutoBackupRunner`, which calls `BackupManager.exportBackup` **unchanged** (technical ADR-0014) into `yapt-backup-YYYY-MM-DD.yapt` inside the `OpenDocumentTree` folder (persisted read+write grant, `SafBackupFolder`).
+- **Skip unchanged:** `AutoBackupFingerprint` (row lists + backed-up settings + photo toggles) is stored on success; an equal value skips the run. Choosing a folder clears it.
+- **Retention** (3/7/14, default 7) prunes only after a successful write and only names matching the exact pattern (`AutoBackupFiles.selectPrunable`). The export writes to a unique `<final>.<millis>.partial` temp; only after `ExportSuccess` is the old same-day file deleted and the temp renamed to the exact name (never `(1)`), so a complete archive always exists. A failure after the old file is gone keeps the temp; stale temps are swept only after a successful run.
+- **Failure state** (`auto_backup_*` DataStore keys, **excluded from `BackupSettings`**, no schema bump): consecutive-failure counter, last kind, notified flag. Success resets all three. Notification rule: `AutoBackupPolicy.shouldNotify`.
+- Constraints: battery-not-low + storage-not-low, no network; waiting is not a failure. A real export calls `setForeground` (dataSync, best effort: failure tolerated, not counted) via the runner's `beforeExport` hook; `AutoBackupSchedulerTest` pins the constraints.
+- A photo the sweeper deleted mid-export is the benign `skippedPhotoCount` case; there is no locking.
+- UI: `AutoBackupSettingsSection` / `AutoBackupViewModel` in the Backup & Restore block. Tests: `AutoBackupRunnerTest`, `AutoBackupPolicyTest`.
+
 ## Schema version history (all new fields carry defaults for forward-compat)
 | v | Added | Old backups deserialize to |
 |---|---|---|
@@ -57,6 +66,8 @@ gallery-owned source image.
 | v22 | `BackupRoot.awayPeriods: List<BackupAwayPeriod>`; each trip carries its `visits` and their `plants`, dates as ISO-8601 strings | `emptyList()` = no trips (#896, product ADR-0065) |
 | v23 | `BackupPlant.hiddenAt: Long?` (hidden from operational surfaces; export already includes every plant) | `null` = visible (#915, product ADR-0066) |
 | v24 | `BackupPlant.propagatedFromId: Long?` (plant-family parent link); PROPAGATE logs round-trip as plain `careType` strings | `null` = no recorded parent (#960, product ADR-0073) |
+| v25 | `BackupPlant.wateringDueDateOverrideMadeAt: Long?` (when the active reschedule was made) | `null` = made on an earlier day (#1019, product ADR-0083) |
+| v26 | `BackupPlant.wateringAmplitudeOverride: String?` (per-plant seasonal strength, a `SeasonalAmplitude` name) | `null` = follow the global setting (#700, product ADR-0084) |
 
 **Removing a field needs no version bump** (#442): `BackupCareLog.amount` was dropped, the version stays at v24, and `BackupCareLogAmountRemovalTest` pins that an older backup carrying `amount` still deserializes (`ignoreUnknownKeys = true`). Older apps reading a newer backup see the field default to `null`. Only additions get a row above.
 
@@ -67,7 +78,7 @@ excluded from `BackupSettings`; import clears it together with pending post-wate
 
 ## Tests
 - `BackupSerializerTest` asserts that `encodeDefaults = true` emits explicit null keys. `fullRoot()` sets every non-null field, so a new nullable field is caught by the round-trip test (#288).
-- `PlantFamilyBackupTest` (plain JVM) covers v24 (`CURRENT_SCHEMA_VERSION == 24`, link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
+- `PlantFamilyBackupTest` (plain JVM) pins `CURRENT_SCHEMA_VERSION == 26` and covers v26 (the strength override round trip, a v25 backup -> `null`), v25 (`wateringDueDateOverrideMadeAt` round trip, a v24 backup -> `null`), v24 (link and PROPAGATE round trip, old backup -> `null`) and `sanitizePropagatedLinks()`; the instrumented `plantFamily_roundTrip_*` test covers the real restore.
 - `AwayPeriodBackupTest` (plain JVM) covers the away-trip restore rules: bad dates skipped, visits re-filtered into their trip, visit plants of missing plants dropped.
 - Instrumented `BackupManager` tests cover:
   - round-trips with and without photos, an empty DB, and settings

@@ -52,16 +52,11 @@ class SitterListPdfRendererTest {
         missedLastTime = missed
     )
 
-    private fun list(visitPlants: Int, resting: Int) = SitterList(
+    private fun list(visitPlants: Int) = SitterList(
         LocalDate.now(),
         rooms = listOf(
             SitterListRoom("Kitchen", (1..visitPlants).map { plant(it.toLong(), missed = it == 1) })
-        ),
-        restingRooms = if (resting == 0) {
-            emptyList()
-        } else {
-            listOf(SitterListRoom(null, (1..resting).map { plant(100L + it) }))
-        }
+        )
     )
 
     private fun pageCount(file: File): Int = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -69,7 +64,7 @@ class SitterListPdfRendererTest {
 
     @Test
     fun theDocumentHasOnePagePerPlannedPageAndPhotolessPlantsRender() {
-        val sitterList = list(visitPlants = 11, resting = 2)
+        val sitterList = list(visitPlants = 11)
 
         SitterListPdfRenderer.write(context, sitterList, file)
 
@@ -81,8 +76,7 @@ class SitterListPdfRendererTest {
     fun anUnreadablePhotoFallsBackToTheNoPhotoBox() {
         val sitterList = SitterList(
             LocalDate.now(),
-            listOf(SitterListRoom("Kitchen", listOf(plant(1, photo = "content://does.not.exist/photo")))),
-            emptyList()
+            listOf(SitterListRoom("Kitchen", listOf(plant(1, photo = "content://does.not.exist/photo"))))
         )
 
         SitterListPdfRenderer.write(context, sitterList, file)

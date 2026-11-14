@@ -27,8 +27,6 @@ object SitterPdfLayout {
 
     private const val ROW_HEIGHT = TILE_HEIGHT + ROW_GAP
 
-    enum class PageKind { VISIT, RESTING }
-
     sealed interface Block {
         /** [continued] marks a room whose plants carry over from the previous page. */
         data class RoomHeader(val room: String?, val continued: Boolean) : Block
@@ -38,28 +36,24 @@ object SitterPdfLayout {
     }
 
     /** [showsTips] is true only on page 1, whose body is [TIPS_HEIGHT] shorter. */
-    data class Page(val kind: PageKind, val blocks: List<Block>, val showsTips: Boolean = false)
+    data class Page(val blocks: List<Block>, val showsTips: Boolean = false)
 
-    /** Visit pages first, then the "Please don't water these" pages; none of the latter when nothing rests. */
-    fun paginate(list: SitterList): List<Page> =
-        paginate(list.rooms, PageKind.VISIT) + paginate(list.restingRooms, PageKind.RESTING)
-
-    private fun paginate(rooms: List<SitterListRoom>, kind: PageKind): List<Page> {
+    fun paginate(list: SitterList): List<Page> {
         val pages = mutableListOf<Page>()
         var blocks = mutableListOf<Block>()
         var used = 0
 
-        fun showsTips() = kind == PageKind.VISIT && pages.isEmpty()
+        fun showsTips() = pages.isEmpty()
 
         fun capacity() = if (showsTips()) FIRST_PAGE_BODY_HEIGHT else BODY_HEIGHT
 
         fun breakPage() {
-            if (blocks.isNotEmpty()) pages += Page(kind, blocks, showsTips())
+            if (blocks.isNotEmpty()) pages += Page(blocks, showsTips())
             blocks = mutableListOf()
             used = 0
         }
 
-        for (room in rooms) {
+        for (room in list.rooms) {
             val rows = room.plants.chunked(COLUMNS)
             if (used + ROOM_HEADER_HEIGHT + ROW_HEIGHT > capacity()) breakPage()
             blocks += Block.RoomHeader(room.room, continued = false)

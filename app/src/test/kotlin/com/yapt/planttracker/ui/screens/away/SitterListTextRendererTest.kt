@@ -43,8 +43,7 @@ class SitterListTextRendererTest {
                     listOf(plant(1, "Basil", species = "Ocimum basilicum", missed = true), plant(2, "Fern"))
                 ),
                 SitterListRoom(null, listOf(plant(3, "Pothos")))
-            ),
-            restingRooms = emptyList()
+            )
         )
 
         assertEquals(
@@ -72,44 +71,8 @@ class SitterListTextRendererTest {
     }
 
     @Test
-    fun `the resting plants follow under their own heading`() {
-        val list = SitterList(
-            visitDay,
-            rooms = listOf(SitterListRoom("Kitchen", listOf(plant(1, "Fern")))),
-            restingRooms = listOf(
-                SitterListRoom("Bedroom", listOf(plant(2, "Cactus", species = "Echinocactus"), plant(3, "Aloe")))
-            )
-        )
-
-        assertEquals(
-            """
-            Plants to water on Mon, Oct 12
-            Water 1 plant
-
-            Watering tips
-            - Feel the soil first: if it's dry 2–3 cm down, water.
-            - Water slowly until a little runs out of the bottom.
-            - Empty saucers after about 15 minutes.
-            - When in doubt, leave it dry.
-
-            Kitchen
-            - Fern
-
-            Please don't water these (2)
-
-            Bedroom
-            - Cactus (Echinocactus)
-            - Aloe
-
-            Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker
-            """.trimIndent(),
-            render(list)
-        )
-    }
-
-    @Test
-    fun `the resting section is omitted when nothing rests`() {
-        val list = SitterList(visitDay, listOf(SitterListRoom("A", listOf(plant(1, "Fern")))), emptyList())
+    fun `there is no resting section`() {
+        val list = SitterList(visitDay, listOf(SitterListRoom("A", listOf(plant(1, "Fern")))))
 
         assertFalse(render(list).contains("don't water"))
     }
@@ -118,8 +81,7 @@ class SitterListTextRendererTest {
     fun `the date carries the year only when it differs from this year`() {
         val nextYear = SitterList(
             LocalDate.of(2027, 1, 4),
-            listOf(SitterListRoom("A", listOf(plant(1, "Fern")))),
-            emptyList()
+            listOf(SitterListRoom("A", listOf(plant(1, "Fern"))))
         )
 
         assertEquals("Plants to water on Mon, Jan 4, 2027", render(nextYear).lines().first())
@@ -128,26 +90,12 @@ class SitterListTextRendererTest {
 
     @Test
     fun `the tips come before the first room and the branding line is last`() {
-        val list = SitterList(visitDay, listOf(SitterListRoom("A", listOf(plant(1, "Fern")))), emptyList())
+        val list = SitterList(visitDay, listOf(SitterListRoom("A", listOf(plant(1, "Fern")))))
 
         val lines = render(list).lines()
 
         assertTrue(lines.indexOf("Watering tips") in 1 until lines.indexOf("A"))
         assertEquals(4, lines.count { it.startsWith("- ") && it.indexOf("Fern") < 0 })
-        assertEquals("Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker", lines.last())
-    }
-
-    @Test
-    fun `the branding line follows the resting plants`() {
-        val list = SitterList(
-            visitDay,
-            listOf(SitterListRoom("A", listOf(plant(1, "Fern")))),
-            listOf(SitterListRoom("B", listOf(plant(2, "Cactus"))))
-        )
-
-        val lines = render(list).lines()
-
-        assertEquals("- Cactus", lines[lines.size - 3])
         assertEquals("Made with YAPT · github.com/LocNgu/YAPT-Yet-Another-Plant-Tracker", lines.last())
     }
 }

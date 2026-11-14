@@ -2,10 +2,10 @@ package com.yapt.planttracker.ui.screens.plantdetail
 
 import androidx.lifecycle.viewModelScope
 import com.yapt.planttracker.data.preferences.SettingsKeys
+import com.yapt.planttracker.domain.model.QuickWaterSuggestion
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.CareSchedule
-import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.ui.components.TimeRange
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -54,15 +54,15 @@ private suspend fun PlantDetailViewModel.shouldShowIntervalDialog(): Boolean =
 
 /**
  * Routes a freshly-computed adaptive suggestion to either the product ADR-0006 dialog or a silent apply
- * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572).
+ * + undo Snackbar, depending on [shouldShowIntervalDialog] (#572). [suggestion] has already passed
+ * [com.yapt.planttracker.domain.usecase.WateringSuggestionGate] inside
+ * [com.yapt.planttracker.domain.usecase.AdaptiveWateringObservation.observe] (#968), so the silent
+ * apply commits the effective value that gate computed instead of re-deriving it here.
  */
-internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
-    suggestedInterval: Int,
-    suggestedBaseInterval: Double
-) {
+internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(suggestion: QuickWaterSuggestion) {
     if (shouldShowIntervalDialog()) {
-        suggestedWateringInterval.value = suggestedInterval
-        suggestedWateringBaseInterval.value = suggestedBaseInterval
+        suggestedWateringInterval.value = suggestion.suggestedInterval
+        suggestedWateringBaseInterval.value = suggestion.suggestedBaseInterval
         return
     }
     // Read fresh inside the lock, never plant.value (#808, technical ADR-0036): the quickWater*/
@@ -72,17 +72,8 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
     // never by the callers around quickWater*, because Mutex is not reentrant.
     val result = plantEditMutex.withLock {
         val p = plantRepository.getPlantById(plantId).first() ?: return@withLock null
-        // #644: applyWateringIntervalSuggestion's newInterval is effective-space now — convert the raw
-        // (base-space) suggestedInterval the same way pendingWateringSuggestion does, so a silent apply
-        // commits the same number the dialog would have shown/pre-filled had it been shown.
-        val amplitude = dataStore.seasonalAmplitudeOnce()
-        val effectiveInterval = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = p.copy(
-                wateringBaseIntervalDays = suggestedBaseInterval,
-                wateringIntervalDays = suggestedInterval
-            ),
-            seasonalAmplitude = amplitude
-        ) ?: suggestedInterval
+        // #644: applyWateringIntervalSuggestion's newInterval is effective-space — the gate's own
+        // effective value (#968), the same number the dialog would have shown/pre-filled had it been shown.
         // Always hand the precise base across, never only when it differs from the rounded value: the
         // no-base overload re-derives it as deseasonalize(effectiveInterval), and since effectiveInterval
         // is already round(base x season), that round-trip loses the fraction and ratchets the base --
@@ -90,9 +81,9 @@ internal suspend fun PlantDetailViewModel.applySuggestionOrPrompt(
         // still an exact base and must be committed as-is.
         quickLogUseCase.applyWateringIntervalSuggestion(
             p,
-            suggestedInterval,
-            effectiveInterval,
-            suggestedBaseInterval
+            suggestion.suggestedInterval,
+            suggestion.suggestedIntervalEffective,
+            suggestion.suggestedBaseInterval
         )
     } ?: return
     // After the lock is released: _events is unbuffered, so emitting under it could stall every other

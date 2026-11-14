@@ -12,6 +12,7 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import kotlin.math.roundToInt
@@ -100,7 +101,8 @@ object SeasonalGraduationFixup {
      * reference day — exactly like `MIGRATION_10_11` anchored migration day — so the effective interval
      * immediately after this runs equals the plant's current (correct) literal interval. A no-op
      * (skipped entirely, no [WateringAdjustment] row) for: a pinned plant, a plant with no
-     * `wateringIntervalDays` set, [FixupRequest.amplitude] of `0.0` (nothing to de-seasonalize), or a
+     * `wateringIntervalDays` set, an effective amplitude of `0.0` for the plant (pinned, or its custom/global
+     * strength is Off, #700 — nothing to de-seasonalize), or a
      * plant whose recomputed base is already exactly the stored value (nothing actually changed — this
      * intentionally compares the raw, unrounded `Double`, not the rounded display value, since two
      * bases that round to the same day count can still diverge meaningfully once multiplied by the
@@ -132,7 +134,7 @@ object SeasonalGraduationFixup {
         wateringAdjustmentRepository: WateringAdjustmentRepository,
         now: Long = System.currentTimeMillis()
     ): Int {
-        if (request.amplitude == 0.0) return 0
+        if (!hasSeasonalPlant(request)) return 0
 
         var changedCount = 0
         for (snapshotPlant in request.plants) {
@@ -170,16 +172,25 @@ object SeasonalGraduationFixup {
         }
     }
 
+    /**
+     * Whether any snapshot plant follows a non-zero amplitude (#700): the global one, or its own custom
+     * strength. Replaces the old global-only "amplitude is on and there are plants" test, so a global Off
+     * with a Custom plant is processed once and latches DONE instead of being re-derived every launch.
+     */
+    private fun hasSeasonalPlant(request: FixupRequest): Boolean =
+        request.plants.any { it.effectiveWateringAmplitude(request.amplitude) != 0.0 }
+
     /** `null` when [plant] should be skipped entirely — see [run]'s doc for every no-op case. */
     private fun recomputeIfNeeded(plant: Plant, request: FixupRequest): RecomputedBase? {
         val literalInterval = plant.wateringIntervalDays
-        return if (plant.pinIntervalToBase || literalInterval == null) {
+        val amplitude = plant.effectiveWateringAmplitude(request.amplitude)
+        return if (amplitude == 0.0 || literalInterval == null) {
             null
         } else {
             val newBase = SeasonalWatering.deseasonalize(
                 literalInterval.toDouble(),
                 request.today,
-                request.amplitude,
+                amplitude,
                 request.hemisphere
             )
             val beforeBase = plant.wateringBaseIntervalDays
@@ -208,7 +219,7 @@ object SeasonalGraduationFixup {
      *
      * Two more conditions gate whether this actually *marks* the DONE flag (#703 review), independent
      * of whether [run] itself found anything to change:
-     * - **`request.plants.isEmpty()` or `request.amplitude == 0.0` never marks it done.** A brand-new
+     * - **No plant with a non-zero effective amplitude (an empty list, or global Off with no custom strength) never marks it done.** A brand-new
      *   install has nothing to iterate yet, and an amplitude of Off has nothing to de-seasonalize —
      *   [run] naturally returns `0` in both cases, but that's "nothing to do *yet*", not "verified
      *   correct". Marking done regardless would permanently block a later `.yapt` restore (which can
@@ -246,7 +257,7 @@ object SeasonalGraduationFixup {
             run(request, plantRepository, wateringAdjustmentRepository, now)
         }
 
-        val canMarkDone = request.amplitude != 0.0 && request.plants.isNotEmpty()
+        val canMarkDone = hasSeasonalPlant(request)
         if (canMarkDone) {
             dataStore.edit { it[SettingsKeys.SEASONAL_BASE_GRADUATION_FIXUP_DONE] = true }
         }

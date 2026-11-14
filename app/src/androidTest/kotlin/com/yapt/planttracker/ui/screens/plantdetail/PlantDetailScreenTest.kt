@@ -3221,10 +3221,11 @@ class PlantDetailScreenTest {
         }
         // Column-specific writes (#808): the reschedule revert/undo and the cover-photo actions no longer
         // round-trip through a full-row updatePlant().
-        coEvery { repo.updateWateringDueDateOverride(any(), any(), any()) } answers {
+        coEvery { repo.updateWateringDueDateOverride(any(), any(), any(), any()) } answers {
             state.value = state.value.copy(
                 wateringDueDateOverride = it.invocation.args[1] as Long?,
-                updatedAt = it.invocation.args[2] as Long
+                wateringDueDateOverrideMadeAt = it.invocation.args[2] as Long?,
+                updatedAt = it.invocation.args[3] as Long
             )
         }
         coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {
@@ -3660,9 +3661,9 @@ class PlantDetailScreenTest {
             .assertDoesNotExist()
     }
 
-    /** Toggling "Pin interval" (#578) surfaces the chart's pinned-state note (#579). */
+    /** Choosing "Pin" (#578, #700) surfaces the chart's pinned-state note (#579). */
     @Test
-    fun seasonalCurveChart_pinnedNote_appearsWhenPinToggled() {
+    fun seasonalCurveChart_pinnedNote_appearsWhenPinChosen() {
         val plant = Plant(id = 71L, name = "Fern", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 10)
         val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
 
@@ -3677,17 +3678,18 @@ class PlantDetailScreenTest {
         }
 
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
-            .performScrollToNode(hasTestTag("pin_interval_switch"))
-        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOff()
+            .performScrollToNode(hasTestTag("watering_strength_mode_PIN"))
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertIsNotSelected()
+        composeTestRule.onNodeWithTag("watering_strength_mode_APP_DEFAULT").assertIsSelected()
         composeTestRule.onNodeWithText(seasonalCurvePinnedNoteText()).assertDoesNotExist()
 
-        composeTestRule.onNodeWithTag("pin_interval_switch").performClick()
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             composeTestRule.onAllNodesWithText(seasonalCurvePinnedNoteText())
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
         }
-        composeTestRule.onNodeWithTag("pin_interval_switch").assertIsOn()
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertIsSelected()
     }
 
     /**
@@ -3875,10 +3877,11 @@ class PlantDetailScreenTest {
         val repo = mockk<PlantRepository>()
         every { repo.getPlantById(initial.id) } returns state
         coEvery { repo.updatePlant(any()) } answers { state.value = it.invocation.args[0] as Plant }
-        coEvery { repo.updateWateringDueDateOverride(any(), any(), any()) } answers {
+        coEvery { repo.updateWateringDueDateOverride(any(), any(), any(), any()) } answers {
             state.value = state.value.copy(
                 wateringDueDateOverride = it.invocation.args[1] as Long?,
-                updatedAt = it.invocation.args[2] as Long
+                wateringDueDateOverrideMadeAt = it.invocation.args[2] as Long?,
+                updatedAt = it.invocation.args[3] as Long
             )
         }
         coEvery { repo.updateCoverPhotoUri(any(), any(), any()) } answers {

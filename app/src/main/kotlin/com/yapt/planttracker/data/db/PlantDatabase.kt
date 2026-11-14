@@ -47,7 +47,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 21
+        const val DB_VERSION = 23
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -385,6 +385,24 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #1019 (product ADR-0083): when the active reschedule was made, for Before you leave. Nullable with
+        // no backfill: existing overrides read as "made on an earlier day".
+        @Suppress("MagicNumber")
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringDueDateOverrideMadeAt INTEGER")
+            }
+        }
+
+        // #700 (product ADR-0084): per-plant seasonal strength (SeasonalAmplitude name). Nullable with
+        // no backfill: null follows the global setting.
+        @Suppress("MagicNumber")
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN wateringAmplitudeOverride TEXT")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -412,7 +430,9 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_17_18,
                         MIGRATION_18_19,
                         MIGRATION_19_20,
-                        MIGRATION_20_21
+                        MIGRATION_20_21,
+                        MIGRATION_21_22,
+                        MIGRATION_22_23
                     )
                     .build()
                     .also { INSTANCE = it }
