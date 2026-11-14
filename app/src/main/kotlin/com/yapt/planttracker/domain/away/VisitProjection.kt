@@ -43,7 +43,7 @@ data class VisitProjection(
     /** The last due date the list reaches: "the list includes anything due by ...". */
     val includesDueBy: LocalDate,
     val listed: List<ProjectedPlant>,
-    /** Resting plants (dormant, or watering suspended) that are not on the list: the "don't water these" page. */
+    /** Resting plants (dormant, or watering suspended) that are not on the list: the picker's Resting section and summary count, addable (product ADR-0077). */
     val resting: List<Plant>,
     /** Scheduled, non-resting plants due after [includesDueBy] (or removed from [listed] by the owner): addable. */
     val notListed: List<ProjectedPlant> = emptyList(),
@@ -202,8 +202,7 @@ private val projectedOrder = compareBy<ProjectedPlant>({ it.dueDate }, { it.plan
 
 /**
  * The suggestion after the owner's edits (product ADR-0077). An added resting plant moves onto the list, due
- * on the visit day, and off the "don't water these" page; a removed plant is kept in [VisitProjection.notListed]
- * so it can be shown unticked. Ids that resolve to nothing, and overrides that no longer matter, are ignored.
+ * on the visit day; a removed plant is kept in [VisitProjection.notListed] so it can be shown unticked. Ids that resolve to nothing, and overrides that no longer matter, are ignored.
  */
 fun VisitProjection.applySelection(selection: SitterSelection): VisitProjection {
     val removedListed = listed.filter { it.plant.id in selection.removed }

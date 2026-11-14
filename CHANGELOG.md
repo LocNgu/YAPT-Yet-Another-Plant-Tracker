@@ -13,6 +13,7 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ## [Unreleased]
 
 ### Changed
+- **The sitter PDF has visit pages only** (#1030, product ADR-0085) — the "Please don't water these" pages of resting plants are gone from the PDF and from Share as text, and the share caption no longer mentions pages to leave dry. A resting plant the owner ticks in the picker still lands on the visit pages; the picker's Resting section and the "+ N resting" summary count are unchanged. No schema change.
 - **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0082) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
 
 ### Added

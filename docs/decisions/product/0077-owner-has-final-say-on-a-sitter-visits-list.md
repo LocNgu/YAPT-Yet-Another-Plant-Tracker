@@ -1,6 +1,6 @@
 # Product ADR-0077: The owner has the final say on a sitter visit's list
 
-**Status**: accepted
+**Status**: accepted — its mention of the "Please don't water these" page no longer applies, per [ADR-0085](0085-sitter-pdf-has-visit-pages-only.md)
 
 **Date**: 2026-11-02
 
