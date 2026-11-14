@@ -12,9 +12,15 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-11-14
+
 ### Changed
 - **The sitter PDF has visit pages only** (#1030, product ADR-0085) — the "Please don't water these" pages of resting plants are gone from the PDF and from Share as text, and the share caption no longer mentions pages to leave dry. A resting plant the owner ticks in the picker still lands on the visit pages; the picker's Resting section and the "+ N resting" summary count are unchanged. No schema change.
 - **"Why this date?" shows one manual-edit row per day** (#799, product ADR-0082) — repeated manual watering-interval edits on the same day merge into a single "Recent adjustments" row (e.g. 7 → 12) instead of pushing other events out of the list, as long as nothing else was logged in between. No schema change.
+- **One watering-suggestion gate** (#968, internal, no behaviour change) — the "does the suggested interval differ
+  from today's effective interval?" check now lives only in `WateringSuggestionGate`. `AdaptiveWateringObservation`
+  and Plant Detail's suggestion dialog both call it, and Plant Detail's silent apply commits the effective value the
+  observation already computed instead of re-deriving it. A new test fails if the two sides ever disagree.
 
 ### Added
 - **Automatic local backups** (#1001, product ADR-0081, technical ADR-0043) — Settings → Backup & Restore has an
@@ -46,12 +52,6 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
   ran, such as notes or the fertilizing interval, could silently revert. These writes now touch only the watering
   columns they change (confidence, base and effective interval, the reschedule override, the bootstrap's reset
   anchor), and a backdated watering learns from a fresh read of the plant. No schema change.
-
-### Changed
-- **One watering-suggestion gate** (#968, internal, no behaviour change) — the "does the suggested interval differ
-  from today's effective interval?" check now lives only in `WateringSuggestionGate`. `AdaptiveWateringObservation`
-  and Plant Detail's suggestion dialog both call it, and Plant Detail's silent apply commits the effective value the
-  observation already computed instead of re-deriving it. A new test fails if the two sides ever disagree.
 
 ## [0.42.1] - 2026-11-07
 
