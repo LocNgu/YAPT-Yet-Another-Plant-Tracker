@@ -15,7 +15,8 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
-            "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
+            "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\".",
+            "The plant-sitter PDF no longer has a \"Please don't water these\" page; it lists only what to water."
         ),
         added = listOf(
             "Back up automatically to a folder you choose, daily or weekly, from Settings",

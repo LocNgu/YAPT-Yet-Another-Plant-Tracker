@@ -106,15 +106,14 @@ class SitterListTest {
     }
 
     @Test
-    fun `resting plants form their own rooms and the counts add up`() {
+    fun `resting plants of the projection never reach the sitter list`() {
         val list = compose(
             listed = listOf(listed(plant(1, room = "A"))),
             resting = listOf(plant(2, room = "B"), plant(3, room = "B"), plant(4))
         )
 
         assertEquals(1, list.plantCount)
-        assertEquals(3, list.restingCount)
-        assertEquals(listOf("B", null), list.restingRooms.map { it.room })
+        assertEquals(listOf("A"), list.rooms.map { it.room })
     }
 
     @Test
@@ -180,11 +179,10 @@ class SitterListTest {
     }
 
     @Test
-    fun `a small list fits one visit page and nothing rests so there is no resting page`() {
+    fun `a small list fits one visit page and there is a single page`() {
         val pages = SitterPdfLayout.paginate(compose(roomOf(4, "Kitchen")))
 
         assertEquals(1, pages.size)
-        assertEquals(SitterPdfLayout.PageKind.VISIT, pages.single().kind)
         assertEquals(
             listOf(SitterPdfLayout.Block.RoomHeader("Kitchen", continued = false)),
             pages.single().blocks.filterIsInstance<SitterPdfLayout.Block.RoomHeader>()
@@ -202,16 +200,12 @@ class SitterListTest {
     }
 
     @Test
-    fun `only page 1 shows the tips, never a resting page`() {
+    fun `only page 1 shows the tips and resting plants add no page`() {
         val pages = SitterPdfLayout.paginate(
             compose(roomOf((firstPageRows + 1) * SitterPdfLayout.COLUMNS, "Big"), resting = listOf(plant(50)))
         )
 
-        assertEquals(listOf(true, false, false), pages.map { it.showsTips })
-        assertEquals(
-            listOf(SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.RESTING),
-            pages.map { it.kind }
-        )
+        assertEquals(listOf(true, false), pages.map { it.showsTips })
     }
 
     @Test
@@ -273,27 +267,15 @@ class SitterListTest {
     }
 
     @Test
-    fun `resting plants go on their own pages after the visit pages and never show tips`() {
+    fun `resting plants appear on no page`() {
         val pages = SitterPdfLayout.paginate(
             compose(roomOf(2, "Kitchen"), resting = listOf(plant(50, room = "Bedroom"), plant(51)))
         )
 
-        assertEquals(listOf(SitterPdfLayout.PageKind.VISIT, SitterPdfLayout.PageKind.RESTING), pages.map { it.kind })
-        assertEquals(listOf(true, false), pages.map { it.showsTips })
-        assertEquals(
-            listOf("Bedroom", null),
-            pages.last().blocks.filterIsInstance<SitterPdfLayout.Block.RoomHeader>().map { it.room }
-        )
-    }
-
-    @Test
-    fun `resting pages use the full body height`() {
-        val resting = (1..(laterPageRows * SitterPdfLayout.COLUMNS)).map { plant(500L + it, room = "Rest") }
-
-        val pages = SitterPdfLayout.paginate(compose(roomOf(1, "Kitchen"), resting = resting))
-
-        assertEquals(2, pages.size)
-        assertEquals(laterPageRows, rowCounts(pages.last()))
+        assertEquals(1, pages.size)
+        val ids = pages.flatMap { it.blocks }.filterIsInstance<SitterPdfLayout.Block.TileRow>()
+            .flatMap { row -> row.plants.map { it.plantId } }
+        assertEquals(false, 50L in ids || 51L in ids)
     }
 
     @Test

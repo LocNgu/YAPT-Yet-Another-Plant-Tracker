@@ -19,24 +19,21 @@ data class SitterListRoom(val room: String?, val plants: List<SitterListPlant>)
 
 /**
  * The structure of what a sitter receives for one visit (product ADR-0065): plants grouped by room
- * (alphabetical, "No room" last) then by name, and the resting plants to leave dry. The PDF and text
+ * (alphabetical, "No room" last) then by name, The PDF and text
  * renderers only lay this out, the same split as `ReminderNotificationComposer` and `ReminderWorker`.
  */
 data class SitterList(
     val visitDay: LocalDate,
-    val rooms: List<SitterListRoom>,
-    val restingRooms: List<SitterListRoom>
+    val rooms: List<SitterListRoom>
 ) {
     val plantCount: Int get() = rooms.sumOf { it.plants.size }
-    val restingCount: Int get() = restingRooms.sumOf { it.plants.size }
 }
 
 object SitterListComposer {
 
     fun compose(projection: VisitProjection): SitterList = SitterList(
         visitDay = projection.visitDay,
-        rooms = groupByRoom(projection.listed.map { it.plant to it.missedLastTime }),
-        restingRooms = groupByRoom(projection.resting.map { it to false })
+        rooms = groupByRoom(projection.listed.map { it.plant to it.missedLastTime })
     )
 
     private fun groupByRoom(plants: List<Pair<Plant, Boolean>>): List<SitterListRoom> = plants
