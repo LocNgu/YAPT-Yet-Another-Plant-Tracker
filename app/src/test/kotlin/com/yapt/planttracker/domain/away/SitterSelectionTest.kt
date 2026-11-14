@@ -58,7 +58,7 @@ class SitterSelectionTest {
     }
 
     @Test
-    fun `an added resting plant moves onto the list due on the visit day and off the resting page`() {
+    fun `an added resting plant moves onto the list due on the visit day and off resting`() {
         val result = projection.applySelection(SitterSelection(added = setOf(5L)))
 
         assertEquals(listOf(1L, 5L, 2L), result.listedIds())

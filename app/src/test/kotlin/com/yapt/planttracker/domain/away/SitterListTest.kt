@@ -275,7 +275,7 @@ class SitterListTest {
         assertEquals(1, pages.size)
         val ids = pages.flatMap { it.blocks }.filterIsInstance<SitterPdfLayout.Block.TileRow>()
             .flatMap { row -> row.plants.map { it.plantId } }
-        assertEquals(false, 50L in ids || 51L in ids)
+        assertTrue(ids.none { it in setOf(50L, 51L) })
     }
 
     @Test

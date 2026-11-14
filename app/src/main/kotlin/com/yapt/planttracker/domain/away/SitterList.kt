@@ -19,8 +19,8 @@ data class SitterListRoom(val room: String?, val plants: List<SitterListPlant>)
 
 /**
  * The structure of what a sitter receives for one visit (product ADR-0065): plants grouped by room
- * (alphabetical, "No room" last) then by name, The PDF and text
- * renderers only lay this out, the same split as `ReminderNotificationComposer` and `ReminderWorker`.
+ * (alphabetical, "No room" last) then by name. The PDF and text renderers only lay this out, the same split as
+ * `ReminderNotificationComposer` and `ReminderWorker`.
  */
 data class SitterList(
     val visitDay: LocalDate,
