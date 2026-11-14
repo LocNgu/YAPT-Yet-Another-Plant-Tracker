@@ -176,9 +176,10 @@ class PlantDetailSuggestionGateAgreementTest {
      * from the base it persisted silently, so the dialog side can be checked against that verdict too.
      */
     private suspend fun rawModelResultFor(case: Case, now: Long): AdaptiveWateringObservation.Suggestion? {
-        val captured = mutableListOf<Plant>()
+        val capturedBases = mutableListOf<Double>()
         val plantRepo: PlantRepository = mockk {
-            coEvery { updatePlant(capture(captured)) } returns Unit
+            coEvery { updateWateringConfidenceAndBase(1L, any(), capture(capturedBases), any()) } returns Unit
+            coEvery { updateWateringConfidence(1L, any(), any()) } returns Unit
         }
         val careLogRepo: CareLogRepository = mockk {
             coEvery { getLastWateringBefore(1L, now) } returns predecessor(case, now)
@@ -187,7 +188,7 @@ class PlantDetailSuggestionGateAgreementTest {
         }
         AdaptiveWateringObservation(plantRepo, careLogRepo, dataStore(case.amplitude), mockk(relaxed = true))
             .observe(case.plant, case.feedback, loggedAt = now, displayNow = now)
-        val base = captured.lastOrNull()?.wateringBaseIntervalDays
+        val base = capturedBases.lastOrNull()
             ?.takeIf { it != case.plant.wateringBaseIntervalDays }
         return base?.let {
             AdaptiveWateringObservation.Suggestion(
