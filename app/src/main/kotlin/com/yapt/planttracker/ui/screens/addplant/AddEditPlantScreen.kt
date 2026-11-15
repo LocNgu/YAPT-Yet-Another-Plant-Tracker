@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.schedule.wateringStrengthMode
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
@@ -71,6 +72,8 @@ import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
+import com.yapt.planttracker.ui.components.WateringStrengthCallbacks
+import com.yapt.planttracker.ui.components.WateringStrengthSetting
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.util.sentenceLabelRes
 import com.yapt.planttracker.ui.util.showSnackbarOnce
@@ -335,7 +338,7 @@ fun AddEditPlantScreen(
                         )
                     )
                     val adjustment = viewModel.seasonalAdjustment
-                    if (adjustment != null && !viewModel.pinIntervalToBase) {
+                    if (adjustment != null && viewModel.showSeasonalAdjustment) {
                         Text(
                             text = pluralStringResource(
                                 R.plurals.watering_seasonal_adjustment,
@@ -347,25 +350,17 @@ fun AddEditPlantScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.pin_interval_label),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
+                    WateringStrengthSetting(
+                        mode = wateringStrengthMode(viewModel.pinIntervalToBase, viewModel.wateringAmplitudeOverride),
+                        customStrength = viewModel.wateringAmplitudeOverride,
+                        callbacks = WateringStrengthCallbacks(
+                            onSelectAppDefault = {
+                                viewModel.pinIntervalToBase = false
+                                viewModel.wateringAmplitudeOverride = null
+                            },
+                            onSelectCustom = { viewModel.wateringAmplitudeOverride = it },
+                            onSelectPin = { viewModel.pinIntervalToBase = true }
                         )
-                        Switch(
-                            checked = viewModel.pinIntervalToBase,
-                            onCheckedChange = { viewModel.pinIntervalToBase = it }
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.pin_interval_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

@@ -16,7 +16,6 @@ import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
@@ -102,6 +101,7 @@ class AdaptiveWateringObservationAwayTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
     }
 
     @After
@@ -126,7 +126,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertNull(result)
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(1, recorded.size)
         val row = recorded.single()
         assertEquals(WateringAdjustmentTrigger.AWAY_EXCLUDED, row.trigger)
@@ -166,7 +166,7 @@ class AdaptiveWateringObservationAwayTest {
             displayNow = loggedAt
         )
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
     }
 
@@ -184,7 +184,7 @@ class AdaptiveWateringObservationAwayTest {
             displayNow = loggedAt
         )
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
     }
 
@@ -202,7 +202,7 @@ class AdaptiveWateringObservationAwayTest {
             displayNow = loggedAt
         )
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
     }
 
@@ -222,7 +222,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertNull(result)
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
         assertEquals(backdated, recorded.single().triggeredAt)
     }
@@ -241,7 +241,7 @@ class AdaptiveWateringObservationAwayTest {
             displayNow = millisAt(2026, 8, 20)
         )
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
     }
 
@@ -270,7 +270,7 @@ class AdaptiveWateringObservationAwayTest {
                 listOf(WateringAdjustmentTrigger.DORMANCY_EXCLUDED, WateringAdjustmentTrigger.DORMANCY_EXIT),
                 recorded.map { it.trigger }
             )
-            coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.updatedAt == marchFirst }) }
+            assertPlantWrite(plantRepo) { it["wateringConfidence"] == 2 && it["updatedAt"] == marchFirst }
         }
 
     @Test
@@ -294,7 +294,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertEquals(listOf(WateringAdjustmentTrigger.DORMANCY_EXCLUDED), recorded.map { it.trigger })
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
     }
 
     @Test
@@ -312,7 +312,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertEquals(listOf(WateringAdjustmentTrigger.WATER_NEUTRAL), recorded.map { it.trigger })
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 4 && it.updatedAt == loggedAt }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 4 && it["updatedAt"] == loggedAt }
     }
 
     @Test
@@ -360,7 +360,7 @@ class AdaptiveWateringObservationAwayTest {
         )
         val awayRow = recorded.single { it.trigger == WateringAdjustmentTrigger.AWAY_EXCLUDED }
         assertEquals(awayRow.beforeIntervalDays, awayRow.afterIntervalDays)
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 1 }
     }
 
     @Test
@@ -383,7 +383,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertEquals(listOf(WateringAdjustmentTrigger.AWAY_EXCLUDED), recorded.map { it.trigger })
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
     }
 
     @Test
@@ -407,9 +407,7 @@ class AdaptiveWateringObservationAwayTest {
         )
 
         assertEquals(listOf(WateringAdjustmentTrigger.HISTORY_BOOTSTRAP), recorded.map { it.trigger })
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringBaseIntervalDays == 7.0 && it.wateringConfidence == 1 })
-        }
+        assertPlantWrite(plantRepo) { it["wateringBaseIntervalDays"] == 7.0 && it["wateringConfidence"] == 1 }
     }
 
     // ---- feedbackForLog ----

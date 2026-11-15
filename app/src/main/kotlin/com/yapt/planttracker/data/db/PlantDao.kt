@@ -93,17 +93,24 @@ interface PlantDao {
     suspend fun updateWateringBaseInterval(id: Long, wateringBaseIntervalDays: Double, updatedAt: Long)
 
     /**
-     * Column-specific update touching only `wateringDueDateOverride`/`updatedAt`, same rationale as
-     * [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch a column it
-     * doesn't name, eliminating the race entirely rather than just narrowing its window. Used by
+     * Column-specific update touching only `wateringDueDateOverride`, its `wateringDueDateOverrideMadeAt`
+     * stamp and `updatedAt`, written in one statement so the pair can never drift (product ADR-0083).
+     * Same rationale as [updateWateringBaseInterval] (#703 review round 3) — this statement can't touch
+     * a column it doesn't name, eliminating the race entirely rather than just narrowing its window. Used by
      * `QuickLogUseCase.recordReschedule()` (#738, product ADR-0039) so a reschedule can never
      * silently revert a concurrent write to any other column.
      */
     @Query(
-        "UPDATE plants SET wateringDueDateOverride = :wateringDueDateOverride, updatedAt = :updatedAt " +
+        "UPDATE plants SET wateringDueDateOverride = :wateringDueDateOverride, " +
+            "wateringDueDateOverrideMadeAt = :wateringDueDateOverrideMadeAt, updatedAt = :updatedAt " +
             "WHERE id = :id"
     )
-    suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long)
+    suspend fun updateWateringDueDateOverride(
+        id: Long,
+        wateringDueDateOverride: Long?,
+        wateringDueDateOverrideMadeAt: Long?,
+        updatedAt: Long
+    )
 
     /**
      * Column-specific update touching only `coverPhotoUri`/`updatedAt` (#808), same rationale as
@@ -140,6 +147,60 @@ interface PlantDao {
      */
     @Query("UPDATE plants SET wateringConfidence = :confidence, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateWateringConfidence(id: Long, confidence: Int?, updatedAt: Long)
+
+    /**
+     * Column-specific update touching only `wateringConfidence`/`wateringBaseIntervalDays`/`updatedAt`
+     * (#872, technical ADR-0036 point 3) — the adaptive WATER observation's persisted state. The quick-log
+     * surfaces call it off a caller's possibly stale snapshot, outside Plant Detail's lock, so it must not
+     * name any column it doesn't own.
+     */
+    @Query(
+        "UPDATE plants SET wateringConfidence = :confidence, " +
+            "wateringBaseIntervalDays = :wateringBaseIntervalDays, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateWateringConfidenceAndBase(
+        id: Long,
+        confidence: Int?,
+        wateringBaseIntervalDays: Double?,
+        updatedAt: Long
+    )
+
+    /**
+     * Column-specific update touching only the watering model (`wateringIntervalDays`,
+     * `wateringBaseIntervalDays`, `wateringConfidence`) and `updatedAt` (#872) — the shared suggestion
+     * Apply (`QuickLogUseCase.applyWateringIntervalSuggestion`), reached from Plant Detail, Care, Calendar
+     * and Plant List. Same rationale as [updateWateringDueDateOverride].
+     */
+    @Query(
+        "UPDATE plants SET wateringIntervalDays = :wateringIntervalDays, " +
+            "wateringBaseIntervalDays = :wateringBaseIntervalDays, wateringConfidence = :confidence, " +
+            "updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateWateringModel(
+        id: Long,
+        wateringIntervalDays: Int?,
+        wateringBaseIntervalDays: Double?,
+        confidence: Int?,
+        updatedAt: Long
+    )
+
+    /**
+     * Column-specific write of a successful history bootstrap (#872): the watering model plus
+     * `wateringResetAt = NULL`. `WateringLifecycleReset.maybeBootstrap` runs inside a quick-log observation
+     * built from a caller's snapshot, so a full-row write there could revert any other column.
+     */
+    @Query(
+        "UPDATE plants SET wateringIntervalDays = :wateringIntervalDays, " +
+            "wateringBaseIntervalDays = :wateringBaseIntervalDays, wateringConfidence = :confidence, " +
+            "wateringResetAt = NULL, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun applyWateringBootstrap(
+        id: Long,
+        wateringIntervalDays: Int,
+        wateringBaseIntervalDays: Double,
+        confidence: Int?,
+        updatedAt: Long
+    )
 
     /**
      * Unconditional parent-link write (#960): unlink (`null`) and backup restore, which validates its own

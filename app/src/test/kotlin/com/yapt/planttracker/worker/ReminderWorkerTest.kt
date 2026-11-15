@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
+import androidx.core.app.NotificationCompat
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.ListenableWorker
@@ -18,6 +19,7 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.notification.AutoBackupNotifier
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.util.repotPlannedNotificationRes
 import kotlinx.coroutines.runBlocking
@@ -438,6 +440,28 @@ class ReminderWorkerTest {
         assertEquals(
             listOf(PostWateringReminderWorker.NOTIFICATION_ID),
             notificationManager.activeNotifications.map { it.id }
+        )
+    }
+
+    @Test
+    fun `daily cleanup preserves the automatic-backup failure and progress notifications`() = runBlocking {
+        shadowOf(app as Application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        listOf(AutoBackupNotifier.NOTIFICATION_ID, AutoBackupNotifier.PROGRESS_NOTIFICATION_ID).forEach { id ->
+            notificationManager.notify(
+                id,
+                NotificationCompat.Builder(app, "test").setSmallIcon(R.drawable.ic_notification).build()
+            )
+        }
+        notificationManager.notify(
+            4242,
+            NotificationCompat.Builder(app, "test").setSmallIcon(R.drawable.ic_notification).build()
+        )
+
+        runWorker()
+
+        assertEquals(
+            setOf(AutoBackupNotifier.NOTIFICATION_ID, AutoBackupNotifier.PROGRESS_NOTIFICATION_ID),
+            notificationManager.activeNotifications.map { it.id }.toSet()
         )
     }
 

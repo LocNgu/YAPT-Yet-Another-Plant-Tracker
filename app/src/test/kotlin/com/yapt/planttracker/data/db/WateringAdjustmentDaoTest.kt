@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -152,5 +153,81 @@ class WateringAdjustmentDaoTest {
             assertEquals(0, awaitItem().size)
             cancelAndConsumeRemainingEvents()
         }
+    }
+
+    // ---- #799 (product ADR-0082): recordManualEdit same-day merge ----
+
+    private val day1 = java.time.LocalDate.of(2026, 3, 10)
+    private fun at(hour: Int, minute: Int = 0, day: java.time.LocalDate = day1): Long =
+        day.atTime(hour, minute).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private suspend fun allRows(plantId: Long) =
+        wateringAdjustmentDao.getRecentForPlant(plantId, limit = 50).first()
+
+    @Test
+    fun `two same-day manual edits merge into one row keeping the original before`() = runTest {
+        val plantId = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(9), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(11), "MANUAL_EDIT", 10, 12))
+
+        val rows = allRows(plantId)
+        assertEquals(1, rows.size)
+        assertEquals(7, rows[0].beforeIntervalDays)
+        assertEquals(12, rows[0].afterIntervalDays)
+        assertEquals(at(11), rows[0].triggeredAt)
+    }
+
+    @Test
+    fun `a net-zero day keeps the row with before equal to after`() = runTest {
+        val plantId = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(9), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(10), "MANUAL_EDIT", 10, 7))
+
+        val rows = allRows(plantId)
+        assertEquals(1, rows.size)
+        assertEquals(7, rows[0].beforeIntervalDays)
+        assertEquals(7, rows[0].afterIntervalDays)
+    }
+
+    @Test
+    fun `an intervening non-manual row prevents the merge`() = runTest {
+        val plantId = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(9), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.insertAdjustment(adjustment(plantId, at(10), "WATER_TOO_LATE", 10, 10))
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(11), "MANUAL_EDIT", 10, 12))
+
+        assertEquals(listOf("MANUAL_EDIT", "WATER_TOO_LATE", "MANUAL_EDIT"), allRows(plantId).map { it.trigger })
+    }
+
+    @Test
+    fun `an intervening DIALOG_EDIT prevents the merge`() = runTest {
+        val plantId = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(9), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.insertAdjustment(adjustment(plantId, at(10), "DIALOG_EDIT", 10, 11))
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(11), "MANUAL_EDIT", 11, 12))
+
+        assertEquals(3, allRows(plantId).size)
+    }
+
+    @Test
+    fun `edits on different local days do not merge`() = runTest {
+        val plantId = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(plantId, at(23, 50), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.recordManualEdit(
+            adjustment(plantId, at(0, 10, day1.plusDays(1)), "MANUAL_EDIT", 10, 12)
+        )
+
+        assertEquals(2, allRows(plantId).size)
+    }
+
+    @Test
+    fun `merging is per plant`() = runTest {
+        val a = insertParentPlant()
+        val b = insertParentPlant()
+        wateringAdjustmentDao.recordManualEdit(adjustment(a, at(9), "MANUAL_EDIT", 7, 10))
+        wateringAdjustmentDao.recordManualEdit(adjustment(b, at(10), "MANUAL_EDIT", 7, 9))
+
+        assertEquals(1, allRows(a).size)
+        assertEquals(1, allRows(b).size)
     }
 }

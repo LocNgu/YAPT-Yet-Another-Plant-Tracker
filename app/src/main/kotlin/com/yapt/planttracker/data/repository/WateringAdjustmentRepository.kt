@@ -16,6 +16,15 @@ class WateringAdjustmentRepository(private val wateringAdjustmentDao: WateringAd
     suspend fun addAdjustment(adjustment: WateringAdjustment): Long =
         wateringAdjustmentDao.insertAdjustment(adjustment.toEntity())
 
+    /**
+     * The single write path for `MANUAL_EDIT` rows (#799, product ADR-0082): merges into the plant's newest
+     * row when that is a same-local-day `MANUAL_EDIT`, otherwise inserts. [adjustment] must be a `MANUAL_EDIT`.
+     */
+    suspend fun recordManualEdit(adjustment: WateringAdjustment): Long {
+        require(adjustment.trigger == WateringAdjustmentTrigger.MANUAL_EDIT)
+        return wateringAdjustmentDao.recordManualEdit(adjustment.toEntity())
+    }
+
     /** Every existing row for [plantId] with [trigger], any order — see [WateringAdjustmentDao.getAdjustmentsByTrigger]. */
     suspend fun getByTrigger(plantId: Long, trigger: WateringAdjustmentTrigger): List<WateringAdjustment> =
         wateringAdjustmentDao.getAdjustmentsByTrigger(plantId, trigger.name).map { it.toDomain() }

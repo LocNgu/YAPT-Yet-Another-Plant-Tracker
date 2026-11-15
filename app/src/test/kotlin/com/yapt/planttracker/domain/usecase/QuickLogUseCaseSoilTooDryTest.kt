@@ -73,6 +73,7 @@ class QuickLogUseCaseSoilTooDryTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         coEvery { awayPeriodRepo.getAll() } returns emptyList()
     }
 

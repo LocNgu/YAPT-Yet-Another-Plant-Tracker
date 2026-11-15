@@ -61,6 +61,7 @@ class PlantDetailViewModelLiveIntervalTest {
     private val wateringAdjustmentRepo: WateringAdjustmentRepository = mockk {
         every { getRecentForPlant(any(), any()) } returns flowOf(emptyList())
         coEvery { addAdjustment(any()) } returns 1L
+        coEvery { recordManualEdit(any()) } returns 1L
     }
     private val database: PlantDatabase = mockk()
 
@@ -169,7 +170,7 @@ class PlantDetailViewModelLiveIntervalTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
         assertEquals(123L, stored.value?.updatedAt)
         assertEquals(8.0, stored.value?.wateringBaseIntervalDays)
     }
@@ -185,7 +186,7 @@ class PlantDetailViewModelLiveIntervalTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
     }
 
     // `vm.plant` collects the first flow returned by getPlantById (stale); the write's fresh read in
@@ -240,7 +241,7 @@ class PlantDetailViewModelLiveIntervalTest {
             assertEquals(7, stored.value?.wateringIntervalDays)
             assertEquals(expectedBase, stored.value!!.wateringBaseIntervalDays!!, 1e-9)
             coVerify(exactly = 1) {
-                wateringAdjustmentRepo.addAdjustment(
+                wateringAdjustmentRepo.recordManualEdit(
                     match {
                         it.trigger == WateringAdjustmentTrigger.MANUAL_EDIT &&
                             it.beforeIntervalDays == 8 &&
@@ -276,7 +277,7 @@ class PlantDetailViewModelLiveIntervalTest {
             advanceUntilIdle()
 
             coVerify(exactly = 1) { plantRepo.updatePlant(match { it.wateringIntervalDays == days }) }
-            coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+            coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
         }
 
     @Test
@@ -291,7 +292,7 @@ class PlantDetailViewModelLiveIntervalTest {
             advanceUntilIdle()
 
             coVerify(exactly = 1) { plantRepo.updatePlant(any()) }
-            coVerify(exactly = 1) { wateringAdjustmentRepo.addAdjustment(any()) }
+            coVerify(exactly = 1) { wateringAdjustmentRepo.recordManualEdit(any()) }
             assertEquals(14, stored.value?.wateringIntervalDays)
         }
 
@@ -321,7 +322,7 @@ class PlantDetailViewModelLiveIntervalTest {
         advanceUntilIdle()
 
         coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
-        coVerify(exactly = 0) { wateringAdjustmentRepo.addAdjustment(any()) }
+        coVerify(exactly = 0) { wateringAdjustmentRepo.recordManualEdit(any()) }
     }
 
     @Test

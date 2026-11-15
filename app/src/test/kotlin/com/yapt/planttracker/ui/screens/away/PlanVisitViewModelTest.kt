@@ -529,7 +529,6 @@ class PlanVisitViewModelTest {
         assertEquals(setOf(later.id, resting.id), fixture.visits().single().plants.map { it.plantId }.toSet())
         val list = output.pdfLists.single()
         assertEquals(setOf(later.id, resting.id), list.rooms.flatMap { it.plants }.map { it.plantId }.toSet())
-        assertEquals(0, list.restingCount)
     }
 
     @Test

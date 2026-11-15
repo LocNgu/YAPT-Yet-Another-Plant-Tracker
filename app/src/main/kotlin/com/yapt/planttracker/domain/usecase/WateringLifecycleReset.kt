@@ -204,14 +204,14 @@ object WateringLifecycleReset {
             .coerceIn(SeasonalWatering.MIN_EFFECTIVE_INTERVAL_DAYS, SeasonalWatering.MAX_EFFECTIVE_INTERVAL_DAYS)
         // Intentionally overwrites any incremental confidence/base learned per-observation between
         // the freeze ending and this bootstrap firing — the cold-start estimate wins, not a bug.
-        plantRepository.updatePlant(
-            plant.copy(
-                wateringBaseIntervalDays = baseIntervalDays,
-                wateringIntervalDays = effectiveIntervalDays,
-                wateringConfidence = result.confidence,
-                wateringResetAt = null,
-                updatedAt = now
-            )
+        // Column-specific (#872): request.plant can be a quick-log caller's stale snapshot, so a full-row
+        // write here could revert any column changed since it was read.
+        plantRepository.applyWateringBootstrap(
+            plant.id,
+            wateringIntervalDays = effectiveIntervalDays,
+            wateringBaseIntervalDays = baseIntervalDays,
+            confidence = result.confidence,
+            updatedAt = now
         )
         wateringAdjustmentRepository?.addAdjustment(
             WateringAdjustment(

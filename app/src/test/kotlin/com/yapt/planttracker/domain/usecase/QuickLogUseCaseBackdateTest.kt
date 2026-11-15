@@ -85,6 +85,7 @@ class QuickLogUseCaseBackdateTest {
         coEvery { careLogRepo.getLastWateringBefore(any(), any()) } returns null
         coEvery { careLogRepo.hasLogOfTypeOnDay(any(), any(), any(), any()) } returns false
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         useCase = QuickLogUseCase(
             application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database, wateringAdjustmentRepo
         )

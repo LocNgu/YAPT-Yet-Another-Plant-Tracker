@@ -55,6 +55,7 @@ class QuickLogUseCaseOverrideRevertTest {
         coEvery { careLogRepo.getLastTwoWaterings(any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
         // Observed gap (7 days) agrees with the stored interval (7 days), so the adaptive model
         // raises confidence from 2 to 3 — the write these tests need to exercise the bug.
@@ -107,11 +108,7 @@ class QuickLogUseCaseOverrideRevertTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
-        coVerify(exactly = 1) {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == null && it.wateringConfidence == 3 }
-            )
-        }
+        assertOverrideClearedAndConfidenceKept()
     }
 
     @Test
@@ -123,11 +120,7 @@ class QuickLogUseCaseOverrideRevertTest {
 
         useCase.quickLiquidFertilizeWithReason(monstera, WateringReason.PLANT_NEEDED_IT)
 
-        coVerify(exactly = 1) {
-            plantRepo.updatePlant(
-                match { it.wateringDueDateOverride == null && it.wateringConfidence == 3 }
-            )
-        }
+        assertOverrideClearedAndConfidenceKept()
     }
 
     // --- #679: clearWateringOverrideIfActive only fires when the new WATER log becomes the newest ---
@@ -149,11 +142,12 @@ class QuickLogUseCaseOverrideRevertTest {
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
             )
             coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+            // #872: the backdated branch observes a fresh read, but must still leave the override alone.
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
             useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
 
-            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
-            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+            verifyNoPlantRowWrite(plantRepo)
         }
 
     /** The paired-WATER insert in [QuickLogUseCase.quickLiquidFertilizeWithReason] mirrors the same gate (#679). */
@@ -169,11 +163,11 @@ class QuickLogUseCaseOverrideRevertTest {
                 CareLog(plantId = 1L, careType = CareType.WATER, loggedAt = existingNewest)
             )
             coEvery { careLogRepo.getLastWateringBefore(1L, loggedAt) } returns null
+            every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
 
             useCase.quickLiquidFertilizeWithReason(monstera, null, loggedAt = loggedAt)
 
-            coVerify(exactly = 0) { plantRepo.getPlantById(any()) }
-            coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+            verifyNoPlantRowWrite(plantRepo)
         }
 
     /**
@@ -194,6 +188,19 @@ class QuickLogUseCaseOverrideRevertTest {
 
             useCase.quickWaterWithReason(monstera, null, loggedAt = loggedAt)
 
-            coVerify { plantRepo.updatePlant(match { it.wateringDueDateOverride == null }) }
+            assertPlantWrite(plantRepo) { it["wateringDueDateOverride"] == null }
         }
+
+    /**
+     * #872: the clear and the confidence change are separate column writes now. Neither names the other's
+     * column, so the confidence write can't put the cleared override back by construction.
+     */
+    private fun assertOverrideClearedAndConfidenceKept() {
+        assertPlantWrite(plantRepo, exactly = 1) {
+            it.containsKey("wateringDueDateOverride") && it["wateringDueDateOverride"] == null
+        }
+        assertPlantWrite(plantRepo, exactly = 1) { it["wateringConfidence"] == 3 }
+        assertPlantWrite(plantRepo, exactly = 0) { it["wateringDueDateOverride"] != null }
+        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+    }
 }

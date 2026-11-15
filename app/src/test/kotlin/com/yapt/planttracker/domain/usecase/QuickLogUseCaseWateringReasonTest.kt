@@ -65,6 +65,7 @@ class QuickLogUseCaseWateringReasonTest {
         // #571: below the 3-gap bootstrap threshold by default — see QuickLogUseCaseTest's identical stub.
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         useCase = QuickLogUseCase(
             application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database, wateringAdjustmentRepo
         )
@@ -158,10 +159,8 @@ class QuickLogUseCaseWateringReasonTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST)
 
-        coVerify(exactly = 1) {
-            plantRepo.updatePlant(
-                match { it.wateringIntervalDays == 7 && it.wateringBaseIntervalDays == 7.0 }
-            )
+        assertPlantWrite(plantRepo, exactly = 1) {
+            it["wateringIntervalDays"] == 7 && it["wateringBaseIntervalDays"] == 7.0
         }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(

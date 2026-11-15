@@ -31,7 +31,7 @@ paths:
 - **Today marker:** `TodayMarkerDecoration` draws a dashed line + dot (not Vico's marker API).
 - **Where it renders:**
   - Settings, under the amplitude picker, with `showHemisphereCaption = true` (the only place the hemisphere is surfaced).
-  - Plant Detail's Water tab, with `plantContext = SeasonalCurvePlantContext(isPinned, baseIntervalDays)`. Pinned shows the curve at 45% alpha plus a note (#578).
+  - Plant Detail's Water tab, with `plantContext = SeasonalCurvePlantContext(isPinned, baseIntervalDays)`. Pinned shows the curve at 45% alpha plus a note (#578). Its `amplitude` is the plant's own strength when one is set, else the global one (#700).
 - **Day labels (#622):**
   - A non-null `baseIntervalDays` (Plant Detail: `wateringBaseIntervalDays ?: wateringIntervalDays`) switches the axis labels and captions to whole days (`"Nd"`); Settings shows the raw multiplier.
   - Duplicate adjacent day labels are withheld: the pure `seasonalCurveDayTickLabels()` decides which ticks keep a label (never the first), `seasonalCurveLabeledTicks()` filters the ticks, and `DayLabelItemPlacer` (delegating to `step(Y_AXIS_STEP)`, matching by `TICK_MATCH_EPSILON`) applies the result. Gridlines are untouched.

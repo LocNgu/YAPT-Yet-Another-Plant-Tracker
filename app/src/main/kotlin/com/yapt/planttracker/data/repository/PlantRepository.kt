@@ -3,6 +3,7 @@ package com.yapt.planttracker.data.repository
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.entity.PlantEntity
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -68,8 +69,12 @@ class PlantRepository(
         plantDao.updateWateringBaseInterval(id, wateringBaseIntervalDays, updatedAt)
 
     /** Column-specific update — see [PlantDao.updateWateringDueDateOverride]'s doc for why this exists. */
-    suspend fun updateWateringDueDateOverride(id: Long, wateringDueDateOverride: Long?, updatedAt: Long) =
-        plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, updatedAt)
+    suspend fun updateWateringDueDateOverride(
+        id: Long,
+        wateringDueDateOverride: Long?,
+        wateringDueDateOverrideMadeAt: Long?,
+        updatedAt: Long
+    ) = plantDao.updateWateringDueDateOverride(id, wateringDueDateOverride, wateringDueDateOverrideMadeAt, updatedAt)
 
     /** Column-specific update — see [PlantDao.updateCoverPhotoUri]'s doc for why this exists. */
     suspend fun updateCoverPhotoUri(id: Long, coverPhotoUri: String?, updatedAt: Long) =
@@ -90,6 +95,32 @@ class PlantRepository(
     /** Column-specific update — see [PlantDao.updateWateringConfidence]'s doc for why this exists. */
     suspend fun updateWateringConfidence(id: Long, confidence: Int?, updatedAt: Long) =
         plantDao.updateWateringConfidence(id, confidence, updatedAt)
+
+    /** Column-specific update — see [PlantDao.updateWateringConfidenceAndBase]'s doc for why this exists. */
+    suspend fun updateWateringConfidenceAndBase(
+        id: Long,
+        confidence: Int?,
+        wateringBaseIntervalDays: Double?,
+        updatedAt: Long
+    ) = plantDao.updateWateringConfidenceAndBase(id, confidence, wateringBaseIntervalDays, updatedAt)
+
+    /** Column-specific update — see [PlantDao.updateWateringModel]'s doc for why this exists. */
+    suspend fun updateWateringModel(
+        id: Long,
+        wateringIntervalDays: Int?,
+        wateringBaseIntervalDays: Double?,
+        confidence: Int?,
+        updatedAt: Long
+    ) = plantDao.updateWateringModel(id, wateringIntervalDays, wateringBaseIntervalDays, confidence, updatedAt)
+
+    /** Column-specific update — see [PlantDao.applyWateringBootstrap]'s doc for why this exists. */
+    suspend fun applyWateringBootstrap(
+        id: Long,
+        wateringIntervalDays: Int,
+        wateringBaseIntervalDays: Double,
+        confidence: Int?,
+        updatedAt: Long
+    ) = plantDao.applyWateringBootstrap(id, wateringIntervalDays, wateringBaseIntervalDays, confidence, updatedAt)
 
     /** Direct children of [parentId] — archived and hidden ones included — by name (#960). */
     fun getChildren(parentId: Long): Flow<List<Plant>> =
@@ -145,11 +176,15 @@ private fun PlantEntity.toDomain() = Plant(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
+    wateringDueDateOverrideMadeAt = wateringDueDateOverrideMadeAt,
     useLiquidFertilizer = useLiquidFertilizer,
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
+    wateringAmplitudeOverride = wateringAmplitudeOverride?.let {
+        runCatching { SeasonalAmplitude.valueOf(it) }.getOrDefault(null)
+    },
     wateringResetAt = wateringResetAt,
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,
@@ -176,11 +211,13 @@ private fun Plant.toEntity() = PlantEntity(
     createdAt = createdAt,
     updatedAt = updatedAt,
     wateringDueDateOverride = wateringDueDateOverride,
+    wateringDueDateOverrideMadeAt = wateringDueDateOverrideMadeAt,
     useLiquidFertilizer = useLiquidFertilizer,
     archivedAt = archivedAt,
     wateringConfidence = wateringConfidence,
     wateringBaseIntervalDays = wateringBaseIntervalDays,
     pinIntervalToBase = pinIntervalToBase,
+    wateringAmplitudeOverride = wateringAmplitudeOverride?.name,
     wateringResetAt = wateringResetAt,
     wateringFreezeUntil = wateringFreezeUntil,
     dormancyStartMonth = dormancyStartMonth,

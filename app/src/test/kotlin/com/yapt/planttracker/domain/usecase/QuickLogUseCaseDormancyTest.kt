@@ -77,6 +77,7 @@ class QuickLogUseCaseDormancyTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         useCase = QuickLogUseCase(
             application, plantRepo, careLogRepo, plantPhotoRepo, dataStore, database, wateringAdjustmentRepo
         )
@@ -96,7 +97,7 @@ class QuickLogUseCaseDormancyTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = decemberFifteenth)
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         coVerify {
             wateringAdjustmentRepo.addAdjustment(
                 match {
@@ -180,9 +181,7 @@ class QuickLogUseCaseDormancyTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = marchFirst)
 
-        coVerify {
-            plantRepo.updatePlant(match { it.wateringConfidence == 2 && it.wateringIntervalDays == 7 })
-        }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 2 && !it.containsKey("wateringIntervalDays") }
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
         }
@@ -205,7 +204,7 @@ class QuickLogUseCaseDormancyTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = marchFirst)
 
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 0 }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 0 }
     }
 
     @Test
@@ -219,7 +218,7 @@ class QuickLogUseCaseDormancyTest {
 
         useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = marchFirst)
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
         }
@@ -240,7 +239,7 @@ class QuickLogUseCaseDormancyTest {
         coVerify(exactly = 1) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXIT })
         }
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 3 }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 3 }
     }
 
     @Test
@@ -285,7 +284,7 @@ class QuickLogUseCaseDormancyTest {
         // Before the fix: computeAdaptiveInterval's null branch always returned confidence = 0
         // regardless of suppressConfidenceTransition, and persistAdaptiveState would then write it
         // (0 != null), permanently forfeiting this plant's cold-start bootstrap eligibility.
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         coVerify {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.DORMANCY_EXCLUDED })
         }
@@ -412,7 +411,7 @@ class QuickLogUseCaseDormancyTest {
         }
         // The bootstrap's own gapCount/3 confidence (4 gaps / 3 = 1), never decremented by an
         // additional -1 for the unrelated dormancy exit this same observation also represents.
-        coVerify { plantRepo.updatePlant(match { it.wateringConfidence == 1 }) }
+        assertPlantWrite(plantRepo) { it["wateringConfidence"] == 1 }
     }
 
     // ---- No dormancy window configured: unchanged pre-existing behaviour ----

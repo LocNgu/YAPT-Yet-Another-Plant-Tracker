@@ -72,6 +72,7 @@ class QuickLogUseCaseAwayTest {
         coEvery { careLogRepo.getRecentWaterings(any(), limit = any()) } returns emptyList()
         coEvery { careLogRepo.getWaterLogTimestampsAscending(any()) } returns emptyList()
         coEvery { plantRepo.updatePlant(any()) } returns Unit
+        stubPlantColumnWrites(plantRepo)
         coEvery { awayPeriodRepo.getAll() } returns listOf(trip)
         every { plantRepo.getPlantById(1L) } returns flowOf(monstera)
         useCase = QuickLogUseCase(
@@ -112,7 +113,7 @@ class QuickLogUseCaseAwayTest {
 
         val outcome = useCase.quickWaterWithReason(monstera, WateringReason.SOIL_STILL_MOIST, loggedAt = loggedAt)
 
-        coVerify(exactly = 0) { plantRepo.updatePlant(any()) }
+        verifyNoPlantRowWrite(plantRepo)
         coVerify(exactly = 1) {
             wateringAdjustmentRepo.addAdjustment(match { it.trigger == WateringAdjustmentTrigger.AWAY_EXCLUDED })
         }

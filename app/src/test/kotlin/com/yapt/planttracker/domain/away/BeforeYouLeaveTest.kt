@@ -327,4 +327,98 @@ class BeforeYouLeaveTest {
         assertEquals(0, result.wateredTodayCount)
         assertEquals(0, result.canWaitCount)
     }
+
+    // --- rescheduled today (#1019, product ADR-0083) ---
+
+    private fun at(day: LocalDate, hour: Int = 9) =
+        day.atTime(hour, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private fun rescheduled(
+        entry: Pair<Plant, CareLog>,
+        overrideDay: LocalDate,
+        madeOn: LocalDate?
+    ) = entry.first.copy(
+        wateringDueDateOverride = at(overrideDay),
+        wateringDueDateOverrideMadeAt = madeOn?.let { at(it, hour = 8) }
+    ) to entry.second
+
+    @Test
+    fun `a plant rescheduled today is left out and counted as can wait`() {
+        val entry = rescheduled(dueOn(1, today), overrideDay = day(10), madeOn = today)
+
+        val result = plan(listOf(entry))
+
+        assertTrue(result.waterToday.isEmpty())
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(1, result.canWaitCount)
+        assertEquals(0, result.wateredTodayCount)
+    }
+
+    @Test
+    fun `a plant rescheduled yesterday is still listed by its due date`() {
+        val entry = rescheduled(dueOn(1, today), overrideDay = day(10), madeOn = today.minusDays(1))
+
+        val result = plan(listOf(entry))
+
+        assertEquals(listOf(1L), result.waterToday.ids())
+        assertEquals(day(10), result.waterToday.single().dueDate)
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
+    fun `an override with no timestamp is still listed by its due date`() {
+        val entry = rescheduled(dueOn(1, today), overrideDay = day(10), madeOn = null)
+
+        val result = plan(listOf(entry))
+
+        assertEquals(listOf(1L), result.waterToday.ids())
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
+    fun `an override that does not win the maxOf is not active even when stamped today`() {
+        val entry = rescheduled(dueOn(1, day(12)), overrideDay = day(10), madeOn = today)
+
+        val result = plan(listOf(entry))
+
+        assertEquals(listOf(1L), result.checkTheSoil.ids())
+        assertEquals(day(12), result.checkTheSoil.single().dueDate)
+        assertEquals(0, result.canWaitCount)
+    }
+
+    @Test
+    fun `a plant rescheduled today is left out whatever the new date is`() {
+        val beforeFirstVisit = rescheduled(dueOn(1, today), overrideDay = day(8), madeOn = today)
+        val insideTheTrip = rescheduled(dueOn(2, today), overrideDay = day(16), madeOn = today)
+
+        val result = plan(listOf(beforeFirstVisit, insideTheTrip))
+
+        assertTrue(result.waterToday.isEmpty())
+        assertTrue(result.checkTheSoil.isEmpty())
+        assertEquals(2, result.canWaitCount)
+    }
+
+    @Test
+    fun `a plant rescheduled today is not brought forward for the trip`() {
+        val base = dueOn(1, day(12), interval = 21)
+        val broughtForward = rescheduled(base, overrideDay = day(13), madeOn = today.minusDays(1))
+        val leftOut = rescheduled(base, overrideDay = day(13), madeOn = today)
+
+        val before = plan(listOf(broughtForward), visitEveryDays = 4, tripDays = 21)
+        val after = plan(listOf(leftOut), visitEveryDays = 4, tripDays = 21)
+
+        assertEquals(listOf(1L), before.checkTheSoil.ids())
+        assertTrue(after.checkTheSoil.isEmpty())
+        assertEquals(1, after.canWaitCount)
+    }
+
+    @Test
+    fun `a plant rescheduled and watered today counts as watered today`() {
+        val entry = rescheduled(dueOn(1, today), overrideDay = day(10), madeOn = today)
+
+        val result = plan(listOf(entry), extraLogs = listOf(log(1, CareType.WATER, today)))
+
+        assertEquals(1, result.wateredTodayCount)
+        assertEquals(0, result.canWaitCount)
+    }
 }

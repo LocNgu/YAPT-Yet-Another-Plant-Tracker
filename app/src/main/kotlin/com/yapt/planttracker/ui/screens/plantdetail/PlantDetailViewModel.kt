@@ -37,6 +37,7 @@ import com.yapt.planttracker.domain.schedule.WateringExplanation
 import com.yapt.planttracker.domain.schedule.WateringExplanationBuilder
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeFlow
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
+import com.yapt.planttracker.domain.usecase.WateringSuggestionGate
 import com.yapt.planttracker.ui.components.TimeRange
 import com.yapt.planttracker.util.dayChangeTicker
 import kotlinx.coroutines.CoroutineScope
@@ -300,8 +301,9 @@ class PlantDetailViewModel(
      * [QuickLogUseCase.applyWateringIntervalSuggestion] as its now-effective-space `newInterval`.
      *
      * **Already always evaluated at real today, unaffected by #716 review round 1's `now`-vs-`displayNow`
-     * finding.** Both [CareSchedule.effectiveWateringIntervalDaysForDisplay] calls below omit `nowDate`
-     * entirely, so both default to [java.time.LocalDate.now] — this combine block has no `loggedAt`/`now`
+     * finding.** The [WateringSuggestionGate.evaluate] call below (#968: the one gate, shared with
+     * [com.yapt.planttracker.domain.usecase.AdaptiveWateringObservation.observe]) is passed
+     * [java.time.LocalDate.now] — this combine block has no `loggedAt`/`now`
      * of its own to begin with; it only ever reconstructs *today's* dialog from the raw numbers
      * [QuickLogUseCase.computeSuggestion] already computed (possibly backdated on its own end, now
      * correctly split from *its* display conversion — see that function's doc). Verified, not just
@@ -314,22 +316,19 @@ class PlantDetailViewModel(
         seasonalAmplitudeValue
     ) { p, suggestion, preciseSuggestion, amplitude ->
         if (p == null || suggestion == null) return@combine null
-        val effective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-            plant = p.copy(
-                wateringBaseIntervalDays = preciseSuggestion ?: suggestion.toDouble(),
-                wateringIntervalDays = suggestion
-            ),
-            seasonalAmplitude = amplitude
-        ) ?: suggestion
-        val currentEffective = CareSchedule.effectiveWateringIntervalDaysForDisplay(
+        // The same gate AdaptiveWateringObservation.observe() ran (#968): never re-derive it here.
+        val gate = WateringSuggestionGate.evaluate(
             plant = p,
+            suggestedIntervalDays = suggestion,
+            suggestedBaseIntervalDays = preciseSuggestion ?: suggestion.toDouble(),
+            nowDate = LocalDate.now(),
             seasonalAmplitude = amplitude
-        ) ?: p.wateringIntervalDays
-        if (effective == currentEffective) return@combine null
+        )
+        if (!gate.differs) return@combine null
         PendingWateringSuggestion(
             rawIntervalDays = suggestion,
-            effectiveIntervalDays = effective,
-            currentIntervalDays = currentEffective
+            effectiveIntervalDays = gate.suggestedEffectiveIntervalDays,
+            currentIntervalDays = gate.currentEffectiveIntervalDays
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -449,7 +448,7 @@ class PlantDetailViewModel(
                 return@launch
             }
             outcome.suggestion?.let {
-                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+                applySuggestionOrPrompt(it)
             }
             _quickLogMessage.emit(QuickLogMessage.Watered(p.name))
             maybeTriggerPhotoReminder(p.id)
@@ -529,7 +528,7 @@ class PlantDetailViewModel(
                 return@launch
             }
             outcome.suggestion?.let {
-                applySuggestionOrPrompt(it.suggestedInterval, it.suggestedBaseInterval)
+                applySuggestionOrPrompt(it)
             }
             val message = if (outcome.waterPaired) {
                 QuickLogMessage.WateredAndFertilized(p.name)
@@ -655,7 +654,10 @@ class PlantDetailViewModel(
          * is the plant's actual prior override value, for `undoRevertReschedule` to restore exactly —
          * never recomputed at the call site.
          */
-        data class RescheduleReverted(val previousOverrideAtMillis: Long) : Event()
+        data class RescheduleReverted(
+            val previousOverrideAtMillis: Long,
+            val previousMadeAtMillis: Long?
+        ) : Event()
 
         /**
          * `toggleFertilizingSeason` refused a toggle that would empty the freshly read season set

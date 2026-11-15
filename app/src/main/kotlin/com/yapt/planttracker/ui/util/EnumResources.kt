@@ -24,6 +24,7 @@ import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.SeasonBand
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.WateringConfidenceLevel
+import com.yapt.planttracker.domain.schedule.WateringStrengthMode
 import com.yapt.planttracker.domain.watering.WateringOverviewGroup
 import com.yapt.planttracker.ui.theme.ThemeMode
 
@@ -40,6 +41,13 @@ fun SeasonalAmplitude.labelRes(): Int = when (this) {
     SeasonalAmplitude.MILD -> R.string.seasonal_amplitude_mild
     SeasonalAmplitude.STANDARD -> R.string.seasonal_amplitude_standard
     SeasonalAmplitude.STRONG -> R.string.seasonal_amplitude_strong
+}
+
+@StringRes
+fun WateringStrengthMode.labelRes(): Int = when (this) {
+    WateringStrengthMode.APP_DEFAULT -> R.string.watering_strength_mode_default
+    WateringStrengthMode.CUSTOM -> R.string.watering_strength_mode_custom
+    WateringStrengthMode.PIN -> R.string.watering_strength_mode_pin
 }
 
 @StringRes

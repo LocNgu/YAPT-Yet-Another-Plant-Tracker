@@ -56,6 +56,10 @@ paths:
   - Notification permission gates only the background path.
 - Composition lives in `PostWateringReminderNotificationComposer`. Developer mode's **Show drain-water reminder now** writes the modal token directly.
 
+## Automatic-backup failure alert (#1001, technical ADR-0043)
+- `AutoBackupNotifier`: own channel `auto_backup`, reserved ID `-3`. `ReminderWorker`'s daily cleanup skips `-2`, `-3` and `-4` (`PRESERVED_NOTIFICATION_IDS`). Posted by `AutoBackupWorker` only when `AutoBackupPolicy.shouldNotify` says so and the master notifications switch and POST_NOTIFICATIONS allow it; a later success clears it.
+- Progress notification for a running export: channel `auto_backup_progress` (low importance, silent, ongoing), reserved ID `-4`, foreground type `dataSync`. Not gated by the master switch (a foreground service requires it); `ReminderWorker` skips `-2`, `-3`, `-4`.
+
 ## Tests
 - Composer and worker: `ReminderNotificationComposerTest`, `ReminderWorkerTest` (Robolectric).
 - Scheduling and helpers: `ReminderSchedulerTest`, `BootReceiverTest`, `NotificationHelperTest`, `PhotoReminderTest`.

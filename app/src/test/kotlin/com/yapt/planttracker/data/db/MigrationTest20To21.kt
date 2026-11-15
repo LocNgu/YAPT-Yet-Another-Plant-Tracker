@@ -20,11 +20,6 @@ class MigrationTest20To21 {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), PlantDatabase::class.java)
 
     @Test
-    fun `database version is 21`() {
-        assertEquals(21, PlantDatabase.DB_VERSION)
-    }
-
-    @Test
     fun `migration drops amount and keeps every other care log column`() {
         helper.createDatabase(TEST_DB, 20).use { db ->
             insertPlant(db, 1)

@@ -1,6 +1,6 @@
 # Product ADR-0028: "Why this date?" watering transparency sheet
 
-**Status**: accepted
+**Status**: accepted (amended by [ADR-0082](0082-same-day-manual-interval-edits-merge-into-one-adjustment-row.md): same-day `MANUAL_EDIT` rows merge)
 
 **Date**: 2026-08-23
 

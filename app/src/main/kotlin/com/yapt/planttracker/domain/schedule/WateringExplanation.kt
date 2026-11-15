@@ -115,11 +115,11 @@ object WateringExplanationBuilder {
         } ?: return null
 
         val baseIntervalDays = (plant.wateringBaseIntervalDays ?: effectiveIntervalDays.toDouble()).roundToInt()
-        val showSeason = seasonalAmplitude != 0.0 && !plant.pinIntervalToBase &&
-            wateringScheduleMode == WateringScheduleMode.NORMAL
+        val amplitude = plant.effectiveWateringAmplitude(seasonalAmplitude)
+        val showSeason = amplitude != 0.0 && wateringScheduleMode == WateringScheduleMode.NORMAL
         val season = if (showSeason) {
-            val multiplier = SeasonalWatering.season(nowDate, seasonalAmplitude, hemisphere)
-            WateringExplanationSeason(multiplier, seasonBandFor(multiplier, seasonalAmplitude))
+            val multiplier = SeasonalWatering.season(nowDate, amplitude, hemisphere)
+            WateringExplanationSeason(multiplier, seasonBandFor(multiplier, amplitude))
         } else {
             null
         }

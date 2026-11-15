@@ -23,6 +23,7 @@ import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.Hemisphere
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
+import com.yapt.planttracker.notification.AutoBackupNotifier
 import com.yapt.planttracker.notification.NotificationHelper
 import com.yapt.planttracker.notification.NotificationPermission
 import com.yapt.planttracker.notification.SkipWateringReceiver
@@ -50,7 +51,7 @@ class ReminderWorker(
         // This retains the deleted-plant/combine-mode self-healing of technical ADR-0007 without allowing the
         // daily job to erase a standing-water reminder that has not been acted on yet.
         notificationManager.activeNotifications
-            .filter { it.id != PostWateringReminderWorker.NOTIFICATION_ID }
+            .filter { it.id !in PRESERVED_NOTIFICATION_IDS }
             .forEach { notificationManager.cancel(it.id) }
 
         // Away mode (product ADR-0065, technical ADR-0038): on an away day the shade stays cleared and nothing
@@ -284,5 +285,14 @@ class ReminderWorker(
         const val EXTRA_PLANT_ID = "plantId"
         const val WORK_NAME = "yapt_care_reminder"
         const val COMBINED_NOTIFICATION_ID = -1
+
+        // Independent alerts the daily cleanup must not clear: post-watering (technical ADR-0026) and the
+        // automatic-backup failure and progress notifications (technical ADR-0043).
+        private val PRESERVED_NOTIFICATION_IDS =
+            setOf(
+                PostWateringReminderWorker.NOTIFICATION_ID,
+                AutoBackupNotifier.NOTIFICATION_ID,
+                AutoBackupNotifier.PROGRESS_NOTIFICATION_ID
+            )
     }
 }

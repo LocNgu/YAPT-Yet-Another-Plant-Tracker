@@ -16,6 +16,7 @@ import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
+import com.yapt.planttracker.domain.schedule.effectiveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.util.toLocalDate
 import java.time.LocalDate
@@ -111,8 +112,8 @@ internal class AdaptiveWateringObservation(
      *
      * **Two separate clocks, on purpose (#716 review round 1).** [loggedAt] is the just-inserted
      * log's observation time (possibly backdated) and drives the gap, model input, freeze check,
-     * [WateringAdjustment.triggeredAt], and [Plant.updatedAt]. [displayNow] drives only the two
-     * [effectiveIntervalForDisplay] calls: the suggested and current values are what the user reads
+     * [WateringAdjustment.triggeredAt], and [Plant.updatedAt]. [displayNow] drives only the
+     * [WateringSuggestionGate.evaluate] call: the suggested and current values are what the user reads
      * **today**, regardless of the date the log claims to have happened. Evaluating them at a
      * backdated [loggedAt] could show a spurious dialog for a number that would not change today or,
      * worse, silently apply a real display change without asking. The caller defaults this
@@ -140,21 +141,22 @@ internal class AdaptiveWateringObservation(
         if (actual <= 0 && !exclusion.any) return null
         val observationFeedback = feedback.takeUnless { exclusion.any }
         val result = adapt(plant, observationFeedback, actual, current, loggedAt, exclusion) ?: return null
-        val effectiveSuggested = effectiveIntervalForDisplay(
-            plant,
-            result.baseIntervalDays,
-            result.intervalDays,
-            displayNow
+        // The one gate (#968): PlantDetailViewModel.pendingWateringSuggestion calls the same function.
+        val gate = WateringSuggestionGate.evaluate(
+            plant = plant,
+            suggestedIntervalDays = result.intervalDays,
+            suggestedBaseIntervalDays = result.baseIntervalDays,
+            nowDate = displayNow.toLocalDate(),
+            seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
         )
-        val currentEffective = effectiveIntervalForDisplay(
-            plant,
-            currentAdaptiveBaseIntervalDays(plant, current),
-            current,
-            displayNow
-        )
-        persistAdaptiveState(plant, result, effectiveSuggested == currentEffective, loggedAt)
-        return if (effectiveSuggested != currentEffective) {
-            Suggestion(result.intervalDays, effectiveSuggested, result.baseIntervalDays, currentEffective)
+        persistAdaptiveState(plant, result, !gate.differs, loggedAt)
+        return if (gate.differs) {
+            Suggestion(
+                result.intervalDays,
+                gate.suggestedEffectiveIntervalDays,
+                result.baseIntervalDays,
+                gate.currentEffectiveIntervalDays ?: current
+            )
         } else {
             null
         }
@@ -223,7 +225,7 @@ internal class AdaptiveWateringObservation(
         )
         val result = CareSchedule.computeAdaptiveInterval(
             feedback = feedback,
-            observedIntervalDays = deseasonalizedObservedIntervalDays(actual, plant.pinIntervalToBase, loggedAt),
+            observedIntervalDays = deseasonalizedObservedIntervalDays(actual, plant, loggedAt),
             currentBaseIntervalDays = currentBase,
             currentConfidence = plant.wateringConfidence,
             recentFeedback = recentFeedback,
@@ -388,13 +390,12 @@ internal class AdaptiveWateringObservation(
     /**
      * The season function used by [WateringLifecycleReset.maybeBootstrap] and
      * [CareSchedule.bootstrapBaseInterval] to de-seasonalize each historical gap. It returns
-     * `{ 1.0 }` when [Plant.pinIntervalToBase] is set or amplitude is Off, matching the live
+     * `{ 1.0 }` when the plant's effective amplitude is 0 (pinned, custom Off or global Off, #700), matching the live
      * observation's [deseasonalizedObservedIntervalDays] and [currentAdaptiveBaseIntervalDays].
      */
     @Suppress("ReturnCount")
     private suspend fun seasonFnFor(plant: Plant): (LocalDate) -> Double {
-        if (plant.pinIntervalToBase) return { 1.0 }
-        val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+        val amplitude = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0)
         if (amplitude == 0.0) return { 1.0 }
         val hemisphere = SeasonalWatering.currentHemisphere()
         return { date -> SeasonalWatering.season(date, amplitude, hemisphere) }
@@ -430,6 +431,10 @@ internal class AdaptiveWateringObservation(
      * left for the user's suggestion Apply path (#717/#718, technical ADR-0027). Use [loggedAt] for
      * [Plant.updatedAt] too: the form used to stamp this one update with entry-time wall clock while
      * all other adaptive observation writes used the logged date (#780 follow-up to #776, P1).
+     *
+     * Column-specific (#872): [plant] may be a quick-log caller's stale snapshot, so the write names only
+     * the columns this observation owns — confidence always, the base only when it actually moves — and
+     * can't revert a concurrent write to any other column (or to the base, when it leaves it alone).
      */
     private suspend fun persistAdaptiveState(
         plant: Plant,
@@ -437,43 +442,15 @@ internal class AdaptiveWateringObservation(
         persistBase: Boolean,
         loggedAt: Long
     ) {
-        val seasonAdjustable = !plant.pinIntervalToBase && (dataStore?.seasonalAmplitudeOnce() ?: 0.0) != 0.0
+        val seasonAdjustable = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0) != 0.0
         val newBase = result.baseIntervalDays.takeIf { persistBase && seasonAdjustable }
             ?: plant.wateringBaseIntervalDays
-        if (result.confidence != plant.wateringConfidence || newBase != plant.wateringBaseIntervalDays) {
-            plantRepository.updatePlant(
-                plant.copy(
-                    wateringConfidence = result.confidence,
-                    wateringBaseIntervalDays = newBase,
-                    updatedAt = loggedAt
-                )
-            )
+        if (newBase != plant.wateringBaseIntervalDays) {
+            plantRepository.updateWateringConfidenceAndBase(plant.id, result.confidence, newBase, loggedAt)
+        } else if (result.confidence != plant.wateringConfidence) {
+            plantRepository.updateWateringConfidence(plant.id, result.confidence, loggedAt)
         }
     }
-
-    /**
-     * Converts a base-space [suggestion] to effective display space through the same
-     * [CareSchedule.effectiveWateringIntervalDaysForDisplay] wrapper used by "Why this date?" and
-     * Plant Detail (#620), so the suggestion gate cannot drift from the displayed due-date math.
-     * Treats [suggestion] as if it were the plant's new base; this is a display-only, one-way
-     * conversion and does not round or rewrite the precise base passed to the Apply path.
-     *
-     * **[displayNow], not the observation's `loggedAt` (#716 review round 1).** Both sides of the
-     * comparison are values shown *today*. The #654-era conversion used the logged day because the
-     * other side was the stale `wateringIntervalDays` literal. Once #716 made both sides live,
-     * converting on a backdated day could silently reintroduce the same mismatch. Observation
-     * gap math and adjustment timestamps remain anchored to the logged day.
-     */
-    private suspend fun effectiveIntervalForDisplay(
-        plant: Plant,
-        suggestionBase: Double,
-        suggestion: Int,
-        displayNow: Long
-    ): Int = CareSchedule.effectiveWateringIntervalDaysForDisplay(
-        plant = plant.copy(wateringBaseIntervalDays = suggestionBase, wateringIntervalDays = suggestion),
-        nowDate = displayNow.toLocalDate(),
-        seasonalAmplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
-    ) ?: suggestion
 
     /**
      * The watering-model input for `currentBaseIntervalDays` (#572, amending technical ADR-0021):
@@ -485,23 +462,23 @@ internal class AdaptiveWateringObservation(
      */
     @Suppress("ReturnCount")
     suspend fun currentAdaptiveBaseIntervalDays(plant: Plant, configuredIntervalDays: Int): Double {
-        if (plant.pinIntervalToBase) return configuredIntervalDays.toDouble()
-        if ((dataStore?.seasonalAmplitudeOnce() ?: 0.0) == 0.0) return configuredIntervalDays.toDouble()
+        if (plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0) == 0.0) {
+            return configuredIntervalDays.toDouble()
+        }
         return plant.wateringBaseIntervalDays ?: configuredIntervalDays.toDouble()
     }
 
     /**
      * "Interaction with Part 1" (#569): `observedBase = observedGap / season(dateOfGap)`, so a
      * seasonal correction is not baked into [Plant.wateringConfidence] as a permanent change in
-     * thirst. A no-op when [dataStore] is null, amplitude is Off, or [pinned] is true — the due-date
+     * thirst. A no-op when [dataStore] is null or the plant's effective amplitude is 0 — the due-date
      * math never applies the curve to a pinned plant, so its observed gaps are already flat.
      * [loggedAt] is the observation day, possibly backdated (#654); using wall-clock today here
      * would de-seasonalize the wrong month while the log and adjustment claim an earlier date.
      */
     @Suppress("ReturnCount")
-    private suspend fun deseasonalizedObservedIntervalDays(actual: Int, pinned: Boolean, loggedAt: Long): Int {
-        if (pinned) return actual
-        val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+    private suspend fun deseasonalizedObservedIntervalDays(actual: Int, plant: Plant, loggedAt: Long): Int {
+        val amplitude = plant.effectiveWateringAmplitude(dataStore?.seasonalAmplitudeOnce() ?: 0.0)
         if (amplitude == 0.0) return actual
         return SeasonalWatering.deseasonalizeToDays(
             actual,
