@@ -176,14 +176,10 @@ class PlantDetailSuggestionGateAgreementTest {
      * from the base it persisted silently, so the dialog side can be checked against that verdict too.
      */
     private suspend fun rawModelResultFor(case: Case, now: Long): AdaptiveWateringObservation.Suggestion? {
-        // observe() persists through column-specific writes (#872); a changed base goes through
-        // updateWateringConfidenceAndBase, so that is where the raw model's new base is read from.
-        val capturedBases = mutableListOf<Double?>()
+        val capturedBases = mutableListOf<Double>()
         val plantRepo: PlantRepository = mockk {
-            coEvery {
-                updateWateringConfidenceAndBase(any(), any(), captureNullable(capturedBases), any())
-            } returns Unit
-            coEvery { updateWateringConfidence(any(), any(), any()) } returns Unit
+            coEvery { updateWateringConfidenceAndBase(1L, any(), capture(capturedBases), any()) } returns Unit
+            coEvery { updateWateringConfidence(1L, any(), any()) } returns Unit
         }
         val careLogRepo: CareLogRepository = mockk {
             coEvery { getLastWateringBefore(1L, now) } returns predecessor(case, now)

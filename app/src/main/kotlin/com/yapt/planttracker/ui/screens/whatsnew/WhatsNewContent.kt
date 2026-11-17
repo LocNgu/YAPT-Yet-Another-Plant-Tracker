@@ -15,19 +15,26 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
-            "Adding a plant now guides you through four short steps instead of one long form",
-            "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\"."
-        ),
-        added = listOf(
-            "Back up automatically to a folder you choose, daily or weekly, from Settings",
-            "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"
-        ),
-        fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
+            "Adding a plant now takes four short steps: name, photo, care, review; rare settings sit under More options"
+        )
     )
 
     // Released entries only, newest first — promoted from `unreleased` at release-cut. 0.20.0 and older
     // live in `legacyReleaseNotes` (WhatsNewLegacyReleases.kt), appended after these (#813).
     val all: List<ReleaseNotes> = listOf(
+        ReleaseNotes(
+            versionCode = 625,
+            versionName = "0.43.0",
+            changed = listOf(
+                "Changing a watering interval several times in a day now shows as one entry in \"Why this date?\".",
+                "The plant-sitter PDF no longer has a \"Please don't water these\" page; it lists only what to water."
+            ),
+            added = listOf(
+                "Back up automatically to a folder you choose, daily or weekly, from Settings",
+                "Give a plant its own seasonal watering strength: Mild, Standard or Strong, or pin it"
+            ),
+            fixed = listOf("Before you leave no longer lists plants you already rescheduled today.")
+        ),
         ReleaseNotes(
             versionCode = 613,
             versionName = "0.42.1",

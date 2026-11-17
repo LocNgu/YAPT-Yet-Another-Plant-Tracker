@@ -101,29 +101,20 @@ class SitterShareTest {
 
     private fun plant(id: Long) = SitterListPlant(id, "Plant $id", null, null, false)
 
-    private fun list(visitPlants: Int, resting: Int): SitterList {
+    private fun list(visitPlants: Int): SitterList {
         val visit = (1..visitPlants).map { plant(it.toLong()) }
-        val rest = (1..resting).map { plant(100L + it) }
-        return SitterList(
-            day,
-            rooms = if (visit.isEmpty()) emptyList() else listOf(SitterListRoom("Kitchen", visit)),
-            restingRooms = if (rest.isEmpty()) emptyList() else listOf(SitterListRoom("Bedroom", rest))
-        )
+        return SitterList(day, rooms = if (visit.isEmpty()) emptyList() else listOf(SitterListRoom("Kitchen", visit)))
     }
 
     private val dayText get() = awayWeekdayDayText(day, LocalDate.now())
 
     @Test
-    fun `the caption names the page of the list and the page of the plants to leave dry`() {
+    fun `the caption of a one-page list says to water what is on this page`() {
         val output = AndroidSitterListOutput(application)
 
         assertEquals(
-            "Plants to water on $dayText, by room. Only water what's on page 1; page 2 shows the ones to leave dry.",
-            output.caption(list(visitPlants = 3, resting = 2))
-        )
-        assertEquals(
             "Plants to water on $dayText, by room. Only water what's on this page.",
-            output.caption(list(visitPlants = 3, resting = 0))
+            output.caption(list(visitPlants = 3))
         )
     }
 
@@ -133,12 +124,7 @@ class SitterShareTest {
 
         assertEquals(
             "Plants to water on $dayText, by room. Only water what's on pages 1 to 2.",
-            output.caption(list(visitPlants = 12, resting = 0))
-        )
-        assertEquals(
-            "Plants to water on $dayText, by room. Only water what's on pages 1 to 2; " +
-                "page 3 onwards shows the ones to leave dry.",
-            output.caption(list(visitPlants = 12, resting = 2))
+            output.caption(list(visitPlants = 12))
         )
     }
 
@@ -147,9 +133,8 @@ class SitterShareTest {
         val output = AndroidSitterListOutput(application)
 
         assertEquals(
-            "Plants to water on $dayText, by room. Only water what's on pages 1 to 3; " +
-                "page 4 onwards shows the ones to leave dry.",
-            output.caption(list(visitPlants = 20, resting = 2))
+            "Plants to water on $dayText, by room. Only water what's on pages 1 to 3.",
+            output.caption(list(visitPlants = 20))
         )
     }
 }

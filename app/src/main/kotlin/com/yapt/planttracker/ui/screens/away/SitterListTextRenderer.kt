@@ -26,17 +26,6 @@ internal object SitterListTextRenderer {
         appendLine(context.resources.getQuantityString(R.plurals.sitter_water_count, list.plantCount, list.plantCount))
         appendTips(context)
         appendRooms(context, list.rooms)
-        if (list.restingCount > 0) {
-            appendLine()
-            appendLine(
-                context.resources.getQuantityString(
-                    R.plurals.sitter_text_resting_title,
-                    list.restingCount,
-                    list.restingCount
-                )
-            )
-            appendRooms(context, list.restingRooms)
-        }
         appendLine()
         appendLine(context.getString(R.string.sitter_brand_line, context.getString(R.string.sitter_brand_url)))
     }.trimEnd()

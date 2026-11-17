@@ -18,7 +18,6 @@ import com.yapt.planttracker.domain.away.SitterListPlant
 import com.yapt.planttracker.domain.away.SitterPdfLayout
 import com.yapt.planttracker.domain.away.SitterPdfLayout.Block
 import com.yapt.planttracker.domain.away.SitterPdfLayout.Page
-import com.yapt.planttracker.domain.away.SitterPdfLayout.PageKind
 import com.yapt.planttracker.ui.theme.OnSageGreen
 import com.yapt.planttracker.ui.theme.SageGreen
 import com.yapt.planttracker.ui.theme.SageGreenContainer
@@ -130,7 +129,7 @@ private class PagePainter(
     private val left = SitterPdfLayout.MARGIN.toFloat()
 
     fun draw(page: Page, pageNumber: Int) {
-        drawHeader(page.kind)
+        drawHeader()
         var y = (SitterPdfLayout.MARGIN + SitterPdfLayout.HEADER_HEIGHT).toFloat()
         if (page.showsTips) {
             drawTips(y)
@@ -145,25 +144,22 @@ private class PagePainter(
                 is Block.TileRow -> {
                     block.plants.forEachIndexed { column, plant ->
                         val x = left + column * (SitterPdfLayout.TILE_WIDTH + SitterPdfLayout.TILE_GAP)
-                        drawTile(plant, x, y, page.kind)
+                        drawTile(plant, x, y)
                     }
                     y += SitterPdfLayout.TILE_HEIGHT + SitterPdfLayout.ROW_GAP
                 }
             }
         }
-        drawFooter(page.kind, pageNumber)
+        drawFooter(pageNumber)
     }
 
-    private fun drawHeader(kind: PageKind) {
-        val resources = context.resources
-        val (title, subtitle) = when (kind) {
-            PageKind.VISIT -> context.getString(
-                R.string.sitter_visit_title,
-                awayWeekdayDayText(list.visitDay, LocalDate.now())
-            ) to resources.getQuantityString(R.plurals.sitter_water_count, list.plantCount, list.plantCount)
-            PageKind.RESTING -> context.getString(R.string.sitter_resting_title) to
-                resources.getQuantityString(R.plurals.sitter_resting_subtitle, list.restingCount, list.restingCount)
-        }
+    private fun drawHeader() {
+        val title = context.getString(
+            R.string.sitter_visit_title,
+            awayWeekdayDayText(list.visitDay, LocalDate.now())
+        )
+        val count = list.plantCount
+        val subtitle = context.resources.getQuantityString(R.plurals.sitter_water_count, count, count)
         drawBand()
         val top = (SitterPdfLayout.MARGIN + SitterPdfLayout.BAND_HEIGHT + BAND_GAP).toFloat()
         canvas.drawText(ellipsized(title, pens.title, contentWidth), left, top + pens.title.textSize, pens.title)
@@ -224,7 +220,7 @@ private class PagePainter(
         if (ruleLeft < left + contentWidth) canvas.drawLine(ruleLeft, ruleY, left + contentWidth, ruleY, pens.rule)
     }
 
-    private fun drawTile(plant: SitterListPlant, x: Float, y: Float, kind: PageKind) {
+    private fun drawTile(plant: SitterListPlant, x: Float, y: Float) {
         val width = SitterPdfLayout.TILE_WIDTH.toFloat()
         val tile = RectF(x, y, x + width, y + SitterPdfLayout.TILE_HEIGHT)
         canvas.drawRoundRect(tile, CARD_CORNER, CARD_CORNER, pens.card)
@@ -239,12 +235,10 @@ private class PagePainter(
             textY += pens.species.textSize + 2f
             canvas.drawText(ellipsized(it, pens.species, textWidth), x + TILE_PADDING, textY, pens.species)
         }
-        if (kind == PageKind.VISIT) {
-            val boxLeft = x + TILE_PADDING
-            val boxTop = y + SitterPdfLayout.TILE_HEIGHT - CHECKBOX_SIZE - TILE_PADDING
-            canvas.drawRect(boxLeft, boxTop, boxLeft + CHECKBOX_SIZE, boxTop + CHECKBOX_SIZE, pens.outline)
-            if (plant.missedLastTime) drawMissedTag(boxLeft + CHECKBOX_SIZE + TILE_PADDING, boxTop)
-        }
+        val boxLeft = x + TILE_PADDING
+        val boxTop = y + SitterPdfLayout.TILE_HEIGHT - CHECKBOX_SIZE - TILE_PADDING
+        canvas.drawRect(boxLeft, boxTop, boxLeft + CHECKBOX_SIZE, boxTop + CHECKBOX_SIZE, pens.outline)
+        if (plant.missedLastTime) drawMissedTag(boxLeft + CHECKBOX_SIZE + TILE_PADDING, boxTop)
     }
 
     private fun drawPhoto(plant: SitterListPlant, box: RectF) {
@@ -280,14 +274,12 @@ private class PagePainter(
         canvas.drawText(label, box.left + TAG_PADDING, box.bottom - 4f, pens.tag)
     }
 
-    private fun drawFooter(kind: PageKind, pageNumber: Int) {
+    private fun drawFooter(pageNumber: Int) {
         val brandBaseline = (SitterPdfLayout.PAGE_HEIGHT - SitterPdfLayout.MARGIN).toFloat()
         val baseline = brandBaseline - FOOTER_LINE
         val url = context.getString(R.string.sitter_brand_url)
         canvas.drawText(context.getString(R.string.sitter_brand_line, url), left, brandBaseline, pens.brand)
-        if (kind == PageKind.VISIT) {
-            canvas.drawText(context.getString(R.string.sitter_footer_only_water), left, baseline, pens.footer)
-        }
+        canvas.drawText(context.getString(R.string.sitter_footer_only_water), left, baseline, pens.footer)
         val pageText = context.getString(R.string.sitter_footer_page, pageNumber, pageCount)
         canvas.drawText(pageText, left + contentWidth - pens.footer.measureText(pageText), baseline, pens.footer)
     }

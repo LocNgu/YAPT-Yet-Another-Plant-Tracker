@@ -281,7 +281,7 @@ class VisitProjectorTest {
     }
 
     @Test
-    fun `a plant whose watering is suspended is never listed and goes on the resting page`() {
+    fun `a plant whose watering is suspended is never listed and is only listed as resting`() {
         val suspended = plant(1, interval = 3, dormancyStart = 10, dormancyEnd = 11)
 
         val result = project(listOf(suspended, plant(2, interval = 3)), listOf(water(2, day(10))))

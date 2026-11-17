@@ -9,7 +9,6 @@ import androidx.core.content.FileProvider
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.away.SitterList
 import com.yapt.planttracker.domain.away.SitterPdfLayout
-import com.yapt.planttracker.domain.away.SitterPdfLayout.PageKind
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
@@ -77,16 +76,12 @@ class AndroidSitterListOutput(private val application: Application) : SitterList
     override fun text(list: SitterList): String = SitterListTextRenderer.render(application, list)
 
     override fun caption(list: SitterList): String {
-        val pages = SitterPdfLayout.paginate(list)
-        val visitPages = pages.count { it.kind == PageKind.VISIT }
-        val restingFrom = visitPages + 1
-        val hasResting = pages.any { it.kind == PageKind.RESTING }
+        val pages = SitterPdfLayout.paginate(list).size
         val day = awayWeekdayDayText(list.visitDay, LocalDate.now())
-        return when {
-            visitPages == 1 && !hasResting -> application.getString(R.string.sitter_caption_single, day)
-            visitPages == 1 -> application.getString(R.string.sitter_caption_single_resting, day, restingFrom)
-            !hasResting -> application.getString(R.string.sitter_caption_multi, day, visitPages)
-            else -> application.getString(R.string.sitter_caption_multi_resting, day, visitPages, restingFrom)
+        return if (pages == 1) {
+            application.getString(R.string.sitter_caption_single, day)
+        } else {
+            application.getString(R.string.sitter_caption_multi, day, pages)
         }
     }
 }
