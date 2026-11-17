@@ -80,8 +80,14 @@ data class AddEditPlantFormState(
         get() = dormancyChosen || strengthChosen || repottingIntervalEnabled || repottingSeasonsChosen
 
     private fun moreOptionsValues() = listOf(
-        pinIntervalToBase, wateringAmplitudeOverride, dormancyStartMonth, dormancyEndMonth,
-        dormantWateringIntervalDays, repottingIntervalEnabled, repottingIntervalMonths, repottingSeasons
+        pinIntervalToBase,
+        wateringAmplitudeOverride,
+        dormancyStartMonth,
+        dormancyEndMonth,
+        dormantWateringIntervalDays,
+        repottingIntervalEnabled,
+        repottingIntervalMonths,
+        repottingSeasons
     )
 
     /** Anything the user could have entered here, ignoring the wizard step and the bookkeeping fields. */
@@ -111,7 +117,8 @@ data class AddEditPlantFormState(
      */
     fun withParentCarePrefill(parent: Plant, live: LiveWateringInterval?): AddEditPlantFormState {
         val result = applyParentCare(parent, live)
-        return if (result.moreOptionsValues() != moreOptionsValues()) result.copy(moreOptionsExpanded = true) else result
+        val changed = result.moreOptionsValues() != moreOptionsValues()
+        return if (changed) result.copy(moreOptionsExpanded = true) else result
     }
 
     private fun applyParentCare(parent: Plant, live: LiveWateringInterval?): AddEditPlantFormState {

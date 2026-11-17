@@ -29,6 +29,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Month
+import java.time.format.TextStyle
 
 @RunWith(AndroidJUnit4::class)
 class AddPlantWizardScreenTest {
@@ -161,9 +163,9 @@ class AddPlantWizardScreenTest {
             viewModel.goToStep(AddPlantStep.REVIEW)
         }
 
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_name, "Fern")).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_fertilizing_off)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_name, "Fern")).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_fertilizing_off)).performScrollTo().assertIsDisplayed()
 
         composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).performClick()
 
@@ -192,6 +194,15 @@ class AddPlantWizardScreenTest {
 
     private fun stateIs(id: Int) = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, str(id))
 
+    private fun dormancyLine(): String {
+        val locale = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.locales[0]
+        return str(
+            R.string.add_plant_summary_dormancy,
+            Month.of(11).getDisplayName(TextStyle.SHORT, locale),
+            Month.of(2).getDisplayName(TextStyle.SHORT, locale)
+        )
+    }
+
     private fun moreOptionsHeader() = composeTestRule.onNodeWithText(str(R.string.add_plant_more_options))
 
     private fun goToCare(viewModel: AddEditPlantViewModel) {
@@ -207,8 +218,8 @@ class AddPlantWizardScreenTest {
         goToCare(viewModel)
 
         composeTestRule.onNodeWithText(str(R.string.watering_reminder_label)).assertIsDisplayed()
-        composeTestRule.onNodeWithText(str(R.string.fertilizing_reminder_label)).assertIsDisplayed()
-        moreOptionsHeader().assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.fertilizing_reminder_label)).performScrollTo().assertIsDisplayed()
+        moreOptionsHeader().performScrollTo().assertIsDisplayed()
             .assert(stateIs(R.string.add_plant_more_options_collapsed))
         composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
         composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).assertDoesNotExist()
@@ -236,11 +247,11 @@ class AddPlantWizardScreenTest {
 
         composeTestRule.runOnIdle { viewModel.goToStep(AddPlantStep.REVIEW) }
 
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_dormancy, "Nov", "Feb")).assertIsDisplayed()
+        composeTestRule.onNodeWithText(dormancyLine()).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(
             InstrumentationRegistry.getInstrumentation().targetContext.resources
                 .getQuantityString(R.plurals.add_plant_summary_repotting_on, 18, 18)
-        ).assertIsDisplayed()
+        ).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -253,7 +264,7 @@ class AddPlantWizardScreenTest {
 
         composeTestRule.onNodeWithText("Dormancy", substring = true).assertDoesNotExist()
         composeTestRule.onNodeWithText("Repotting", substring = true).assertDoesNotExist()
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_off)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_off)).performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -265,7 +276,7 @@ class AddPlantWizardScreenTest {
             viewModel.goToStep(AddPlantStep.REVIEW)
         }
 
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_dormancy, "Nov", "Feb")).performClick()
+        composeTestRule.onNodeWithText(dormancyLine()).performClick()
 
         assertStep(3)
         composeTestRule.onNodeWithContentDescription("Dormancy window").performScrollTo().assertIsDisplayed()

@@ -151,6 +151,7 @@ class AddEditPlantScreenTest {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
+        goToStep(viewModel, AddPlantStep.PHOTO)
         composeTestRule.onNodeWithContentDescription("Add photo").performClick()
 
         composeTestRule.onNodeWithText("Take photo").assertIsDisplayed()
@@ -177,6 +178,7 @@ class AddEditPlantScreenTest {
             }
         }
 
+        goToStep(viewModel, AddPlantStep.PHOTO)
         composeTestRule.onNodeWithContentDescription("Add photo").performScrollTo().performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Take photo").performClick()
@@ -200,6 +202,7 @@ class AddEditPlantScreenTest {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
 
+        goToStep(viewModel, AddPlantStep.PHOTO)
         composeTestRule.onNodeWithContentDescription("Add photo").performClick()
         composeTestRule.onNodeWithText("Take photo").performClick()
 
@@ -242,6 +245,7 @@ class AddEditPlantScreenTest {
             }
         }
 
+        goToStep(viewModel, AddPlantStep.PHOTO)
         composeTestRule.onNodeWithContentDescription("Add photo").performClick()
         composeTestRule.onNodeWithText("Take photo").performClick()
 

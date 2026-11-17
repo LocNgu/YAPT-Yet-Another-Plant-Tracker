@@ -49,6 +49,8 @@ internal data class FormActions(
     val onRepottingLastSeasonLocked: () -> Unit
 )
 
+internal data class ReviewJumps(val toStep: (AddPlantStep) -> Unit, val toMoreOptions: () -> Unit)
+
 internal data class FormNavigation(
     val onNavigateBack: () -> Unit,
     val onPlantArchived: (plantId: Long, plantName: String) -> Unit,

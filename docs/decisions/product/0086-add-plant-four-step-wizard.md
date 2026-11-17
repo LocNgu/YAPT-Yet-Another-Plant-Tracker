@@ -37,7 +37,7 @@ a collapsed "More options" section on the Care step.
   (for example "Dormancy: Nov–Feb"; none for a plain new plant). Each summary line jumps back to its step; a
   "More options" line jumps to Care with the section expanded. **Add plant** sits there and
   is the only write: one `saveNew()`, no partial plant earlier.
-- **Back:** the top-bar arrow and system Back both go to the previous step. On step 1 (name) Back leaves at once when
+- **Back:** the top-bar arrow and system Back both go to the previous step. On step 1 Back leaves at once when
   nothing was entered, otherwise a discard dialog asks. A Propagate prefill counts as entered input.
 - **Progress:** "Step N of 4" with a progress bar, announced to TalkBack as a polite live region.
 - **The draft and the step survive process death** (technical ADR-0044). Restored input is never overwritten by

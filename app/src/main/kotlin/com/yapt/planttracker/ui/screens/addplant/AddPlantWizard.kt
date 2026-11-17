@@ -17,6 +17,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -32,9 +33,6 @@ import com.yapt.planttracker.domain.schedule.wateringStrengthMode
 import com.yapt.planttracker.ui.util.labelRes
 import java.time.Month
 import java.time.format.TextStyle
-import java.util.Locale
-
-internal data class ReviewJumps(val toStep: (AddPlantStep) -> Unit, val toMoreOptions: () -> Unit)
 
 @Composable
 internal fun WizardProgressHeader(step: AddPlantStep) {
@@ -132,7 +130,7 @@ internal fun ReviewStep(
             }
             SummaryLine(stringResource(photoSummaryRes(form.coverPhotoUri != null))) { onEditStep(AddPlantStep.PHOTO) }
             CareSummaryLines(form) { onEditStep(AddPlantStep.CARE) }
-            MoreOptionsSummaryLines(form, jumps.toMoreOptions)
+            if (form.hasNonDefaultMoreOptions) MoreOptionsSummaryLines(form, jumps.toMoreOptions)
         }
     }
 }
@@ -163,7 +161,7 @@ private fun CareSummaryLines(form: AddEditPlantFormState, onClick: () -> Unit) {
 @Composable
 private fun MoreOptionsSummaryLines(form: AddEditPlantFormState, onClick: () -> Unit) {
     if (form.dormancyChosen) {
-        val locale = Locale.getDefault()
+        val locale = LocalConfiguration.current.locales[0]
         val start = Month.of(checkNotNull(form.dormancyStartMonth)).getDisplayName(TextStyle.SHORT, locale)
         val end = Month.of(checkNotNull(form.dormancyEndMonth)).getDisplayName(TextStyle.SHORT, locale)
         SummaryLine(stringResource(R.string.add_plant_summary_dormancy, start, end), onClick)
