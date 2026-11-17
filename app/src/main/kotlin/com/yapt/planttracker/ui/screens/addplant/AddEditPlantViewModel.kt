@@ -263,7 +263,7 @@ class AddEditPlantViewModel(
     fun toggleRepottingSeason(season: FertilizingSeason) =
         mutate { it.copy(repottingSeasons = toggledSeasons(it.repottingSeasons, season)) }
 
-    /** Advances the wizard; a blank name keeps step 2 and explains why. */
+    /** Advances the wizard; a blank name keeps step 1 and explains why. */
     fun goNext() {
         val current = _form.value.step
         if (current == AddPlantStep.DETAILS && name.isBlank()) {
@@ -283,6 +283,10 @@ class AddEditPlantViewModel(
     }
 
     fun goToStep(step: AddPlantStep) = mutate { it.copy(step = step) }
+
+    fun goToMoreOptions() = mutate { it.copy(step = AddPlantStep.CARE, moreOptionsExpanded = true) }
+
+    fun setMoreOptionsExpanded(expanded: Boolean) = mutate { it.copy(moreOptionsExpanded = expanded) }
 
     /**
      * Set once a valid save starts, so a second tap on Add plant / Save while the first write is still

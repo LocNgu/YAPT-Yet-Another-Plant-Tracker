@@ -1,5 +1,8 @@
 package com.yapt.planttracker.ui.screens.addplant
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -59,11 +62,13 @@ class AddPlantWizardScreenTest {
     fun startsOnStepOneAndNextWalksThroughTheSteps() {
         launch()
         assertStep(1)
-        composeTestRule.onNodeWithContentDescription(str(R.string.cd_add_photo)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.field_plant_name)).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_add_photo)).assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.field_plant_name)).performTextInput("Monstera")
 
         next()
         assertStep(2)
-        composeTestRule.onNodeWithText(str(R.string.field_plant_name)).performTextInput("Monstera")
+        composeTestRule.onNodeWithContentDescription(str(R.string.cd_add_photo)).assertIsDisplayed()
 
         next()
         assertStep(3)
@@ -77,12 +82,11 @@ class AddPlantWizardScreenTest {
     @Test
     fun blankNameBlocksNextAndShowsTheMessage() {
         launch()
-        next()
 
         next()
 
         composeTestRule.onNodeWithText(str(R.string.add_plant_name_required)).assertIsDisplayed()
-        assertStep(2)
+        assertStep(1)
     }
 
     @Test
@@ -135,11 +139,11 @@ class AddPlantWizardScreenTest {
         val longName = "Monstera deliciosa variegata from grandma"
         val longNotes = "Keep out of direct sun, rotate a quarter turn each week, mist rarely."
 
-        next()
         composeTestRule.onNodeWithText(str(R.string.field_plant_name)).performTextInput(longName)
         composeTestRule.onNodeWithText(longName).assertIsDisplayed()
         assertEquals(longName, viewModel.name)
 
+        next()
         next()
         next()
         composeTestRule.onNodeWithText(str(R.string.field_notes)).performTextInput(longNotes)
@@ -184,5 +188,86 @@ class AddPlantWizardScreenTest {
         coVerify(exactly = 1) { plantRepo.addPlant(any()) }
         assertEquals("Fern", saved.captured.name)
         assertEquals("Gift", saved.captured.notes)
+    }
+
+    private fun stateIs(id: Int) = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, str(id))
+
+    private fun moreOptionsHeader() = composeTestRule.onNodeWithText(str(R.string.add_plant_more_options))
+
+    private fun goToCare(viewModel: AddEditPlantViewModel) {
+        composeTestRule.runOnIdle {
+            viewModel.setName("Fern")
+            viewModel.goToStep(AddPlantStep.CARE)
+        }
+    }
+
+    @Test
+    fun careStepHidesTheRareSettingsUntilMoreOptionsIsOpened() {
+        val viewModel = launch()
+        goToCare(viewModel)
+
+        composeTestRule.onNodeWithText(str(R.string.watering_reminder_label)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.fertilizing_reminder_label)).assertIsDisplayed()
+        moreOptionsHeader().assertIsDisplayed()
+            .assert(stateIs(R.string.add_plant_more_options_collapsed))
+        composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).assertDoesNotExist()
+
+        moreOptionsHeader().performClick()
+
+        moreOptionsHeader()
+            .assert(stateIs(R.string.add_plant_more_options_expanded))
+        composeTestRule.onNodeWithContentDescription("Dormancy window").performScrollTo().assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun valuesSetInMoreOptionsSurviveCollapsingAndShowOnReview() {
+        val viewModel = launch()
+        goToCare(viewModel)
+        moreOptionsHeader().performClick()
+        composeTestRule.runOnIdle {
+            viewModel.setDormancyWindow(11, 2)
+            viewModel.setRepottingIntervalEnabled(true)
+            viewModel.setRepottingIntervalMonths(18)
+        }
+        moreOptionsHeader().performClick()
+        composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
+
+        composeTestRule.runOnIdle { viewModel.goToStep(AddPlantStep.REVIEW) }
+
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_dormancy, "Nov", "Feb")).assertIsDisplayed()
+        composeTestRule.onNodeWithText(
+            InstrumentationRegistry.getInstrumentation().targetContext.resources
+                .getQuantityString(R.plurals.add_plant_summary_repotting_on, 18, 18)
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun reviewShowsNoMoreOptionsLinesForDefaults() {
+        val viewModel = launch()
+        composeTestRule.runOnIdle {
+            viewModel.setName("Fern")
+            viewModel.goToStep(AddPlantStep.REVIEW)
+        }
+
+        composeTestRule.onNodeWithText("Dormancy", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText("Repotting", substring = true).assertDoesNotExist()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_off)).assertIsDisplayed()
+    }
+
+    @Test
+    fun aMoreOptionsReviewLineJumpsBackToCareWithTheSectionOpen() {
+        val viewModel = launch()
+        composeTestRule.runOnIdle {
+            viewModel.setName("Fern")
+            viewModel.setDormancyWindow(11, 2)
+            viewModel.goToStep(AddPlantStep.REVIEW)
+        }
+
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_dormancy, "Nov", "Feb")).performClick()
+
+        assertStep(3)
+        composeTestRule.onNodeWithContentDescription("Dormancy window").performScrollTo().assertIsDisplayed()
     }
 }

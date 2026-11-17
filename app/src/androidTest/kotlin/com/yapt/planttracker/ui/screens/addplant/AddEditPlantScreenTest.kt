@@ -105,13 +105,20 @@ class AddEditPlantScreenTest {
         composeTestRule.runOnIdle { viewModel.goToStep(step) }
     }
 
+    private fun goToCareWithMoreOptions(viewModel: AddEditPlantViewModel) {
+        composeTestRule.runOnIdle {
+            viewModel.setMoreOptionsExpanded(true)
+            viewModel.goToStep(AddPlantStep.CARE)
+        }
+    }
+
     @Test
     fun dormancyEditor_isOffByDefaultEvenWithoutWateringReminder() {
         val viewModel = makeViewModel()
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        goToStep(viewModel, AddPlantStep.CARE)
+        goToCareWithMoreOptions(viewModel)
 
         composeTestRule.onNodeWithContentDescription("Dormancy window")
             .performScrollTo()
@@ -249,7 +256,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        goToStep(viewModel, AddPlantStep.CARE)
+        goToCareWithMoreOptions(viewModel)
 
         composeTestRule.onNodeWithText("Repotting reminder").performScrollTo().assertIsDisplayed()
 
@@ -266,7 +273,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        goToStep(viewModel, AddPlantStep.CARE)
+        goToCareWithMoreOptions(viewModel)
 
         composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).performScrollTo().assertIsDisplayed()
         assertTrue(
@@ -281,7 +288,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        goToStep(viewModel, AddPlantStep.CARE)
+        goToCareWithMoreOptions(viewModel)
 
         composeTestRule.runOnIdle { viewModel.setRepottingIntervalEnabled(true) }
 
@@ -299,7 +306,7 @@ class AddEditPlantScreenTest {
         composeTestRule.setContent {
             AddEditPlantScreen(viewModel = viewModel, onNavigateBack = {})
         }
-        goToStep(viewModel, AddPlantStep.CARE)
+        goToCareWithMoreOptions(viewModel)
         composeTestRule.runOnIdle {
             viewModel.setRepottingIntervalEnabled(true)
             viewModel.toggleRepottingSeason(FertilizingSeason.AUTUMN)

@@ -69,12 +69,12 @@ class AddEditPlantViewModelWizardTest {
     // ---- Steps ----
 
     @Test
-    fun `starts on the photo step and goNext walks through to review`() = runTest {
+    fun `starts on the details step and goNext walks through to review`() = runTest {
         val vm = newVm()
-        assertEquals(AddPlantStep.PHOTO, vm.uiState.value.step)
-        vm.goNext()
         assertEquals(AddPlantStep.DETAILS, vm.uiState.value.step)
         vm.setName("Monstera")
+        vm.goNext()
+        assertEquals(AddPlantStep.PHOTO, vm.uiState.value.step)
         vm.goNext()
         assertEquals(AddPlantStep.CARE, vm.uiState.value.step)
         vm.goNext()
@@ -86,7 +86,6 @@ class AddEditPlantViewModelWizardTest {
     @Test
     fun `goNext from details with a blank name stays and emits a string-resource error`() = runTest {
         val vm = newVm()
-        vm.goNext()
         vm.setName("   ")
 
         vm.events.test {
@@ -104,9 +103,9 @@ class AddEditPlantViewModelWizardTest {
         vm.goToStep(AddPlantStep.CARE)
 
         assertTrue(vm.goBack())
-        assertEquals(AddPlantStep.DETAILS, vm.uiState.value.step)
-        assertTrue(vm.goBack())
         assertEquals(AddPlantStep.PHOTO, vm.uiState.value.step)
+        assertTrue(vm.goBack())
+        assertEquals(AddPlantStep.DETAILS, vm.uiState.value.step)
         assertFalse(vm.goBack())
     }
 
@@ -131,11 +130,28 @@ class AddEditPlantViewModelWizardTest {
     }
 
     @Test
+    fun `a name alone reaches review in four steps and saves with no reminders`() = runTest {
+        val saved = io.mockk.slot<Plant>()
+        coEvery { plantRepo.addPlant(capture(saved)) } returns 5L
+        val vm = newVm()
+        vm.setName("Fern")
+        repeat(AddPlantStep.COUNT - 1) { vm.goNext() }
+        assertEquals(AddPlantStep.REVIEW, vm.uiState.value.step)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertNull(saved.captured.wateringIntervalDays)
+        assertNull(saved.captured.fertilizingIntervalDays)
+        assertNull(saved.captured.repottingIntervalDays)
+    }
+
+    @Test
     fun `no plant is written before Add plant on the review step`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 5L
         val vm = newVm()
-        vm.goNext()
         vm.setName("Fern")
+        vm.goNext()
         vm.goNext()
         vm.goNext()
         advanceUntilIdle()
@@ -156,6 +172,104 @@ class AddEditPlantViewModelWizardTest {
         vm.save()
         advanceUntilIdle()
         coVerify(exactly = 1) { plantRepo.addPlant(any()) }
+    }
+
+    // ---- More options ----
+
+    @Test
+    fun `more options start collapsed`() = runTest {
+        assertFalse(newVm().uiState.value.moreOptionsExpanded)
+    }
+
+    @Test
+    fun `expanding and collapsing is saved with the draft and is not unsaved input`() = runTest {
+        val handle = SavedStateHandle()
+        val vm = newVm(handle)
+        vm.setMoreOptionsExpanded(true)
+        assertFalse(vm.hasUnsavedInput)
+
+        assertTrue(newVm(handle).uiState.value.moreOptionsExpanded)
+        vm.setMoreOptionsExpanded(false)
+        assertFalse(newVm(handle).uiState.value.moreOptionsExpanded)
+    }
+
+    @Test
+    fun `collapsing keeps the values set inside and saves them`() = runTest {
+        val saved = io.mockk.slot<Plant>()
+        coEvery { plantRepo.addPlant(capture(saved)) } returns 5L
+        val vm = newVm()
+        vm.setName("Fern")
+        vm.setMoreOptionsExpanded(true)
+        vm.setDormancyWindow(11, 2, 28)
+        vm.setRepottingIntervalEnabled(true)
+        vm.setRepottingIntervalMonths(18)
+        vm.setMoreOptionsExpanded(false)
+
+        assertEquals(11, vm.uiState.value.dormancyStartMonth)
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(11, saved.captured.dormancyStartMonth)
+        assertEquals(2, saved.captured.dormancyEndMonth)
+        assertEquals(18 * AddEditPlantViewModel.DAYS_PER_MONTH, saved.captured.repottingIntervalDays)
+    }
+
+    @Test
+    fun `a prefill that copied a non-default value inside more options expands it`() = runTest {
+        every { plantRepo.getPlantById(7L) } returns flowOf(mother())
+        val vm = newVm(parentId = 7L)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.moreOptionsExpanded)
+    }
+
+    @Test
+    fun `a prefill with only default more-options values leaves it collapsed`() = runTest {
+        every { plantRepo.getPlantById(7L) } returns flowOf(
+            mother().copy(dormancyStartMonth = null, dormancyEndMonth = null)
+        )
+        val vm = newVm(parentId = 7L)
+        advanceUntilIdle()
+
+        assertEquals(21, vm.uiState.value.fertilizingIntervalDays)
+        assertFalse(vm.uiState.value.moreOptionsExpanded)
+    }
+
+    @Test
+    fun `a restored draft keeps its collapsed state even though the prefill once expanded it`() = runTest {
+        every { plantRepo.getPlantById(7L) } returns flowOf(mother())
+        val handle = SavedStateHandle()
+        val first = newVm(handle, parentId = 7L)
+        advanceUntilIdle()
+        first.setMoreOptionsExpanded(false)
+
+        val restored = newVm(handle, parentId = 7L)
+        advanceUntilIdle()
+
+        assertFalse(restored.uiState.value.moreOptionsExpanded)
+        assertEquals(11, restored.uiState.value.dormancyStartMonth)
+    }
+
+    @Test
+    fun `non-default more-options settings are reported and defaults are not`() = runTest {
+        val vm = newVm()
+        assertFalse(vm.uiState.value.hasNonDefaultMoreOptions)
+        vm.setDormancyWindow(11, 2)
+        assertTrue(vm.uiState.value.dormancyChosen)
+        vm.setDormancyWindow(null, null)
+        assertFalse(vm.uiState.value.hasNonDefaultMoreOptions)
+        vm.setPinIntervalToBase(true)
+        assertTrue(vm.uiState.value.strengthChosen)
+    }
+
+    @Test
+    fun `goToMoreOptions returns to care with the section expanded`() = runTest {
+        val vm = newVm()
+        vm.goToStep(AddPlantStep.REVIEW)
+        vm.goToMoreOptions()
+
+        assertEquals(AddPlantStep.CARE, vm.uiState.value.step)
+        assertTrue(vm.uiState.value.moreOptionsExpanded)
     }
 
     // ---- hasUnsavedInput ----

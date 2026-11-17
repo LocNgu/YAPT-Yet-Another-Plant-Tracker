@@ -7,7 +7,7 @@
 ## Context
 
 `AddEditPlantViewModel` held ~21 `mutableStateOf` fields written directly by the screen and by tests, and
-nothing survived process death. The wizard (product ADR-0085) requires the step and every input to survive it.
+nothing survived process death. The wizard (product ADR-0086) requires the step and every input to survive it.
 Multi-field writes (dormancy window, Propagate prefill, edit load) were sequences of independent writes, and the
 pin/strength mutual exclusion lived in property setters. Feeding a `TextField` from an asynchronously collected
 `StateFlow` can drop keystrokes or move the cursor (the `PlantListViewModel.searchQueryText` precedent).

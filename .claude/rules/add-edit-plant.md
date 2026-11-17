@@ -6,16 +6,18 @@ paths:
   - "app/src/androidTest/kotlin/com/yapt/planttracker/ui/screens/addplant/**/*"
 ---
 
-# Add/Edit Plant (#943, product ADR-0085, technical ADR-0044)
+# Add/Edit Plant (#943, product ADR-0086, technical ADR-0044)
 
 ## Shape
 - `AddEditPlantScreen` serves three routes: **Add** and **Add-from-Propagate** (`propagatedFromId`, product ADR-0073) run the **four-step wizard**; **Edit** is the single scrolling form with the Save FAB, Delete and Hide/Unhide. `isEditMode` picks the layout.
-- **Steps** (`AddPlantStep`: PHOTO, DETAILS, CARE, REVIEW): photo; name + species + location (name required); care (watering + strength + dormancy, fertilizing + liquid + seasons, repotting + seasons); review (notes, read-only summary lines that jump back, **Add plant**).
-- **One save path:** Add plant calls `save()` → `saveNew()`. Nothing is written earlier. A blank name in `save()` also jumps to DETAILS. `saveNew()`/`saveEdit()` are unchanged by the wizard.
+- **Steps** (`AddPlantStep`: DETAILS, PHOTO, CARE, REVIEW; the wizard starts on DETAILS): name + species + location (name required, checked when leaving it); photo; care; review (notes, read-only summary lines that jump back, **Add plant**).
+- **Care step** (`WizardCareSections`): watering (no strength control) and fertilizing (switch, slider, seasons, liquid) are visible; a collapsed **More options** header (clickable, `stateDescription` Expanded/Collapsed) holds dormancy, `WateringStrengthSection` (strength/pin) and repotting. Edit still uses `CareSections` with strength inside `WateringSection` (`showStrength = true`), unchanged.
+- **More options state** is `AddEditPlantFormState.moreOptionsExpanded` (saved with the draft; not counted as unsaved input), set by `setMoreOptionsExpanded()`. Default collapsed; `withParentCarePrefill` sets it only when the copy changed a More-options value, and `prefillDone` stops that re-applying after restore. Collapsing never discards values. Review shows one line per non-default More-options setting (`dormancyChosen`, `strengthChosen`, repotting enabled/seasons); a line calls `goToMoreOptions()` (CARE + expanded).
+- **One save path:** Add plant calls `save()` → `saveNew()`. Nothing is written earlier. A blank name in `save()` also jumps to DETAILS (step 1). `saveNew()`/`saveEdit()` are unchanged by the wizard.
 - **Sections are shared** (`AddEditPlantSections.kt`: `WateringSection`, `FertilizingSection`, `RepottingSection`, `PlantIdentityFields`, …) between wizard and Edit; wizard chrome is in `AddPlantWizard.kt`. Edit mode seeds the watering slider with today's live value (product ADR-0070); the wizard has no seed.
 
 ## Navigation and Back
-- `goNext()` (DETAILS with a blank name emits `Event.ValidationError(R.string.add_plant_name_required)` and stays), `goBack(): Boolean` (false on step 1 and always in edit mode), `goToStep()`, `hasUnsavedInput`.
+- `goNext()` (DETAILS with a blank name emits `Event.ValidationError(R.string.add_plant_name_required)` and stays), `goBack(): Boolean` (false on step 1, DETAILS, and always in edit mode), `goToStep()`, `goToMoreOptions()`, `hasUnsavedInput`.
 - Top-bar arrow (`cd_back`) and system Back (`BackHandler`, wizard only) both go back one step. On step 1: leave at once if `!hasUnsavedInput`, else the discard dialog. A Propagate prefill counts as input. Never delete a photo file on discard (`OrphanPhotoSweeper`, `rules/photos.md`).
 - "Step N of 4" is a polite live region; the progress bar is separate.
 
@@ -26,4 +28,4 @@ paths:
 - New field → add it to `AddEditPlantFormState` with a default; a `Plant` column also needs the `saveEdit()` carry-over.
 
 ## Tests
-- ViewModel: `AddEditPlantViewModelWizardTest` (steps, validation, back/discard, restore, Propagate across steps). Compose: `AddPlantWizardScreenTest` (step progress, Back/discard, 20+ characters via `performTextInput` into name and notes, summary jump, Add plant) — semantics only (#420). Add-mode tests in `AddEditPlantScreenTest` reach a step with `viewModel.goToStep(...)`.
+- ViewModel: `AddEditPlantViewModelWizardTest` (steps, validation, back/discard, restore, Propagate across steps, More options collapse/auto-expand/restore). Compose: `AddPlantWizardScreenTest` (step progress, Back/discard, 20+ characters via `performTextInput` into name and notes, summary jump, More options collapse and Review lines, Add plant) — semantics only (#420). Add-mode tests in `AddEditPlantScreenTest` reach a step with `viewModel.goToStep(...)`; ones touching dormancy or repotting expand More options first.

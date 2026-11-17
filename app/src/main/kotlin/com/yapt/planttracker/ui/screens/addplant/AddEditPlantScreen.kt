@@ -203,9 +203,9 @@ private fun WizardStepContent(
         }
         AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             form.propagatedFromName?.let { PropagatedFromNote(it) }
-            CareSections(viewModel, form, actions)
+            WizardCareSections(viewModel, form, actions)
         }
-        AddPlantStep.REVIEW -> ReviewStep(viewModel, form, onEditStep = viewModel::goToStep)
+        AddPlantStep.REVIEW -> ReviewStep(viewModel, form, ReviewJumps(viewModel::goToStep, viewModel::goToMoreOptions))
     }
 }
 

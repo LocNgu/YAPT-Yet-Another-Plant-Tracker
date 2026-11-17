@@ -26,6 +26,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
+import com.yapt.planttracker.domain.schedule.FertilizingSeason
+import com.yapt.planttracker.domain.schedule.WateringStrengthMode
+import com.yapt.planttracker.domain.schedule.wateringStrengthMode
+import com.yapt.planttracker.ui.util.labelRes
+import java.time.Month
+import java.time.format.TextStyle
+import java.util.Locale
+
+internal data class ReviewJumps(val toStep: (AddPlantStep) -> Unit, val toMoreOptions: () -> Unit)
 
 @Composable
 internal fun WizardProgressHeader(step: AddPlantStep) {
@@ -51,8 +60,8 @@ internal fun WizardProgressHeader(step: AddPlantStep) {
 }
 
 private fun AddPlantStep.titleRes(): Int = when (this) {
-    AddPlantStep.PHOTO -> R.string.add_plant_step_photo
     AddPlantStep.DETAILS -> R.string.add_plant_step_details
+    AddPlantStep.PHOTO -> R.string.add_plant_step_photo
     AddPlantStep.CARE -> R.string.add_plant_step_care
     AddPlantStep.REVIEW -> R.string.add_plant_step_review
 }
@@ -68,7 +77,7 @@ internal fun WizardNavigationBar(step: AddPlantStep, onBack: () -> Unit, onNext:
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (step == AddPlantStep.PHOTO) {
+            if (step == AddPlantStep.DETAILS) {
                 Spacer(Modifier)
             } else {
                 TextButton(onClick = onBack) { Text(stringResource(R.string.add_plant_back)) }
@@ -98,8 +107,9 @@ internal fun PhotoStep(form: AddEditPlantFormState, onPickPhoto: () -> Unit) {
 internal fun ReviewStep(
     viewModel: AddEditPlantViewModel,
     form: AddEditPlantFormState,
-    onEditStep: (AddPlantStep) -> Unit
+    jumps: ReviewJumps
 ) {
+    val onEditStep = jumps.toStep
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PlantNotesField(viewModel)
         Text(
@@ -107,7 +117,6 @@ internal fun ReviewStep(
             style = MaterialTheme.typography.titleSmall
         )
         Column {
-            SummaryLine(stringResource(photoSummaryRes(form.coverPhotoUri != null))) { onEditStep(AddPlantStep.PHOTO) }
             SummaryLine(stringResource(R.string.add_plant_summary_name, viewModel.name.trim())) {
                 onEditStep(AddPlantStep.DETAILS)
             }
@@ -121,7 +130,9 @@ internal fun ReviewStep(
                     onEditStep(AddPlantStep.DETAILS)
                 }
             }
+            SummaryLine(stringResource(photoSummaryRes(form.coverPhotoUri != null))) { onEditStep(AddPlantStep.PHOTO) }
             CareSummaryLines(form) { onEditStep(AddPlantStep.CARE) }
+            MoreOptionsSummaryLines(form, jumps.toMoreOptions)
         }
     }
 }
@@ -147,18 +158,38 @@ private fun CareSummaryLines(form: AddEditPlantFormState, onClick: () -> Unit) {
         },
         onClick
     )
-    SummaryLine(
-        if (form.repottingIntervalEnabled) {
+}
+
+@Composable
+private fun MoreOptionsSummaryLines(form: AddEditPlantFormState, onClick: () -> Unit) {
+    if (form.dormancyChosen) {
+        val locale = Locale.getDefault()
+        val start = Month.of(checkNotNull(form.dormancyStartMonth)).getDisplayName(TextStyle.SHORT, locale)
+        val end = Month.of(checkNotNull(form.dormancyEndMonth)).getDisplayName(TextStyle.SHORT, locale)
+        SummaryLine(stringResource(R.string.add_plant_summary_dormancy, start, end), onClick)
+    }
+    if (form.strengthChosen) {
+        val strength = wateringStrengthMode(form.pinIntervalToBase, form.wateringAmplitudeOverride)
+        val label = form.wateringAmplitudeOverride.takeIf { strength == WateringStrengthMode.CUSTOM }
+            ?.let { stringResource(it.labelRes()) } ?: stringResource(strength.labelRes())
+        SummaryLine(stringResource(R.string.add_plant_summary_strength, label), onClick)
+    }
+    if (form.repottingIntervalEnabled) {
+        SummaryLine(
             pluralStringResource(
                 R.plurals.add_plant_summary_repotting_on,
                 form.repottingIntervalMonths,
                 form.repottingIntervalMonths
-            )
-        } else {
-            stringResource(R.string.add_plant_summary_repotting_off)
-        },
-        onClick
-    )
+            ),
+            onClick
+        )
+    }
+    if (form.repottingSeasonsChosen) {
+        val seasons = FertilizingSeason.entries.filter { it in form.repottingSeasons }
+            .map { stringResource(it.labelRes()) }
+            .joinToString(", ")
+        SummaryLine(stringResource(R.string.add_plant_summary_repotting_seasons, seasons), onClick)
+    }
 }
 
 @Composable

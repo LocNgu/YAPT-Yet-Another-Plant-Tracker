@@ -13,8 +13,8 @@ internal const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
 private val ALL_SEASONS = FertilizingSeason.entries.toSet()
 
 enum class AddPlantStep {
-    PHOTO,
     DETAILS,
+    PHOTO,
     CARE,
     REVIEW;
 
@@ -34,7 +34,7 @@ enum class AddPlantStep {
 @Serializable
 @Suppress("LongParameterList")
 data class AddEditPlantFormState(
-    val step: AddPlantStep = AddPlantStep.PHOTO,
+    val step: AddPlantStep = AddPlantStep.DETAILS,
     val coverPhotoUri: String? = null,
     val pendingPhotos: List<String> = emptyList(),
     val wateringIntervalDays: Int = DEFAULT_WATERING_INTERVAL_DAYS,
@@ -61,16 +61,34 @@ data class AddEditPlantFormState(
     /** Edit mode: the plant row was copied into the form, so a restored form must not be overwritten by it. */
     val editLoaded: Boolean = false,
     /** Propagate: the parent's care settings were applied, so a restored form must not get them again. */
-    val prefillDone: Boolean = false
+    val prefillDone: Boolean = false,
+    /** Wizard Care step: whether "More options" (dormancy, strength/pin, repotting) is open; saved with the draft. */
+    val moreOptionsExpanded: Boolean = false
 ) {
     /** Whether the "adjusted for winter" hint still describes the strength the form has chosen. */
     val seasonalHintApplies: Boolean
         get() = !pinIntervalToBase && wateringAmplitudeOverride == loadedAmplitudeOverride
 
+    val dormancyChosen: Boolean get() = dormancyStartMonth != null && dormancyEndMonth != null
+
+    val strengthChosen: Boolean get() = pinIntervalToBase || wateringAmplitudeOverride != null
+
+    val repottingSeasonsChosen: Boolean get() = repottingSeasons != ALL_SEASONS
+
+    /** Whether any setting hidden in the wizard's "More options" differs from its default. */
+    val hasNonDefaultMoreOptions: Boolean
+        get() = dormancyChosen || strengthChosen || repottingIntervalEnabled || repottingSeasonsChosen
+
+    private fun moreOptionsValues() = listOf(
+        pinIntervalToBase, wateringAmplitudeOverride, dormancyStartMonth, dormancyEndMonth,
+        dormantWateringIntervalDays, repottingIntervalEnabled, repottingIntervalMonths, repottingSeasons
+    )
+
     /** Anything the user could have entered here, ignoring the wizard step and the bookkeeping fields. */
     val hasCareOrPhotoInput: Boolean
         get() = copy(
-            step = AddPlantStep.PHOTO,
+            step = AddPlantStep.DETAILS,
+            moreOptionsExpanded = false,
             seededWateringIntervalDays = null,
             loadedAmplitudeOverride = null,
             linkedParentId = null,
@@ -88,9 +106,15 @@ data class AddEditPlantFormState(
      * Copied: the dormancy window and cadence, the fertilizing reminder (on/off, interval, seasons,
      * liquid), the repotting seasons, the pin switch and the watering reminder with the parent's live
      * effective interval for today ([live]), never the stored literal. Not copied: the repotting reminder
-     * and plan, learned watering state, notes, photos, issues, hidden/archived.
+     * and plan, learned watering state, notes, photos, issues, hidden/archived. When the copy changed a
+     * setting inside the wizard's "More options", that section opens so nothing is applied unseen.
      */
     fun withParentCarePrefill(parent: Plant, live: LiveWateringInterval?): AddEditPlantFormState {
+        val result = applyParentCare(parent, live)
+        return if (result.moreOptionsValues() != moreOptionsValues()) result.copy(moreOptionsExpanded = true) else result
+    }
+
+    private fun applyParentCare(parent: Plant, live: LiveWateringInterval?): AddEditPlantFormState {
         var s = copy(linkedParentId = parent.id, propagatedFromName = parent.name, prefillDone = true)
         if (!s.wateringIntervalEnabled && s.wateringIntervalDays == DEFAULT_WATERING_INTERVAL_DAYS && live != null) {
             s = s.copy(wateringIntervalDays = live.effectiveDays, wateringIntervalEnabled = true)
