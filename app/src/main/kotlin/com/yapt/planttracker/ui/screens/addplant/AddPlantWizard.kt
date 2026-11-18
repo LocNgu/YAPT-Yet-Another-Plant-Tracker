@@ -93,11 +93,6 @@ internal fun WizardNavigationBar(step: AddPlantStep, onBack: () -> Unit, onNext:
 internal fun PhotoStep(form: AddEditPlantFormState, onPickPhoto: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         CoverPhotoPicker(uri = form.coverPhotoUri, onPickPhoto = onPickPhoto)
-        Text(
-            text = stringResource(R.string.add_plant_photo_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

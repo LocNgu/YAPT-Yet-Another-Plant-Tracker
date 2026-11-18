@@ -35,13 +35,19 @@ fun DormancyWindowSetting(
     startMonth: Int?,
     endMonth: Int?,
     onWindowChange: (Int?, Int?) -> Unit
-) = DormancyWindowSetting(startMonth, endMonth, null) { start, end, _ -> onWindowChange(start, end) }
+) = DormancyWindowSetting(
+    startMonth,
+    endMonth,
+    null,
+    onWindowChange = { start, end, _ -> onWindowChange(start, end) }
+)
 
 @Composable
 fun DormancyWindowSetting(
     startMonth: Int?,
     endMonth: Int?,
     dormantWateringIntervalDays: Int?,
+    showInfo: Boolean = false,
     onWindowChange: (Int?, Int?, Int?) -> Unit
 ) {
     val persistedWindow = Triple(
@@ -69,6 +75,12 @@ fun DormancyWindowSetting(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            if (showInfo) {
+                InfoTooltip(
+                    contentDescription = stringResource(R.string.info_dormancy_cd),
+                    text = stringResource(R.string.info_dormancy_text)
+                )
+            }
             Switch(
                 checked = enabled,
                 onCheckedChange = { on ->

@@ -15,6 +15,8 @@ The human promotes `[Unreleased]` → a versioned heading when cutting a release
 ### Changed
 - **Adding a plant is a four-step guided form** (#943, product ADR-0086, technical ADR-0044) — **Add plant** and Add-from-Propagate now walk through Name and location, Photo, Care and Review ("Step N of 4", progress bar, announced to TalkBack) instead of one long form. Only the name is required, checked when leaving step 1; care reminders stay off unless switched on. The Care step shows watering and fertilizing, and a collapsed **More options** section holds dormancy, watering strength/pin and repotting (it opens by itself when a propagated plant copied a non-default value there; collapsing keeps the values). The Review step holds the optional notes and a summary whose lines jump back to their step, including any non-default More options setting, and **Add plant** there is the single save. Back (arrow and system) goes one step back; on step 1 it asks to discard when anything was entered. The draft, current step and More options state survive process death (`SavedStateHandle`). Edit Plant stays the single form. The form state is now one `uiState` StateFlow changed through setters (typed text stays synchronous), and the "Plant name is required" message moved to `strings.xml`. No schema change.
 
+- **Add Plant explains itself** (#1039, product ADR-0087) — each wizard step shows a short intro under its title (the Photo intro replaces the old hint), and Seasonal strength, Pin, Dormancy window, Repotting reminder and Prefer repotting in get an (i) icon that opens a short explanation. The same icons appear in Edit Plant. New reusable `InfoTooltip`; Plant Detail is unchanged. No schema change.
+
 ## [0.43.0] - 2026-11-14
 
 ### Changed

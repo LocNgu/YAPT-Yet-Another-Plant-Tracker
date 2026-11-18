@@ -197,17 +197,21 @@ private fun WizardStepContent(
     rooms: List<String>,
     actions: FormActions
 ) {
-    when (form.step) {
-        AddPlantStep.PHOTO -> PhotoStep(form, actions.onPickPhoto)
-        AddPlantStep.DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            form.propagatedFromName?.let { PropagatedFromNote(it) }
-            PlantIdentityFields(viewModel, rooms)
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        StepIntro(form.step)
+        when (form.step) {
+            AddPlantStep.PHOTO -> PhotoStep(form, actions.onPickPhoto)
+            AddPlantStep.DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                form.propagatedFromName?.let { PropagatedFromNote(it) }
+                PlantIdentityFields(viewModel, rooms)
+            }
+            AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                form.propagatedFromName?.let { PropagatedFromNote(it) }
+                WizardCareSections(viewModel, form, actions)
+            }
+            AddPlantStep.REVIEW ->
+                ReviewStep(viewModel, form, ReviewJumps(viewModel::goToStep, viewModel::goToMoreOptions))
         }
-        AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            form.propagatedFromName?.let { PropagatedFromNote(it) }
-            WizardCareSections(viewModel, form, actions)
-        }
-        AddPlantStep.REVIEW -> ReviewStep(viewModel, form, ReviewJumps(viewModel::goToStep, viewModel::goToMoreOptions))
     }
 }
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
@@ -18,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -47,6 +49,12 @@ private fun lockedChipShakeSpec(): FiniteAnimationSpec<Float> = keyframes {
     -3f at 250
     0f at LOCKED_CHIP_SHAKE_DURATION_MS
 }
+
+/** The caption above the season chips, with an optional trailing slot (e.g. an `InfoTooltip`). */
+data class SeasonsLabel(
+    @StringRes val res: Int = R.string.fertilizing_active_seasons_label,
+    val trailing: (@Composable () -> Unit)? = null
+)
 
 /** Bundles one chip's derived state so [FertilizingSeasonChip] stays within Detekt's `LongParameterList`. */
 private data class SeasonChipState(
@@ -95,16 +103,19 @@ fun FertilizingSeasonsSelector(
     onToggle: (FertilizingSeason) -> Unit,
     modifier: Modifier = Modifier,
     onLastSeasonLocked: () -> Unit = {},
-    @StringRes labelRes: Int = R.string.fertilizing_active_seasons_label
+    label: SeasonsLabel = SeasonsLabel()
 ) {
     val hemisphere = remember { SeasonalWatering.currentHemisphere() }
     val currentSeason = remember(hemisphere) { SeasonalFertilizing.season(LocalDate.now(), hemisphere) }
     val currentSeasonStateDescription = stringResource(R.string.fertilizing_current_season)
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(labelRes),
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(label.res),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            label.trailing?.invoke()
+        }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FertilizingSeason.entries.forEach { season ->
                 FertilizingSeasonChip(

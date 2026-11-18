@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.yapt.planttracker.R
 import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
+import com.yapt.planttracker.ui.components.InfoTooltip
 import com.yapt.planttracker.ui.components.PlantPhoto
+import com.yapt.planttracker.ui.components.SeasonsLabel
 import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
@@ -136,13 +138,19 @@ internal fun PlantNotesField(viewModel: AddEditPlantViewModel) {
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    info: (@Composable () -> Unit)? = null
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        info?.invoke()
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -199,7 +207,8 @@ internal fun DormancySection(viewModel: AddEditPlantViewModel, form: AddEditPlan
         startMonth = form.dormancyStartMonth,
         endMonth = form.dormancyEndMonth,
         dormantWateringIntervalDays = form.dormantWateringIntervalDays,
-        onWindowChange = viewModel::setDormancyWindow
+        onWindowChange = viewModel::setDormancyWindow,
+        showInfo = true
     )
 }
 
@@ -264,7 +273,13 @@ internal fun RepottingSection(
                 stringResource(R.string.repotting_reminder_label)
             },
             checked = form.repottingIntervalEnabled,
-            onCheckedChange = viewModel::setRepottingIntervalEnabled
+            onCheckedChange = viewModel::setRepottingIntervalEnabled,
+            info = {
+                InfoTooltip(
+                    contentDescription = stringResource(R.string.info_repotting_cd),
+                    text = stringResource(R.string.info_repotting_text)
+                )
+            }
         )
         if (form.repottingIntervalEnabled) {
             SteppedSlider(
@@ -281,7 +296,12 @@ internal fun RepottingSection(
                 selected = form.repottingSeasons,
                 onToggle = viewModel::toggleRepottingSeason,
                 onLastSeasonLocked = onLastSeasonLocked,
-                labelRes = R.string.repotting_preferred_seasons_label
+                label = SeasonsLabel(R.string.repotting_preferred_seasons_label) {
+                    InfoTooltip(
+                        contentDescription = stringResource(R.string.info_repotting_seasons_cd),
+                        text = stringResource(R.string.info_repotting_seasons_text)
+                    )
+                }
             )
         }
     }
