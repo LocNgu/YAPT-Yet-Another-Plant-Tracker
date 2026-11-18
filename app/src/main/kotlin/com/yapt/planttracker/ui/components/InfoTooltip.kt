@@ -35,6 +35,7 @@ fun InfoTooltip(contentDescription: String, text: String, modifier: Modifier = M
         tooltip = { RichTooltip { Text(text) } },
         state = tooltipState,
         modifier = modifier,
+        focusable = true,
         enableUserInput = false
     ) {
         IconButton(onClick = { scope.launch { tooltipState.show() } }) {

@@ -63,7 +63,17 @@ fun WateringStrengthSetting(
         if (mode == WateringStrengthMode.CUSTOM) {
             CustomStrengthOptions(customStrength, callbacks.onSelectCustom)
         }
-        StrengthSubtitleRow(mode, showInfo)
+        Text(
+            text = stringResource(
+                when (mode) {
+                    WateringStrengthMode.APP_DEFAULT -> R.string.watering_strength_subtitle_default
+                    WateringStrengthMode.CUSTOM -> R.string.watering_strength_subtitle_custom
+                    WateringStrengthMode.PIN -> R.string.pin_interval_subtitle
+                }
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -78,30 +88,6 @@ private fun StrengthLabelRow(showInfo: Boolean) {
             InfoTooltip(
                 contentDescription = stringResource(R.string.info_strength_cd),
                 text = stringResource(R.string.info_strength_text)
-            )
-        }
-    }
-}
-
-@Composable
-private fun StrengthSubtitleRow(mode: WateringStrengthMode, showInfo: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = stringResource(
-                when (mode) {
-                    WateringStrengthMode.APP_DEFAULT -> R.string.watering_strength_subtitle_default
-                    WateringStrengthMode.CUSTOM -> R.string.watering_strength_subtitle_custom
-                    WateringStrengthMode.PIN -> R.string.pin_interval_subtitle
-                }
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        if (showInfo) {
-            InfoTooltip(
-                contentDescription = stringResource(R.string.info_pin_cd),
-                text = stringResource(R.string.info_pin_text)
             )
         }
     }

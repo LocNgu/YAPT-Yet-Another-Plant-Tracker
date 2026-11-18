@@ -118,8 +118,6 @@ class AddPlantInfoTooltipTest {
 
         assertTooltipOnTap(R.string.info_strength_cd, R.string.info_strength_text, viewModel)
         dismissTooltip()
-        assertTooltipOnTap(R.string.info_pin_cd, R.string.info_pin_text, viewModel)
-        dismissTooltip()
         assertTooltipOnTap(R.string.info_dormancy_cd, R.string.info_dormancy_text, viewModel)
         dismissTooltip()
         assertTooltipOnTap(R.string.info_repotting_cd, R.string.info_repotting_text, viewModel)
@@ -130,14 +128,15 @@ class AddPlantInfoTooltipTest {
     @Test
     fun editPlantShowsTheSameInfoIcons() {
         val viewModel = launchEdit()
+        composeTestRule.runOnIdle { viewModel.setRepottingIntervalEnabled(true) }
 
         assertTooltipOnTap(R.string.info_strength_cd, R.string.info_strength_text, viewModel)
-        dismissTooltip()
-        assertTooltipOnTap(R.string.info_pin_cd, R.string.info_pin_text, viewModel)
         dismissTooltip()
         assertTooltipOnTap(R.string.info_dormancy_cd, R.string.info_dormancy_text, viewModel)
         dismissTooltip()
         assertTooltipOnTap(R.string.info_repotting_cd, R.string.info_repotting_text, viewModel)
+        dismissTooltip()
+        assertTooltipOnTap(R.string.info_repotting_seasons_cd, R.string.info_repotting_seasons_text, viewModel)
     }
 
     private fun dismissTooltip() {

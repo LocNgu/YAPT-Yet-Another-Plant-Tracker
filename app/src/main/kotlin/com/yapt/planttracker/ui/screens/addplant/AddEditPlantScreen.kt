@@ -111,7 +111,7 @@ fun AddEditPlantScreen(
         },
         floatingActionButton = { if (!isWizard) SaveFab(viewModel::save) }
     ) { padding ->
-        FormScrollBody(padding) {
+        FormScrollBody(padding, scrollResetKey = if (isWizard) form.step else null) {
             if (isWizard) {
                 WizardStepContent(viewModel, form, rooms, actions)
             } else {
@@ -122,13 +122,15 @@ fun AddEditPlantScreen(
 }
 
 @Composable
-private fun FormScrollBody(padding: PaddingValues, content: @Composable () -> Unit) {
+private fun FormScrollBody(padding: PaddingValues, scrollResetKey: Any?, content: @Composable () -> Unit) {
+    val scrollState = rememberScrollState()
+    LaunchedEffect(scrollResetKey) { if (scrollResetKey != null) scrollState.scrollTo(0) }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding)
             .imePadding()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {

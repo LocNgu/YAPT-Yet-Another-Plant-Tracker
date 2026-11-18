@@ -94,7 +94,7 @@ private data class SeasonChipState(
  *
  * Also the seasons chip row for the repotting reminder's preferred seasons on Add/Edit Plant (#809,
  * product ADR-0057) — same [Set] of [FertilizingSeason], same chips and last-chip lock; only the
- * caption ([labelRes]) and the caller's [onLastSeasonLocked] snackbar copy differ.
+ * caption ([SeasonsLabel]) and the caller's [onLastSeasonLocked] snackbar copy differ.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

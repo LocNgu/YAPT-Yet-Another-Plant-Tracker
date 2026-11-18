@@ -1127,12 +1127,10 @@
     <string name="add_plant_intro_care">Choose which reminders you want. Watering and fertilizing are the usual ones. Everything here is optional, and you can change it later in Edit Plant.</string>
     <string name="add_plant_intro_review">Check what will be created. Tap Change next to a line to edit it.</string>
     <string name="info_strength_cd">About seasonal strength</string>
-    <string name="info_pin_cd">About pin</string>
     <string name="info_dormancy_cd">About dormancy window</string>
     <string name="info_repotting_cd">About repotting reminder</string>
     <string name="info_repotting_seasons_cd">About prefer repotting in</string>
-    <string name="info_strength_text">Plants drink less in winter and more in summer. This sets how much this plant\'s watering interval stretches and shrinks through the year. App default follows Settings; Custom picks a strength for this plant only.</string>
-    <string name="info_pin_text">Keeps this plant\'s watering interval exactly as you set it all year, with no seasonal change. Good for a plant whose needs barely change between seasons.</string>
+    <string name="info_strength_text">Plants drink less in winter and more in summer. This sets how much this plant\'s watering interval stretches and shrinks through the year. App default follows Settings; Custom picks a strength for this plant only. Pin keeps this plant\'s interval exactly as you set it all year, good for a plant whose needs barely change between seasons.</string>
     <string name="info_dormancy_text">Some plants, like many cacti and succulents, rest for a few months and need very little water. Pick those months and watering reminders pause or slow down during them.</string>
     <string name="info_repotting_text">Reminds you to repot after the number of months you choose, counted from the last repot or from when you added the plant. Most houseplants need it every year or two.</string>
     <string name="info_repotting_seasons_text">Moves the repotting reminder into the nearest season you pick, so the repot lands at a good time of year, such as spring.</string>
