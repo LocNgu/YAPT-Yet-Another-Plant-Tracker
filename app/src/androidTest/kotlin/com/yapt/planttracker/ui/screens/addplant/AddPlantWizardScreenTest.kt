@@ -167,7 +167,7 @@ class AddPlantWizardScreenTest {
         composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).performScrollTo().assertIsDisplayed()
         composeTestRule.onNodeWithText(str(R.string.add_plant_summary_fertilizing_off)).performScrollTo().assertIsDisplayed()
 
-        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).performClick()
+        composeTestRule.onNodeWithText(str(R.string.add_plant_summary_watering_on, 7)).performScrollTo().performClick()
 
         assertStep(3)
     }
@@ -224,7 +224,7 @@ class AddPlantWizardScreenTest {
         composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
         composeTestRule.onNodeWithText(str(R.string.repotting_reminder_label)).assertDoesNotExist()
 
-        moreOptionsHeader().performClick()
+        moreOptionsHeader().performScrollTo().performClick()
 
         moreOptionsHeader()
             .assert(stateIs(R.string.add_plant_more_options_expanded))
@@ -236,13 +236,13 @@ class AddPlantWizardScreenTest {
     fun valuesSetInMoreOptionsSurviveCollapsingAndShowOnReview() {
         val viewModel = launch()
         goToCare(viewModel)
-        moreOptionsHeader().performClick()
+        moreOptionsHeader().performScrollTo().performClick()
         composeTestRule.runOnIdle {
             viewModel.setDormancyWindow(11, 2)
             viewModel.setRepottingIntervalEnabled(true)
             viewModel.setRepottingIntervalMonths(18)
         }
-        moreOptionsHeader().performClick()
+        moreOptionsHeader().performScrollTo().performClick()
         composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
 
         composeTestRule.runOnIdle { viewModel.goToStep(AddPlantStep.REVIEW) }
@@ -276,7 +276,7 @@ class AddPlantWizardScreenTest {
             viewModel.goToStep(AddPlantStep.REVIEW)
         }
 
-        composeTestRule.onNodeWithText(dormancyLine()).performClick()
+        composeTestRule.onNodeWithText(dormancyLine()).performScrollTo().performClick()
 
         assertStep(3)
         composeTestRule.onNodeWithContentDescription("Dormancy window").performScrollTo().assertIsDisplayed()

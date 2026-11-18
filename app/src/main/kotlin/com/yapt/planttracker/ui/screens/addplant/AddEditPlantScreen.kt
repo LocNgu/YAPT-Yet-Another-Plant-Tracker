@@ -1,6 +1,7 @@
 package com.yapt.planttracker.ui.screens.addplant
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -123,8 +123,7 @@ fun AddEditPlantScreen(
 
 @Composable
 private fun FormScrollBody(padding: PaddingValues, scrollResetKey: Any?, content: @Composable () -> Unit) {
-    val scrollState = rememberScrollState()
-    LaunchedEffect(scrollResetKey) { if (scrollResetKey != null) scrollState.scrollTo(0) }
+    val scrollState = rememberSaveable(scrollResetKey, saver = ScrollState.Saver) { ScrollState(0) }
     Column(
         modifier = Modifier
             .fillMaxSize()
