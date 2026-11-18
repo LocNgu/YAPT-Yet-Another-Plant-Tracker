@@ -80,7 +80,7 @@ class AddEditPlantViewModelHiddenTest {
         every { plantRepo.getPlantById(1L) } returns flowOf(plant().copy(hiddenAt = 5_000L))
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 1L)
-        vm.name = "Monstera Renamed"
+        vm.setName("Monstera Renamed")
 
         vm.save()
         advanceUntilIdle()

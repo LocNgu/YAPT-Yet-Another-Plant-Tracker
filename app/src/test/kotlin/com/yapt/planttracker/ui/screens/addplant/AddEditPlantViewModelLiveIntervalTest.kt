@@ -115,9 +115,9 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = 8.0))
         advanceUntilIdle()
 
-        assertEquals(live(8.0), vm.wateringIntervalDays)
-        assertNotEquals(7, vm.wateringIntervalDays)
-        assertTrue(vm.wateringIntervalEnabled)
+        assertEquals(live(8.0), vm.uiState.value.wateringIntervalDays)
+        assertNotEquals(7, vm.uiState.value.wateringIntervalDays)
+        assertTrue(vm.uiState.value.wateringIntervalEnabled)
     }
 
     @Test
@@ -125,7 +125,7 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = 8.0, confidence = 3))
         advanceUntilIdle()
 
-        vm.name = "Monstera Renamed"
+        vm.setName("Monstera Renamed")
         vm.save()
         advanceUntilIdle()
 
@@ -141,7 +141,7 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = null))
         advanceUntilIdle()
 
-        vm.name = "Renamed"
+        vm.setName("Renamed")
         vm.save()
         advanceUntilIdle()
 
@@ -155,10 +155,10 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `moving the slider away and back is treated as untouched`() = runTest {
         val vm = makeVm(plant(literal = 7, base = 8.0))
         advanceUntilIdle()
-        val seed = vm.wateringIntervalDays
+        val seed = vm.uiState.value.wateringIntervalDays
 
-        vm.wateringIntervalDays = seed + 4
-        vm.wateringIntervalDays = seed
+        vm.setWateringIntervalDays(seed + 4)
+        vm.setWateringIntervalDays(seed)
         vm.save()
         advanceUntilIdle()
 
@@ -172,9 +172,9 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `moving the slider re-anchors the base, resets confidence and logs one MANUAL_EDIT row`() = runTest {
         val vm = makeVm(plant(literal = 7, base = 8.0))
         advanceUntilIdle()
-        val typed = vm.wateringIntervalDays + 3
+        val typed = vm.uiState.value.wateringIntervalDays + 3
 
-        vm.wateringIntervalDays = typed
+        vm.setWateringIntervalDays(typed)
         vm.save()
         advanceUntilIdle()
 
@@ -199,7 +199,7 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = base), amplitude)
         advanceUntilIdle()
 
-        vm.wateringIntervalDays = sameBase
+        vm.setWateringIntervalDays(sameBase)
         vm.save()
         advanceUntilIdle()
 
@@ -211,9 +211,9 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `pinning with an untouched slider pins the displayed value and carries the base over`() = runTest {
         val vm = makeVm(plant(literal = 7, base = 8.0))
         advanceUntilIdle()
-        val seed = vm.wateringIntervalDays
+        val seed = vm.uiState.value.wateringIntervalDays
 
-        vm.pinIntervalToBase = true
+        vm.setPinIntervalToBase(true)
         vm.save()
         advanceUntilIdle()
 
@@ -229,9 +229,9 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `unpinning with an untouched slider keeps the stored base and logs nothing`() = runTest {
         val vm = makeVm(plant(literal = 9, base = 8.0, pinned = true))
         advanceUntilIdle()
-        assertEquals(9, vm.wateringIntervalDays)
+        assertEquals(9, vm.uiState.value.wateringIntervalDays)
 
-        vm.pinIntervalToBase = false
+        vm.setPinIntervalToBase(false)
         vm.save()
         advanceUntilIdle()
 
@@ -246,10 +246,10 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `a live value above 60 shows truthfully and an untouched save is still a no-op`() = runTest {
         val vm = makeVm(plant(literal = 50, base = 50.0))
         advanceUntilIdle()
-        assertEquals(live(50.0), vm.wateringIntervalDays)
-        assertTrue(vm.wateringIntervalDays > 60)
+        assertEquals(live(50.0), vm.uiState.value.wateringIntervalDays)
+        assertTrue(vm.uiState.value.wateringIntervalDays > 60)
 
-        vm.name = "Renamed"
+        vm.setName("Renamed")
         vm.save()
         advanceUntilIdle()
 
@@ -264,8 +264,8 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = 8.0))
         advanceUntilIdle()
 
-        vm.wateringIntervalEnabled = false
-        vm.wateringIntervalEnabled = true
+        vm.setWateringIntervalEnabled(false)
+        vm.setWateringIntervalEnabled(true)
         vm.save()
         advanceUntilIdle()
 
@@ -280,7 +280,7 @@ class AddEditPlantViewModelLiveIntervalTest {
         val vm = makeVm(plant(literal = 7, base = 8.0), SeasonalAmplitude.OFF)
         advanceUntilIdle()
 
-        assertEquals(7, vm.wateringIntervalDays)
+        assertEquals(7, vm.uiState.value.wateringIntervalDays)
         assertNull(vm.seasonalAdjustment)
     }
 
@@ -288,9 +288,9 @@ class AddEditPlantViewModelLiveIntervalTest {
     fun `a new plant still de-seasonalizes the typed value`() = runTest {
         coEvery { plantRepo.addPlant(any()) } returns 42L
         val vm = makeVm(null)
-        vm.name = "Fern"
-        vm.wateringIntervalEnabled = true
-        vm.wateringIntervalDays = 7
+        vm.setName("Fern")
+        vm.setWateringIntervalEnabled(true)
+        vm.setWateringIntervalDays(7)
 
         vm.save()
         advanceUntilIdle()
@@ -328,6 +328,6 @@ class AddEditPlantViewModelLiveIntervalTest {
         advanceUntilIdle()
 
         assertNull(vm.seasonalAdjustment)
-        assertEquals(live(8.0), vm.wateringIntervalDays)
+        assertEquals(live(8.0), vm.uiState.value.wateringIntervalDays)
     }
 }

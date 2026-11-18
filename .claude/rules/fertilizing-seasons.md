@@ -27,5 +27,5 @@ Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with `labelRes`) Add
   - There is no checkmark `leadingIcon`; the outline that only unselected chips have is the non-color cue.
   - The current season's chip has a decorative trailing dot. Its "Current season" wording lives in the chip's `stateDescription` for TalkBack.
 - **Applying the toggle:**
-  - Add/Edit applies it to local form state (synchronous, so it can't race).
+  - Add/Edit applies it to the latest form state inside one atomic `uiState` update (`rules/add-edit-plant.md`).
   - Plant Detail's `toggleFertilizingSeason()` (`PlantDetailScheduleSettingsActions.kt`) re-reads the plant inside `plantEditMutex` and applies it there. If that would empty the set (two fast taps on the last two chips), it emits `Event.FertilizingSeasonToggleRejected` → the same snackbar, without a wiggle.

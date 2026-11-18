@@ -168,7 +168,7 @@ class AddEditPlantViewModelFamilyTest {
         val saved = slot<Plant>()
         coEvery { plantRepo.addPlant(capture(saved)) } returns 9L
         val vm = newChildVm(parentId = null)
-        vm.name = "Fern"
+        vm.setName("Fern")
 
         vm.save()
         advanceUntilIdle()
@@ -184,7 +184,7 @@ class AddEditPlantViewModelFamilyTest {
         coEvery { plantRepo.updatePlant(any()) } just runs
         val vm = AddEditPlantViewModel(plantRepo, plantPhotoRepo, plantId = 8L)
         advanceUntilIdle()
-        vm.name = "Pothos cutting renamed"
+        vm.setName("Pothos cutting renamed")
 
         vm.save()
         advanceUntilIdle()
@@ -199,15 +199,15 @@ class AddEditPlantViewModelFamilyTest {
         val vm = careChildVm()
         advanceUntilIdle()
 
-        assertEquals(11, vm.dormancyStartMonth)
-        assertEquals(2, vm.dormancyEndMonth)
-        assertEquals(35, vm.dormantWateringIntervalDays)
-        assertTrue(vm.fertilizingIntervalEnabled)
-        assertEquals(21, vm.fertilizingIntervalDays)
-        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.fertilizingSeasons)
-        assertTrue(vm.useLiquidFertilizer)
-        assertEquals(setOf(FertilizingSeason.SPRING), vm.repottingSeasons)
-        assertTrue(vm.pinIntervalToBase)
+        assertEquals(11, vm.uiState.value.dormancyStartMonth)
+        assertEquals(2, vm.uiState.value.dormancyEndMonth)
+        assertEquals(35, vm.uiState.value.dormantWateringIntervalDays)
+        assertTrue(vm.uiState.value.fertilizingIntervalEnabled)
+        assertEquals(21, vm.uiState.value.fertilizingIntervalDays)
+        assertEquals(setOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER), vm.uiState.value.fertilizingSeasons)
+        assertTrue(vm.uiState.value.useLiquidFertilizer)
+        assertEquals(setOf(FertilizingSeason.SPRING), vm.uiState.value.repottingSeasons)
+        assertTrue(vm.uiState.value.pinIntervalToBase)
     }
 
     @Test
@@ -217,9 +217,9 @@ class AddEditPlantViewModelFamilyTest {
         val vm = careChildVm()
         advanceUntilIdle()
 
-        assertTrue(vm.wateringIntervalEnabled)
-        assertEquals(liveFor(8.0), vm.wateringIntervalDays)
-        assertNotEquals(7, vm.wateringIntervalDays)
+        assertTrue(vm.uiState.value.wateringIntervalEnabled)
+        assertEquals(liveFor(8.0), vm.uiState.value.wateringIntervalDays)
+        assertNotEquals(7, vm.uiState.value.wateringIntervalDays)
     }
 
     @Test
@@ -229,11 +229,11 @@ class AddEditPlantViewModelFamilyTest {
         val vm = careChildVm()
         advanceUntilIdle()
 
-        assertFalse(vm.wateringIntervalEnabled)
-        assertEquals(7, vm.wateringIntervalDays)
-        assertFalse(vm.fertilizingIntervalEnabled)
-        assertEquals(30, vm.fertilizingIntervalDays)
-        assertNull(vm.dormancyStartMonth)
+        assertFalse(vm.uiState.value.wateringIntervalEnabled)
+        assertEquals(7, vm.uiState.value.wateringIntervalDays)
+        assertFalse(vm.uiState.value.fertilizingIntervalEnabled)
+        assertEquals(30, vm.uiState.value.fertilizingIntervalDays)
+        assertNull(vm.uiState.value.dormancyStartMonth)
     }
 
     @Test
@@ -243,11 +243,11 @@ class AddEditPlantViewModelFamilyTest {
         val vm = careChildVm()
         advanceUntilIdle()
 
-        assertFalse(vm.repottingIntervalEnabled)
-        assertEquals(AddEditPlantViewModel.DEFAULT_REPOTTING_MONTHS, vm.repottingIntervalMonths)
+        assertFalse(vm.uiState.value.repottingIntervalEnabled)
+        assertEquals(AddEditPlantViewModel.DEFAULT_REPOTTING_MONTHS, vm.uiState.value.repottingIntervalMonths)
         assertEquals("", vm.notes)
-        assertNull(vm.coverPhotoUri)
-        assertTrue(vm.pendingPhotos.isEmpty())
+        assertNull(vm.uiState.value.coverPhotoUri)
+        assertTrue(vm.uiState.value.pendingPhotos.isEmpty())
     }
 
     @Test
@@ -287,28 +287,30 @@ class AddEditPlantViewModelFamilyTest {
         val parent = MutableSharedFlow<Plant?>(replay = 1)
         every { plantRepo.getPlantById(7L) } returns parent
         val vm = careChildVm()
-        vm.wateringIntervalEnabled = true
-        vm.wateringIntervalDays = 12
-        vm.fertilizingIntervalEnabled = true
-        vm.fertilizingIntervalDays = 45
-        vm.fertilizingSeasons = setOf(FertilizingSeason.AUTUMN)
-        vm.repottingSeasons = setOf(FertilizingSeason.WINTER)
-        vm.useLiquidFertilizer = true
-        vm.pinIntervalToBase = true
+        vm.setWateringIntervalEnabled(true)
+        vm.setWateringIntervalDays(12)
+        vm.setFertilizingIntervalEnabled(true)
+        vm.setFertilizingIntervalDays(45)
+        listOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER, FertilizingSeason.WINTER)
+            .forEach(vm::toggleFertilizingSeason)
+        listOf(FertilizingSeason.SPRING, FertilizingSeason.SUMMER, FertilizingSeason.AUTUMN)
+            .forEach(vm::toggleRepottingSeason)
+        vm.setUseLiquidFertilizer(true)
+        vm.setPinIntervalToBase(true)
         vm.setDormancyWindow(5, 6)
 
         parent.emit(careMother().copy(useLiquidFertilizer = false))
         advanceUntilIdle()
 
-        assertEquals(12, vm.wateringIntervalDays)
-        assertEquals(45, vm.fertilizingIntervalDays)
-        assertEquals(setOf(FertilizingSeason.AUTUMN), vm.fertilizingSeasons)
-        assertEquals(setOf(FertilizingSeason.WINTER), vm.repottingSeasons)
-        assertTrue(vm.useLiquidFertilizer)
-        assertTrue(vm.pinIntervalToBase)
-        assertEquals(5, vm.dormancyStartMonth)
-        assertEquals(6, vm.dormancyEndMonth)
-        assertNull(vm.dormantWateringIntervalDays)
+        assertEquals(12, vm.uiState.value.wateringIntervalDays)
+        assertEquals(45, vm.uiState.value.fertilizingIntervalDays)
+        assertEquals(setOf(FertilizingSeason.AUTUMN), vm.uiState.value.fertilizingSeasons)
+        assertEquals(setOf(FertilizingSeason.WINTER), vm.uiState.value.repottingSeasons)
+        assertTrue(vm.uiState.value.useLiquidFertilizer)
+        assertTrue(vm.uiState.value.pinIntervalToBase)
+        assertEquals(5, vm.uiState.value.dormancyStartMonth)
+        assertEquals(6, vm.uiState.value.dormancyEndMonth)
+        assertNull(vm.uiState.value.dormantWateringIntervalDays)
         assertEquals("Pothos (cutting)", vm.name)
     }
 
@@ -317,11 +319,11 @@ class AddEditPlantViewModelFamilyTest {
         val vm = careChildVm(parentId = null)
         advanceUntilIdle()
 
-        assertFalse(vm.wateringIntervalEnabled)
-        assertFalse(vm.fertilizingIntervalEnabled)
-        assertNull(vm.dormancyStartMonth)
-        assertFalse(vm.useLiquidFertilizer)
-        assertEquals(FertilizingSeason.entries.toSet(), vm.fertilizingSeasons)
+        assertFalse(vm.uiState.value.wateringIntervalEnabled)
+        assertFalse(vm.uiState.value.fertilizingIntervalEnabled)
+        assertNull(vm.uiState.value.dormancyStartMonth)
+        assertFalse(vm.uiState.value.useLiquidFertilizer)
+        assertEquals(FertilizingSeason.entries.toSet(), vm.uiState.value.fertilizingSeasons)
         assertNull(vm.propagatedFromName)
     }
 
@@ -338,7 +340,7 @@ class AddEditPlantViewModelFamilyTest {
         advanceUntilIdle()
 
         assertEquals("Cutting", vm.name)
-        assertFalse(vm.wateringIntervalEnabled)
+        assertFalse(vm.uiState.value.wateringIntervalEnabled)
         assertNull(vm.propagatedFromName)
         verify(exactly = 0) { plantRepo.getPlantById(7L) }
     }

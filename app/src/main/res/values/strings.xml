@@ -1112,4 +1112,40 @@
     <string name="sitter_text_with_missed">%1$s · %2$s</string>
     <string name="sitter_caption_single">Plants to water on %1$s, by room. Only water what\'s on this page.</string>
     <string name="sitter_caption_multi">Plants to water on %1$s, by room. Only water what\'s on pages 1 to %2$d.</string>
+    <!-- Add plant wizard (#943, product ADR-0086) -->
+    <string name="add_plant_name_required">Plant name is required</string>
+    <string name="add_plant_step_progress">Step %1$d of %2$d</string>
+    <string name="add_plant_step_details">Name and location</string>
+    <string name="add_plant_step_photo">Photo</string>
+    <string name="add_plant_step_care">Care</string>
+    <string name="add_plant_step_review">Review</string>
+    <string name="add_plant_next">Next</string>
+    <string name="add_plant_back">Back</string>
+    <string name="add_plant_finish">Add plant</string>
+    <string name="add_plant_photo_hint">Add a photo of your plant, or skip this and add one later.</string>
+    <string name="add_plant_review_heading">What will be created</string>
+    <string name="add_plant_summary_change">Change</string>
+    <string name="add_plant_summary_photo_added">Photo: added</string>
+    <string name="add_plant_summary_photo_none">Photo: none</string>
+    <string name="add_plant_summary_name">Name: %1$s</string>
+    <string name="add_plant_summary_species">Species: %1$s</string>
+    <string name="add_plant_summary_location">Location: %1$s</string>
+    <string name="add_plant_summary_watering_on">Watering: every %1$d days</string>
+    <string name="add_plant_summary_watering_off">Watering: off</string>
+    <string name="add_plant_summary_fertilizing_on">Fertilizing: every %1$d days</string>
+    <string name="add_plant_summary_fertilizing_off">Fertilizing: off</string>
+    <plurals name="add_plant_summary_repotting_on">
+        <item quantity="one">Repotting: every month</item>
+        <item quantity="other">Repotting: every %d months</item>
+    </plurals>
+    <string name="add_plant_summary_dormancy">Dormancy: %1$s–%2$s</string>
+    <string name="add_plant_summary_strength">Watering strength: %1$s</string>
+    <string name="add_plant_summary_repotting_seasons">Repotting seasons: %1$s</string>
+    <string name="add_plant_more_options">More options</string>
+    <string name="add_plant_more_options_expanded">Expanded</string>
+    <string name="add_plant_more_options_collapsed">Collapsed</string>
+    <string name="add_plant_discard_title">Discard this plant?</string>
+    <string name="add_plant_discard_message">What you entered so far will be lost.</string>
+    <string name="add_plant_discard_confirm">Discard</string>
+    <string name="add_plant_discard_keep_editing">Keep editing</string>
 </resources>
