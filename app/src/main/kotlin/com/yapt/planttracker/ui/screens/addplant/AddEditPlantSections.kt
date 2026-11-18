@@ -243,7 +243,13 @@ internal fun FertilizingSection(
             FertilizingSeasonsSelector(
                 selected = form.fertilizingSeasons,
                 onToggle = viewModel::toggleFertilizingSeason,
-                onLastSeasonLocked = onLastSeasonLocked
+                onLastSeasonLocked = onLastSeasonLocked,
+                label = SeasonsLabel {
+                    InfoTooltip(
+                        contentDescription = stringResource(R.string.info_fertilizing_seasons_cd),
+                        text = stringResource(R.string.info_fertilizing_seasons_text)
+                    )
+                }
             )
             SwitchRow(
                 label = stringResource(R.string.liquid_fertilizer_label),

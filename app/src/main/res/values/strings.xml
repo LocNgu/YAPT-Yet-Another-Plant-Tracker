@@ -1127,6 +1127,8 @@
     <string name="add_plant_intro_care">Choose which reminders you want. Watering and fertilizing are the usual ones. Everything here is optional, and you can change it later in Edit Plant.</string>
     <string name="add_plant_intro_review">Check what will be created. Tap Change next to a line to edit it.</string>
     <string name="info_strength_cd">About seasonal strength</string>
+    <string name="info_fertilizing_seasons_cd">About fertilizing seasons</string>
+    <string name="info_fertilizing_seasons_text">Fertilizing reminders only come in the seasons you pick. Most houseplants grow in spring and summer and need little or no feeding in autumn and winter. A reminder that would fall in an off season waits until the next active season starts.</string>
     <string name="info_dormancy_cd">About dormancy window</string>
     <string name="info_repotting_cd">About repotting reminder</string>
     <string name="info_repotting_seasons_cd">About prefer repotting in</string>

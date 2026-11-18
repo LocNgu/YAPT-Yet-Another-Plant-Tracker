@@ -113,9 +113,12 @@ class AddPlantInfoTooltipTest {
         composeTestRule.runOnIdle {
             viewModel.setMoreOptionsExpanded(true)
             viewModel.setRepottingIntervalEnabled(true)
+            viewModel.setFertilizingIntervalEnabled(true)
         }
         goToStep(viewModel, AddPlantStep.CARE)
 
+        assertTooltipOnTap(R.string.info_fertilizing_seasons_cd, R.string.info_fertilizing_seasons_text, viewModel)
+        dismissTooltip()
         assertTooltipOnTap(R.string.info_strength_cd, R.string.info_strength_text, viewModel)
         dismissTooltip()
         assertTooltipOnTap(R.string.info_dormancy_cd, R.string.info_dormancy_text, viewModel)
@@ -128,8 +131,13 @@ class AddPlantInfoTooltipTest {
     @Test
     fun editPlantShowsTheSameInfoIcons() {
         val viewModel = launchEdit()
-        composeTestRule.runOnIdle { viewModel.setRepottingIntervalEnabled(true) }
+        composeTestRule.runOnIdle {
+            viewModel.setRepottingIntervalEnabled(true)
+            viewModel.setFertilizingIntervalEnabled(true)
+        }
 
+        assertTooltipOnTap(R.string.info_fertilizing_seasons_cd, R.string.info_fertilizing_seasons_text, viewModel)
+        dismissTooltip()
         assertTooltipOnTap(R.string.info_strength_cd, R.string.info_strength_text, viewModel)
         dismissTooltip()
         assertTooltipOnTap(R.string.info_dormancy_cd, R.string.info_dormancy_text, viewModel)
