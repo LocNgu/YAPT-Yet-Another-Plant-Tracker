@@ -2,6 +2,7 @@ package com.yapt.planttracker.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -9,6 +10,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -31,13 +33,11 @@ fun WateringStrengthSetting(
     mode: WateringStrengthMode,
     customStrength: SeasonalAmplitude?,
     callbacks: WateringStrengthCallbacks,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showInfo: Boolean = false
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.watering_strength_label),
-            style = MaterialTheme.typography.bodyMedium
-        )
+        StrengthLabelRow(showInfo)
         val modes = WateringStrengthMode.entries
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             modes.forEachIndexed { index, option ->
@@ -74,6 +74,22 @@ fun WateringStrengthSetting(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+@Composable
+private fun StrengthLabelRow(showInfo: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = stringResource(R.string.watering_strength_label),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (showInfo) {
+            InfoTooltip(
+                contentDescription = stringResource(R.string.info_strength_cd),
+                text = stringResource(R.string.info_strength_text)
+            )
+        }
     }
 }
 

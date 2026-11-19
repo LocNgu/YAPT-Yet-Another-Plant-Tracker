@@ -15,7 +15,9 @@ object WhatsNewContent {
         versionCode = 0,
         versionName = "Unreleased",
         changed = listOf(
-            "Adding a plant now takes four short steps: name, photo, care, review; rare settings sit under More options"
+            "Adding a plant now takes four short steps: name, photo, care, review; " +
+                "rare settings sit under More options",
+            "Add Plant has short intros, and the rarer settings have an (i) icon that explains them"
         )
     )
 

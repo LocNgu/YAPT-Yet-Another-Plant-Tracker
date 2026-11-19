@@ -34,7 +34,8 @@ internal fun WateringStrengthSection(viewModel: AddEditPlantViewModel, form: Add
             onSelectAppDefault = viewModel::selectAppDefaultStrength,
             onSelectCustom = viewModel::setWateringAmplitudeOverride,
             onSelectPin = { viewModel.setPinIntervalToBase(true) }
-        )
+        ),
+        showInfo = true
     )
 }
 

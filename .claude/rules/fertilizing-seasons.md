@@ -19,7 +19,7 @@ paths:
 - The hemisphere comes from `SeasonalWatering.currentHemisphere()`. There is no learning, confidence or history; dormancy is a separate, additional pause.
 
 ## `FertilizingSeasonsSelector` chip row (`ui/components/`)
-Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with `labelRes`) Add/Edit's repotting seasons.
+Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with a `SeasonsLabel`) Add/Edit's repotting seasons.
 - **It reports a toggle of the tapped season, never a full replacement set (#804).** A full set built from a stale `selected` snapshot let a second fast tap discard the first.
 - **The last selected chip stays enabled and selected (#813).** Tapping it wiggles, buzzes (`HapticFeedbackType.Reject`) and calls `onLastSeasonLocked` (never `onToggle`). The screen then shows "At least one season must stay active. To stop fertilizing, turn off the fertilizing reminder." through `SnackbarHostState.showSnackbarOnce()` (`ui/util/SnackbarExtensions.kt`), so repeats don't queue.
 - **Styling:**
