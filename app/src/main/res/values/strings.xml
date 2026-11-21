@@ -1161,4 +1161,21 @@
     <string name="add_plant_discard_message">What you entered so far will be lost.</string>
     <string name="add_plant_discard_confirm">Discard</string>
     <string name="add_plant_discard_keep_editing">Keep editing</string>
+    <!-- Care home-screen widget (#923, product ADR-0088) -->
+    <string name="widget_care_label">YAPT Care</string>
+    <string name="widget_care_description">Plants to water now, and tomorrow\'s watering</string>
+    <plurals name="widget_care_due_count">
+        <item quantity="one">%1$d plant to water</item>
+        <item quantity="other">%1$d plants to water</item>
+    </plurals>
+    <plurals name="widget_care_due_label">
+        <item quantity="one">plant to water</item>
+        <item quantity="other">plants to water</item>
+    </plurals>
+    <string name="widget_care_open_care_cd">%1$s. Opens Care</string>
+    <string name="widget_care_nothing_to_water">Nothing to water today</string>
+    <string name="widget_care_first_use">Add your first plant in YAPT to see what needs watering.</string>
+    <string name="widget_care_group_overdue">Overdue</string>
+    <string name="widget_care_group_today">Today</string>
+    <string name="widget_care_group_tomorrow">Tomorrow</string>
 </resources>
