@@ -10,6 +10,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
     id("io.gitlab.arturbosch.detekt")
+    id("io.github.takahirom.roborazzi")
 }
 
 detekt {
@@ -17,6 +18,13 @@ detekt {
     baseline = file("$rootDir/config/detekt/baseline.xml")
     buildUponDefaultConfig = true
     parallel = true
+}
+
+// Screenshot tests (#862, technical ADR-0045): goldens are committed under src/test/screenshots. Plain
+// `testDebugUnitTest` verifies against them (`roborazzi.test.verify=true` in gradle.properties); re-record with
+// `./gradlew recordRoborazziDebug`. Diffs land in build/outputs/roborazzi.
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
 }
 
 val versionProps = Properties().apply {
@@ -143,6 +151,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    testImplementation(composeBom)
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -185,6 +194,12 @@ dependencies {
     testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("androidx.test:core:1.7.0")
     testImplementation("androidx.work:work-testing:2.12.0")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    // Registers ComponentActivity for createComposeRule() in both unit-test suites (debug + release, #496).
+    testImplementation("androidx.compose.ui:ui-test-manifest")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.79.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.79.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-junit-rule:1.79.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

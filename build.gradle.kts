@@ -7,4 +7,6 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.4.21" apply false
     id("com.google.devtools.ksp") version "2.3.12" apply false
     id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
+    // Screenshot tests on Robolectric (#862, technical ADR-0045).
+    id("io.github.takahirom.roborazzi") version "1.79.0" apply false
 }
