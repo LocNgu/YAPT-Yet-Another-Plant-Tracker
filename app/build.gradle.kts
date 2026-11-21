@@ -168,6 +168,10 @@ dependencies {
 
     implementation("androidx.work:work-runtime-ktx:2.12.0")
 
+    // Care home-screen widget (#923, product ADR-0088). Keep both Glance artifacts on the same version.
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.glance:glance-material3:1.2.0")
+
     implementation("androidx.core:core-ktx:1.19.1")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
