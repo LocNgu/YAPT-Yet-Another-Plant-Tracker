@@ -26,8 +26,8 @@ paths:
 - **Accessibility:** each row's content description is Care's tile description (`care_tile_water_cd` /
   `care_tile_water_fertilize_cd`); the header's names the count and that it opens Care. All strings are `widget_care_*`
   in `strings.xml`.
-- **Size:** `care_widget_info.xml` sets a 2×2 minimum, resizable both ways; the list is a Glance `LazyColumn` (row item ids
-  are plant ids, group headers use negative ids).
+- **Size:** `care_widget_info.xml` sets a 2×2 minimum, resizable both ways; the list is a weighted Glance `LazyColumn` (row item ids
+  are positive per-task ids, group headers use negative ids).
 - **Freshness:** for now only the system `updatePeriodMillis` (30 min) re-runs `provideGlance`. The `WidgetUpdater` hook
   (write paths, midnight, boot, app update, restore) and the **Watered** / **Not now** actions are the next #923
   slices; their rules are fixed in product ADR-0088 (Watered through `QuickLogUseCase` + Care's reason gate; Not now =

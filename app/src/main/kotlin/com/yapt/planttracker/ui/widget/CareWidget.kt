@@ -20,6 +20,7 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
+import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
@@ -133,18 +134,21 @@ private fun CareWidgetMessage(text: String) {
     )
 }
 
+// Weighted so the list takes the height left under the header and scrolls instead of overflowing at 2×2.
 @Composable
-private fun CareWidgetList(groups: List<CareWidgetGroup>) {
-    LazyColumn(modifier = GlanceModifier.fillMaxWidth()) {
+private fun ColumnScope.CareWidgetList(groups: List<CareWidgetGroup>) {
+    LazyColumn(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
         groups.forEach { group ->
             item(itemId = group.group.headerItemId()) { CareWidgetGroupHeader(group.group) }
-            items(group.rows, itemId = { it.plantId }) { row -> CareWidgetRowItem(row) }
+            items(group.rows, itemId = { it.itemId() }) { row -> CareWidgetRowItem(row) }
         }
     }
 }
 
-// Negative ids can't clash with the rows' positive plant ids.
+// Header ids are negative; row ids are positive and per task (unique even if a plant were listed twice).
 private fun TodayWateringGroup.headerItemId(): Long = -1L - ordinal
+
+private fun CareWidgetRow.itemId(): Long = (taskId.hashCode().toLong() and 0xFFFFFFFFL) + 1L
 
 @Composable
 private fun CareWidgetGroupHeader(group: TodayWateringGroup) {
