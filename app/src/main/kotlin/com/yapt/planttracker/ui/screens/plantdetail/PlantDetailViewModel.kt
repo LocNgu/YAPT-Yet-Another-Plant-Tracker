@@ -15,6 +15,8 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.issues.ResolvedIssueEntry
+import com.yapt.planttracker.domain.issues.ResolvedIssueHistory
 import com.yapt.planttracker.domain.model.AwayPeriod
 import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
@@ -204,6 +206,19 @@ class PlantDetailViewModel(
             }
         }
         (fromPlant + fromLogs).distinctBy { it.uri }.sortedByDescending { it.timestamp }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Resolved issues with duration, treatments and date-inferred photos for the Issues tab's
+     * "Resolved" section (#1000). The repository call is deferred into the flow so nothing reaches it
+     * until the Issues tab actually subscribes (same pattern as [childPlants]).
+     */
+    val resolvedIssueHistory: StateFlow<List<ResolvedIssueEntry>> = combine(
+        flow { emitAll(plantIssueRepository.getResolvedIssuesForPlant(plantId)) },
+        careLogs,
+        galleryPhotos
+    ) { issues, logs, photos ->
+        ResolvedIssueHistory.build(issues, logs, photos)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val careStatus: StateFlow<PlantCareStatus?> = combine(

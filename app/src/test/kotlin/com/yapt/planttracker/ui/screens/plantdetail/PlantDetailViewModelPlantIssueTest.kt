@@ -13,6 +13,8 @@ import com.yapt.planttracker.data.repository.PlantIssueRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.model.CareLog
+import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.usecase.QuickLogUseCase
@@ -24,6 +26,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -101,8 +104,12 @@ class PlantDetailViewModelPlantIssueTest {
         updatedAt = 0L
     )
 
-    private fun makeVm(plantId: Long = 1L, activeIssues: List<PlantIssue> = emptyList()): PlantDetailViewModel {
-        every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(emptyList())
+    private fun makeVm(
+        plantId: Long = 1L,
+        activeIssues: List<PlantIssue> = emptyList(),
+        careLogs: List<CareLog> = emptyList()
+    ): PlantDetailViewModel {
+        every { careLogRepo.getLogsForPlant(plantId) } returns flowOf(careLogs)
         every { careLogRepo.getPhotoLogsForPlant(plantId) } returns flowOf(emptyList())
         every { plantPhotoRepo.getPhotosForPlant(plantId) } returns flowOf(emptyList())
         every { customReminderRepo.getRemindersForPlant(plantId) } returns flowOf(emptyList())
@@ -198,5 +205,32 @@ class PlantDetailViewModelPlantIssueTest {
             assertEquals(listOf(issue), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `resolvedIssueHistory builds entries with linked treatments`() = runTest {
+        every { plantRepo.getPlantById(1L) } returns flowOf(plant())
+        val resolved = PlantIssue(
+            id = 6L,
+            plantId = 1L,
+            name = "Thrips",
+            startedAt = 1_000L,
+            resolvedAt = 2_000L,
+            linkedReminderId = 30L
+        )
+        val treatment = CareLog(
+            id = 9L,
+            plantId = 1L,
+            careType = CareType.CUSTOM,
+            loggedAt = 1_500L,
+            customReminderId = 30L
+        )
+        every { plantIssueRepo.getResolvedIssuesForPlant(1L) } returns flowOf(listOf(resolved))
+        val vm = makeVm(careLogs = listOf(treatment))
+
+        val entries = vm.resolvedIssueHistory.first { it.isNotEmpty() }
+
+        assertEquals(listOf(resolved), entries.map { it.issue })
+        assertEquals(listOf(treatment), entries.single().treatments)
     }
 }

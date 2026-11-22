@@ -17,6 +17,10 @@ class PlantIssueRepository(private val plantIssueDao: PlantIssueDao) {
     fun getActiveIssuesForPlant(plantId: Long): Flow<List<PlantIssue>> =
         plantIssueDao.getActiveIssuesForPlant(plantId).map { list -> list.map { it.toDomain() } }
 
+    /** Resolved issues for the Plant Detail history (#1000), most recently resolved first. */
+    fun getResolvedIssuesForPlant(plantId: Long): Flow<List<PlantIssue>> =
+        plantIssueDao.getResolvedIssuesForPlant(plantId).map { list -> list.map { it.toDomain() } }
+
     suspend fun getActiveIssueCountForPlant(plantId: Long): Int =
         plantIssueDao.getActiveIssueCountForPlant(plantId)
 

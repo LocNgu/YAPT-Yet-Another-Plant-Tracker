@@ -31,14 +31,15 @@ fun PhotoGallery(
     photoUris: List<String>,
     onPhotoClick: (String) -> Unit,
     coverUri: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp)
 ) {
     if (photoUris.isEmpty()) return
 
     LazyRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
+        contentPadding = contentPadding
     ) {
         items(photoUris, key = { it }) { uri ->
             val isCover = uri == coverUri

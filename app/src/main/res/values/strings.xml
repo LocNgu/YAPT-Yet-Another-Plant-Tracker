@@ -365,6 +365,24 @@
     <string name="plant_issue_resolve_confirm">Mark "%1$s" as resolved. The linked reminder (if any) keeps running independently.</string>
     <string name="plant_issue_resolution_note_label">Resolution note (optional)</string>
     <string name="plant_issue_resolve_action">Mark resolved</string>
+    <string name="plant_issues_resolved_section">Resolved (%1$d)</string>
+    <string name="plant_issues_resolved_expand">Show resolved issues</string>
+    <string name="plant_issues_resolved_collapse">Hide resolved issues</string>
+    <string name="plant_issues_resolved_state_expanded">Expanded</string>
+    <string name="plant_issues_resolved_state_collapsed">Collapsed</string>
+    <plurals name="plant_issue_resolved_duration">
+        <item quantity="one">Lasted 1 day · resolved %2$s</item>
+        <item quantity="other">Lasted %1$d days · resolved %2$s</item>
+    </plurals>
+    <string name="plant_issue_resolution_note">Note: %1$s</string>
+    <plurals name="plant_issue_treatments_header">
+        <item quantity="one">1 treatment</item>
+        <item quantity="other">%d treatments</item>
+    </plurals>
+    <string name="plant_issue_treatment_row">• %1$s</string>
+    <string name="plant_issue_treatment_row_with_note">• %1$s · %2$s</string>
+    <string name="plant_issue_photos_before">Before</string>
+    <string name="plant_issue_photos_during">During</string>
     <plurals name="cd_plant_card_active_issues">
         <item quantity="one">1 active issue</item>
         <item quantity="other">%d active issues</item>

@@ -23,6 +23,11 @@ interface PlantIssueDao {
     )
     fun getActiveIssuesForPlant(plantId: Long): Flow<List<PlantIssueEntity>>
 
+    @Query(
+        "SELECT * FROM plant_issues WHERE plantId = :plantId AND resolvedAt IS NOT NULL ORDER BY resolvedAt DESC"
+    )
+    fun getResolvedIssuesForPlant(plantId: Long): Flow<List<PlantIssueEntity>>
+
     @Query("SELECT COUNT(*) FROM plant_issues WHERE plantId = :plantId AND resolvedAt IS NULL")
     suspend fun getActiveIssueCountForPlant(plantId: Long): Int
 

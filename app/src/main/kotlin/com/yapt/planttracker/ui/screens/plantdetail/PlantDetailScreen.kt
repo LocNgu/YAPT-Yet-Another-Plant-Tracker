@@ -1312,6 +1312,20 @@ fun PlantDetailScreen(
                                 )
                                 Spacer(Modifier.height(16.dp))
                             }
+                            item {
+                                // Collected only here so other tabs never subscribe to the resolved-issue query (#1000).
+                                val resolvedIssues by viewModel.resolvedIssueHistory.collectAsStateWithLifecycle()
+                                if (resolvedIssues.isNotEmpty()) {
+                                    ResolvedIssuesCard(
+                                        entries = resolvedIssues,
+                                        onPhotoClick = { uri ->
+                                            fullScreenPhotoIndex =
+                                                galleryPhotos.indexOfFirst { it.uri == uri }.takeIf { it >= 0 }
+                                        }
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                            }
                         }
                     }
                 }

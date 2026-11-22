@@ -18,6 +18,9 @@ object WhatsNewContent {
             "Adding a plant now takes four short steps: name, photo, care, review; " +
                 "rare settings sit under More options",
             "Add Plant has short intros, and the rarer settings have an (i) icon that explains them"
+        ),
+        added = listOf(
+            "Resolved plant issues stay on the Issues tab with how long they lasted, notes, treatments and photos"
         )
     )
 

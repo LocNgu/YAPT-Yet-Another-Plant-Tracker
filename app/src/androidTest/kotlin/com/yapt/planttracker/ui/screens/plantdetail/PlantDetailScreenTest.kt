@@ -75,6 +75,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -156,6 +157,7 @@ class PlantDetailScreenTest {
 
     private val mockPlantIssueRepo: PlantIssueRepository = mockk<PlantIssueRepository>().also {
         every { it.getActiveIssuesForPlant(any()) } returns flowOf(emptyList())
+        every { it.getResolvedIssuesForPlant(any()) } returns flowOf(emptyList())
     }
 
     /**
@@ -3303,7 +3305,9 @@ class PlantDetailScreenTest {
         val state = MutableStateFlow(initial)
         var nextId = (initial.maxOfOrNull { it.id } ?: 0L) + 1
         val repo = mockk<PlantIssueRepository>()
-        every { repo.getActiveIssuesForPlant(any()) } returns state
+        every { repo.getActiveIssuesForPlant(any()) } returns state.map { all -> all.filter { it.resolvedAt == null } }
+        every { repo.getResolvedIssuesForPlant(any()) } returns
+            state.map { all -> all.filter { it.resolvedAt != null }.sortedByDescending { it.resolvedAt } }
         coEvery { repo.addIssue(any()) } answers {
             val issue = (it.invocation.args[0] as PlantIssue).copy(id = nextId++)
             state.value = state.value + issue
@@ -3311,11 +3315,7 @@ class PlantDetailScreenTest {
         }
         coEvery { repo.updateIssue(any()) } answers {
             val updated = it.invocation.args[0] as PlantIssue
-            state.value = if (updated.resolvedAt != null) {
-                state.value.filterNot { existing -> existing.id == updated.id }
-            } else {
-                state.value.map { existing -> if (existing.id == updated.id) updated else existing }
-            }
+            state.value = state.value.map { existing -> if (existing.id == updated.id) updated else existing }
         }
         return repo
     }
@@ -3614,7 +3614,116 @@ class PlantDetailScreenTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false).isEmpty()
         }
         composeTestRule.onNodeWithText(plantIssuesEmptyLabel()).assertIsDisplayed()
+
+        // #1000: the resolved issue moves into the collapsed "Resolved" history instead of vanishing.
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(resolvedSectionLabel(1)))
+        composeTestRule.onNodeWithText(resolvedSectionLabel(1)).assertIsDisplayed()
     }
+
+    @Test
+    fun resolvedIssues_noneResolved_showsNoResolvedSection() {
+        val plant = Plant(id = 64L, name = "Cactus", createdAt = 0L, updatedAt = 0L)
+        val active = PlantIssue(id = 5L, plantId = 64L, name = "Thrips")
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            plantIssueRepo = reactivePlantIssueRepo(listOf(active))
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.ISSUES
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText("Thrips"))
+        composeTestRule.onNodeWithText("Thrips").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText(resolvedSectionLabel(0)).assertCountEquals(0)
+        composeTestRule.onAllNodesWithText(resolvedSectionLabel(1)).assertCountEquals(0)
+    }
+
+    @Test
+    fun resolvedIssues_expand_showsDurationNoteAndTreatments() {
+        val plant = Plant(id = 65L, name = "Calathea", createdAt = 0L, updatedAt = 0L)
+        val zone = ZoneId.systemDefault()
+        val startedAt = LocalDate.of(2026, 3, 1).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+        val resolvedAt = LocalDate.of(2026, 3, 15).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+        val treatedAt = LocalDate.of(2026, 3, 5).atTime(12, 0).atZone(zone).toInstant().toEpochMilli()
+        val resolved = PlantIssue(
+            id = 6L,
+            plantId = 65L,
+            name = "Spider mites",
+            startedAt = startedAt,
+            resolvedAt = resolvedAt,
+            resolutionNote = "Neem oil worked",
+            linkedReminderId = 30L
+        )
+        val treatment = CareLog(
+            id = 70L,
+            plantId = 65L,
+            careType = CareType.CUSTOM,
+            loggedAt = treatedAt,
+            notes = "Sprayed leaves",
+            customReminderId = 30L
+        )
+        val viewModel = makeViewModelWithReminderRepo(
+            plant,
+            reactiveCustomReminderRepo(),
+            careLogRepo = mockk<CareLogRepository>().also {
+                every { it.getLogsForPlant(plant.id) } returns flowOf(listOf(treatment))
+                every { it.getPhotoLogsForPlant(plant.id) } returns flowOf(emptyList())
+                coEvery { it.getLastWateringBefore(any(), any()) } returns null
+            },
+            plantIssueRepo = reactivePlantIssueRepo(listOf(resolved))
+        )
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.ISSUES
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(resolvedSectionLabel(1)))
+        // Collapsed by default: the resolved issue itself isn't shown yet.
+        composeTestRule.onAllNodesWithText("Spider mites").assertCountEquals(0)
+        composeTestRule.onNodeWithText(resolvedSectionLabel(1)).performClick()
+
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val duration = context.resources.getQuantityString(
+            R.plurals.plant_issue_resolved_duration,
+            14,
+            14,
+            DateUtils.formatDate(resolvedAt)
+        )
+        val treatmentRow = context.getString(
+            R.string.plant_issue_treatment_row_with_note,
+            DateUtils.formatDate(treatedAt),
+            "Sprayed leaves"
+        )
+        listOf(
+            "Spider mites",
+            duration,
+            context.getString(R.string.plant_issue_resolution_note, "Neem oil worked"),
+            context.resources.getQuantityString(R.plurals.plant_issue_treatments_header, 1, 1),
+            treatmentRow
+        ).forEach { text ->
+            composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG).performScrollToNode(hasText(text))
+            composeTestRule.onNodeWithText(text).assertIsDisplayed()
+        }
+    }
+
+    private fun resolvedSectionLabel(count: Int): String = InstrumentationRegistry.getInstrumentation().targetContext
+        .getString(R.string.plant_issues_resolved_section, count)
 
     private fun seasonalCurveTodayDaysText(days: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext
