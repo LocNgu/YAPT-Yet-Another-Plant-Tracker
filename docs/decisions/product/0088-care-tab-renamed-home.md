@@ -17,7 +17,7 @@ tab of the same name.
   (e.g. the hide-plant hints). Descriptive uses ("care due", "care queue", care types, reminder notifications)
   keep "care".
 - The tab icon is `Icons.Filled.Home` when selected and `Icons.Outlined.Home` when not, replacing the checklist.
-- Plant Detail's "Home" tab is renamed **Overview** (label, content description, attention-badge description).
+- Plant Detail's "Home" tab is renamed **Overview** (its tab label, which TalkBack also reads).
 - Internal identifiers keep their names: `Screen.Today`, route `today`, `Today*` classes, string resource names,
   `PlantDetailTab.HOME`.
 - Past What's New entries stay as written; only the `unreleased` bullet announces the rename.
