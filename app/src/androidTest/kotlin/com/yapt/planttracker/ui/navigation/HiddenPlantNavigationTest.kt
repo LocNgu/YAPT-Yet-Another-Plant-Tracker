@@ -28,7 +28,7 @@ class HiddenPlantNavigationTest {
         composeTestRule.setContent {
             navController = rememberNavController()
             NavHost(navController = navController, startDestination = Screen.Today.route) {
-                composable(Screen.Today.route) { Text("Care") }
+                composable(Screen.Today.route) { Text("Home") }
                 composable(
                     route = Screen.PlantList.route,
                     arguments = listOf(

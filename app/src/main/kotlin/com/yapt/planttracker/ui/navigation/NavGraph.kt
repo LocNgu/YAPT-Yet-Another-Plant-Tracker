@@ -6,9 +6,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -144,11 +145,12 @@ private data class BottomTab(
     val screenRoute: String,
     val navigateRoute: String,
     val icon: ImageVector,
-    @StringRes val labelRes: Int
+    @StringRes val labelRes: Int,
+    val unselectedIcon: ImageVector = icon
 )
 
 private val bottomTabs = listOf(
-    BottomTab(Screen.Today.route, Screen.Today.route, Icons.Filled.Checklist, R.string.nav_tab_today),
+    BottomTab(Screen.Today.route, Screen.Today.route, Icons.Filled.Home, R.string.nav_tab_today, Icons.Outlined.Home),
     BottomTab(
         Screen.PlantList.route,
         Screen.PlantList.createRoute(),
@@ -174,7 +176,12 @@ internal fun YaptBottomNavigationBar(
                 selected = currentRoute == tab.screenRoute,
                 enabled = enabled,
                 onClick = { onNavigate(tab.navigateRoute) },
-                icon = { Icon(tab.icon, contentDescription = null) },
+                icon = {
+                    Icon(
+                        if (currentRoute == tab.screenRoute) tab.icon else tab.unselectedIcon,
+                        contentDescription = null
+                    )
+                },
                 label = { Text(stringResource(tab.labelRes)) }
             )
         }

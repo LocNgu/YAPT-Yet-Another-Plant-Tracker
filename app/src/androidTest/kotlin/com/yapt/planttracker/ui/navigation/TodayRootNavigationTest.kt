@@ -65,16 +65,16 @@ class TodayRootNavigationTest {
     fun careIsTheStartDestinationAndRestoresScrollAcrossRootSwitches() {
         composeTestRule.setContent { YaptNavGraph(application) }
 
-        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
+        composeTestRule.onNode(hasText("Home").and(hasClickAction())).assertIsSelected()
         composeTestRule.onNodeWithTag(TODAY_TASK_LIST_TAG).performScrollToNode(hasText("Plant 23"))
         composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
 
         composeTestRule.onNode(hasText("Calendar").and(hasClickAction())).performClick()
         composeTestRule.onNode(hasText("Plants").and(hasClickAction())).performClick()
         composeTestRule.onNode(hasText("Plants").and(hasClickAction())).assertIsSelected()
-        composeTestRule.onNode(hasText("Care").and(hasClickAction())).performClick()
+        composeTestRule.onNode(hasText("Home").and(hasClickAction())).performClick()
 
-        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertIsSelected()
+        composeTestRule.onNode(hasText("Home").and(hasClickAction())).assertIsSelected()
         composeTestRule.onNodeWithText("Plant 23").assertIsDisplayed()
     }
 
@@ -87,7 +87,7 @@ class TodayRootNavigationTest {
         composeTestRule.onNodeWithContentDescription("Back").assertDoesNotExist()
 
         composeTestRule.onNodeWithText("Plant Graveyard").performScrollTo().performClick()
-        composeTestRule.onNode(hasText("Care").and(hasClickAction())).assertDoesNotExist()
+        composeTestRule.onNode(hasText("Home").and(hasClickAction())).assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Back").performClick()
 
         composeTestRule.onNode(hasText("Settings").and(hasClickAction())).assertIsSelected()

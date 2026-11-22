@@ -1,5 +1,5 @@
 ---
-description: "Care tab (internal name Today) — queue aggregation, grid, sections, tile actions"
+description: "Home tab (formerly Care; internal name Today) — queue aggregation, grid, sections, tile actions"
 paths:
   - "app/src/main/kotlin/com/yapt/planttracker/ui/screens/today/**/*"
   - "app/src/main/kotlin/com/yapt/planttracker/domain/today/**/*"
@@ -11,7 +11,7 @@ paths:
 
 # Care queue (product ADR-0054, product ADR-0056, product ADR-0069, product ADR-0071)
 
-User-facing name **Care**; internal identifiers keep "Today".
+User-facing name **Home** (renamed from Care, product ADR-0088); internal identifiers keep "Today".
 
 ## Aggregation (`TodayQueueAggregator`, pure)
 - **The only source of Care tasks.** `TodayCareRepository.observeQueue()` combines the live repositories, settings and `dayChangeTicker()` and delegates to it. UI code never derives due tasks.
@@ -35,7 +35,7 @@ User-facing name **Care**; internal identifiers keep "Today".
 - **Tiles:** no due-date text and no overdue styling (#842). The content description always names the plant and the task. A REPOT plan tile's second line is "Planned for spring".
 - **Tap:** opens Plant Detail on the matching tab via the `tab` route arg (`TodayCareKind.plantDetailTab()`; combined → Fertilize; #843).
 - **Long-press:** opens a `DropdownMenu` of that kind's actions only (`careMenuActions()` in `CareMenuAction.kt`), mirrored as semantics `customActions` + `onLongClickLabel`. Each entry calls the existing `TodayViewModel` handler/prompt. Never add inline buttons back or reimplement a prompt. **Water** and **Water & fertilize** (#838, product ADR-0067) open the shared "Log watering" date picker (`LogWateringDatePickerDialog`, with the optional "Soil was already too dry" tick) instead of logging at once; confirming calls `QuickLogUseCase.wateringGateFacts()` and the shared `evaluateWateringGate()` from `WateringReasonGate.kt`, then `TodayViewModel.completeWater`/`completeFertilizing(taskId, reason, loggedAt)` or the reason sheet. The picker task id, the reason sheet's task id, its `loggedAt` and its gap direction are `rememberSaveable` in `TodayScreen`. Never reimplement the gate here.
-- **No bulk completion or selection on Care** (#842): the bottom bar never hides for Care (`shouldShowBottomNavigation()` takes only Plant List's selection flag), and there is no plant-grouped layout or flag. `completeCustomReminder()` (single Mark done) and Plant List's `bulkLog()` remain.
-- **Reminder photos:** Care, Plant List and Calendar all save them through the one transactional `QuickLogUseCase.saveReminderPhoto()`.
-- **Back stack:** Care is the start destination, so Plants may not be on the back stack. Never call `getBackStackEntry(Screen.PlantList.route)` unguarded (#836).
+- **No bulk completion or selection on Home** (#842): the bottom bar never hides for Home (`shouldShowBottomNavigation()` takes only Plant List's selection flag), and there is no plant-grouped layout or flag. `completeCustomReminder()` (single Mark done) and Plant List's `bulkLog()` remain.
+- **Reminder photos:** Home, Plant List and Calendar all save them through the one transactional `QuickLogUseCase.saveReminderPhoto()`.
+- **Back stack:** Home is the start destination, so Plants may not be on the back stack. Never call `getBackStackEntry(Screen.PlantList.route)` unguarded (#836).
 - **Tests:** `TodayQueueAggregatorWateredTodayTest` (list rules, order, rollover, horizon independence, `hasTasksDueNow`), a rollover case with an injected `MutableSharedFlow<LocalDate>` ticker in `TodayCareRepositoryTest`, and `WateredTodayLayoutTest` (placement index, pixel slot width, photo count) are JVM tests; the Compose cases are in `TodayScreenTest`, `TodayCareGridStickyHeaderTest` and `WateredTodayRowTest` (custom `Density`, row widths whose pixel remainder mod 6 is 4 or 5, asserting the "+N" circle and the sixth photo share the first photo's top). Many-group Compose tests use a viewport taller than the window (`tall = true` in `TodayScreenTest`) so lazy items compose without scrolling, then assert existence/order only. Sticky-header behaviour (pinning, hand-over, collapse + scroll) is tested in `TodayCareGridStickyHeaderTest` with a normal-height viewport and `performScrollToIndex`; the banner/pinned-header position case lives in `AwayModeBannerTest`.

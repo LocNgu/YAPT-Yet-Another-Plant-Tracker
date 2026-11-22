@@ -215,7 +215,7 @@ class NavGraphIntegrationTest {
 
     private companion object {
         const val FERN = "Fern"
-        const val CARE = "Care"
+        const val CARE = "Home"
         const val PLANTS = "Plants"
         const val BACK = "Back"
         const val EMPTY_CARED_TODAY = "No plants cared for yet today"
