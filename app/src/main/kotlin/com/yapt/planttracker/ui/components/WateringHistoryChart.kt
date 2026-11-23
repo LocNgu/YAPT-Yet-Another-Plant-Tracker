@@ -61,6 +61,7 @@ import com.yapt.planttracker.domain.model.CareLog
 import com.yapt.planttracker.domain.model.CareType
 import com.yapt.planttracker.ui.util.icon
 import com.yapt.planttracker.ui.util.labelRes
+import com.yapt.planttracker.util.DateUtils
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -72,7 +73,6 @@ import kotlin.math.roundToInt
 private const val DAY_IN_MS = 24L * 60 * 60 * 1000
 private const val DATE_FORMAT_MONTH = "MMM"
 private const val DATE_FORMAT_MONTH_YEAR = "MMM yy"
-private const val DATE_FORMAT_MONTH_DAY_YEAR = "MMM d, yyyy"
 private val MonthLabelsKey = ExtraStore.Key<Map<Int, String>>()
 private val CareMarkersKey = ExtraStore.Key<List<CareEventMarker>>()
 private val WaterPointsKey = ExtraStore.Key<List<WaterDataPoint>>()
@@ -537,8 +537,7 @@ private fun ChartContent(
 @Composable
 private fun EventMarkerDialog(marker: DrawnMarkerInfo, onDismiss: () -> Unit) {
     val datesText = remember(marker.timestamps) {
-        val fmt = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_DAY_YEAR).withZone(ZoneId.systemDefault())
-        marker.timestamps.sorted().joinToString("\n") { fmt.format(Instant.ofEpochMilli(it)) }
+        marker.timestamps.sorted().joinToString("\n") { DateUtils.formatDate(it) }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -560,9 +559,7 @@ private fun ChartLegend(intervals: List<WateringInterval>) {
     ) {
         if (intervals.isNotEmpty()) {
             val lastInterval = intervals.last()
-            val dateFormatter = DateTimeFormatter.ofPattern(DATE_FORMAT_MONTH_DAY_YEAR)
-                .withZone(ZoneId.systemDefault())
-            val dateStr = dateFormatter.format(Instant.ofEpochMilli(lastInterval.timestamp))
+            val dateStr = DateUtils.formatDate(lastInterval.timestamp)
 
             Text(
                 text = stringResource(R.string.last_watering, dateStr),

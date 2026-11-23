@@ -75,6 +75,7 @@ import com.yapt.planttracker.ui.components.PlantPhoto
 import com.yapt.planttracker.ui.components.QuickLogButtons
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
+import com.yapt.planttracker.util.DateUtils
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -326,7 +327,9 @@ private fun CalendarMonthHeader(
             )
         }
         Text(
-            text = visibleYearMonth.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy", locale)),
+            text = visibleYearMonth.atDay(1).format(
+                DateTimeFormatter.ofPattern(DateUtils.localizedPattern("yMMMM", locale), locale)
+            ),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -415,7 +418,7 @@ private fun CalendarDaySheet(
             val title = if (day == today) {
                 stringResource(R.string.date_group_today)
             } else {
-                day.format(DateTimeFormatter.ofPattern("EEEE, MMM d", locale))
+                day.format(DateTimeFormatter.ofPattern(DateUtils.localizedPattern("EEEEMMMd", locale), locale))
             }
             Text(
                 text = title,

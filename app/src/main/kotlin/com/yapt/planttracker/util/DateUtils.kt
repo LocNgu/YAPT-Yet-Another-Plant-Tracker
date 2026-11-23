@@ -1,5 +1,6 @@
 package com.yapt.planttracker.util
 
+import android.text.format.DateFormat
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -58,29 +59,42 @@ object DateUtils {
             days == 0L -> RelativeDate.Today
             days == 1L -> RelativeDate.Yesterday
             maxRelativeDays == null || days <= maxRelativeDays -> RelativeDate.DaysAgo(days)
-            else -> RelativeDate.ExactDate(
-                SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestampMs))
-            )
+            else -> RelativeDate.ExactDate(formatDate(timestampMs))
         }
     }
 
-    fun formatCountdown(dueAtMs: Long, now: Long = System.currentTimeMillis()): String {
+    /** Calendar-day distance to a due date; rendered from resources by `countdownText()` (#1005). */
+    sealed interface Countdown {
+        data class Overdue(val days: Long) : Countdown
+        data object DueToday : Countdown
+        data class InDays(val days: Long) : Countdown
+    }
+
+    fun countdown(dueAtMs: Long, now: Long = System.currentTimeMillis()): Countdown {
         val diffDays = ChronoUnit.DAYS.between(now.toLocalDate(), dueAtMs.toLocalDate())
         return when {
-            diffDays < 0 -> "Overdue by ${-diffDays} day${if (-diffDays == 1L) "" else "s"}"
-            diffDays == 0L -> "Due today"
-            else -> "In $diffDays day${if (diffDays == 1L) "" else "s"}"
+            diffDays < 0 -> Countdown.Overdue(-diffDays)
+            diffDays == 0L -> Countdown.DueToday
+            else -> Countdown.InDays(diffDays)
         }
     }
 
+    /**
+     * The locale's own field order and punctuation for a date [skeleton] (e.g. `yMMMd` is
+     * "Oct 30, 2023" in English, "30. Okt. 2023" in German). Never hardcode an English-ordered
+     * pattern such as `MMM d, yyyy` for user-visible dates (#1005).
+     */
+    fun localizedPattern(skeleton: String, locale: Locale = Locale.getDefault()): String =
+        DateFormat.getBestDateTimePattern(locale, skeleton)
+
     fun formatDate(timestampMs: Long): String =
-        SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestampMs))
+        SimpleDateFormat(localizedPattern("yMMMd"), Locale.getDefault()).format(Date(timestampMs))
 
     fun formatTime(timestampMs: Long): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestampMs))
 
     fun formatMonthYear(timestampMs: Long): String =
-        SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date(timestampMs))
+        SimpleDateFormat(localizedPattern("yMMMM"), Locale.getDefault()).format(Date(timestampMs))
 
     fun formatHourMinute(hour: Int, minute: Int): String =
         String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
@@ -99,6 +113,6 @@ object DateUtils {
 
     fun formatWeekdayDate(epochDay: Long): String {
         val timestampMs = LocalDate.ofEpochDay(epochDay).toStartOfDayMillis()
-        return SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(timestampMs))
+        return SimpleDateFormat(localizedPattern("EEEMMMd"), Locale.getDefault()).format(Date(timestampMs))
     }
 }

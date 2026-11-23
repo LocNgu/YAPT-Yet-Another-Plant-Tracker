@@ -1161,4 +1161,14 @@
     <string name="add_plant_discard_message">What you entered so far will be lost.</string>
     <string name="add_plant_discard_confirm">Discard</string>
     <string name="add_plant_discard_keep_editing">Keep editing</string>
+    <!-- Due-date countdown on plant cards and custom reminders (#1005) -->
+    <string name="countdown_due_today">Due today</string>
+    <plurals name="countdown_overdue_by_days">
+        <item quantity="one">Overdue by %1$d day</item>
+        <item quantity="other">Overdue by %1$d days</item>
+    </plurals>
+    <plurals name="countdown_in_days">
+        <item quantity="one">In %1$d day</item>
+        <item quantity="other">In %1$d days</item>
+    </plurals>
 </resources>

@@ -1,0 +1,1145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">YAPT</string>
+    <string name="my_plants">Meine Pflanzen</string>
+    <string name="add_plant">Pflanze hinzufügen</string>
+    <string name="edit_plant">Pflanze bearbeiten</string>
+    <string name="plant_name">Pflanzenname *</string>
+    <string name="species">Art</string>
+    <string name="location">Standort / Raum</string>
+    <string name="notes">Notizen</string>
+    <string name="watering_every">Gießen alle</string>
+    <string name="fertilizing_every">Düngen alle</string>
+    <string name="days">Tage</string>
+    <string name="care_history">Pflegeverlauf</string>
+    <string name="settings">Einstellungen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="delete">Löschen</string>
+    <string name="archive_plant">Auf den Friedhof</string>
+    <string name="archive_plant_confirm">Diese Pflanze kommt auf den Pflanzenfriedhof. Du kannst sie später in den Einstellungen wiederherstellen.</string>
+    <string name="move_to_graveyard">Auf den Friedhof</string>
+    <string name="save">Speichern</string>
+    <string name="notifications_enabled">Erinnerungen aktivieren</string>
+    <string name="reminder_time">Tägliche Erinnerungszeit</string>
+    <string name="reminder_time_dialog_title">Erinnerungszeit festlegen</string>
+    <string name="ok">OK</string>
+    <string name="no_plants_yet">Noch keine Pflanzen!\nTippe auf +, um deine erste Pflanze hinzuzufügen.</string>
+    <string name="no_plants_all_hidden">Alle deine Pflanzen sind ausgeblendet.\nDu findest sie unter Einstellungen → Ausgeblendete Pflanzen.</string>
+    <string name="no_care_logs">Noch keine Pflege eingetragen.\nTippe unten auf die Schaltfläche, um deinen ersten Pflegeeintrag zu erfassen.</string>
+    <string name="channel_name">Pflegeerinnerungen</string>
+    <string name="channel_description">Erinnerungen zum Gießen und Pflegen deiner Pflanzen</string>
+    <string name="keep_screen_on">Bildschirm anlassen</string>
+    <string name="keep_screen_on_subtitle">Der Bildschirm bleibt an, solange die App geöffnet ist</string>
+    <string name="settings_section_appearance">Darstellung</string>
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Hell</string>
+    <string name="theme_mode_dark">Dunkel</string>
+    <string name="watering_history">Gießverlauf</string>
+    <string name="insufficient_watering_logs">Für den Gießverlauf sind mindestens 2 Gießeinträge nötig.</string>
+    <string name="days_between_waterings">Tage zwischen dem Gießen</string>
+    <string name="last_watering">Zuletzt gegossen: %s</string>
+    <string name="average_interval">Durchschnittliches Intervall: %.1f Tage</string>
+    <string name="time_range_1m">1 M</string>
+    <string name="time_range_3m">3 M</string>
+    <string name="time_range_6m">6 M</string>
+    <string name="time_range_12m">12 M</string>
+    <string name="time_range_all">Alle</string>
+    <string name="backup_section_title">Backup &amp; Wiederherstellung</string>
+    <string name="backup_export_dialog_title">Backup exportieren</string>
+    <string name="backup_export_dialog_text">Erstelle ein Backup aller deiner Pflanzen und Pflegeeinträge.</string>
+    <string name="backup_include_photos">Fotos einschließen</string>
+    <string name="backup_optimize_photos">Fotos für ein kleineres Backup optimieren</string>
+    <string name="backup_export_confirm_button">Exportieren</string>
+    <string name="backup_restore_dialog_title">Backup wiederherstellen</string>
+    <string name="backup_restore_dialog_text">Dadurch werden alle aktuellen Daten ersetzt. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="backup_restore_confirm_button">Wiederherstellen</string>
+    <string name="backup_future_schema_title">Neuere Backup-Version</string>
+    <string name="backup_future_schema_text">Dieses Backup wurde mit einer neueren Version von YAPT erstellt (Schema v%d). Einige Daten werden möglicherweise nicht wiederhergestellt.</string>
+    <string name="backup_proceed_button">Fortfahren</string>
+    <string name="backup_export_item_title">Backup exportieren</string>
+    <string name="backup_export_item_subtitle">Eine .yapt-Datei auf dem Gerät speichern</string>
+    <string name="backup_restore_item_title">Aus Backup wiederherstellen</string>
+    <string name="backup_restore_item_subtitle">Alle Daten aus einer .yapt-Datei ersetzen</string>
+    <string name="backup_export_success">Backup gespeichert (%1$d Pflanzen, %2$d Einträge)</string>
+    <plurals name="backup_export_success_with_skipped_photos">
+        <item quantity="one">Backup gespeichert (%1$d Pflanzen, %2$d Einträge) · 1 Foto übersprungen</item>
+        <item quantity="other">Backup gespeichert (%1$d Pflanzen, %2$d Einträge) · %3$d Fotos übersprungen</item>
+    </plurals>
+    <string name="backup_error">Fehler: %s</string>
+    <string name="auto_backup_title">Automatische Backups</string>
+    <string name="auto_backup_folder_title">Backup-Ordner</string>
+    <string name="auto_backup_folder_none">Kein Ordner ausgewählt</string>
+    <string name="auto_backup_frequency_title">Wie oft</string>
+    <string name="auto_backup_frequency_daily">Täglich</string>
+    <string name="auto_backup_frequency_weekly">Wöchentlich</string>
+    <string name="auto_backup_retention_title">Die letzten behalten</string>
+    <plurals name="auto_backup_retention_option">
+        <item quantity="one">%d Backup</item>
+        <item quantity="other">%d Backups</item>
+    </plurals>
+    <string name="auto_backup_status_off">Aus</string>
+    <string name="auto_backup_status_waiting">An, wartet auf das erste Backup</string>
+    <string name="auto_backup_status_folder_unavailable">Ordner nicht verfügbar, bitte erneut auswählen</string>
+    <string name="auto_backup_status_failed">Letztes Backup fehlgeschlagen, neuer Versuch folgt</string>
+    <string name="auto_backup_status_failed_storage">Letztes Backup fehlgeschlagen: nicht genug Speicherplatz</string>
+    <string name="auto_backup_status_success">Letztes Backup: %s</string>
+    <plurals name="auto_backup_status_success_skipped">
+        <item quantity="one">Letztes Backup: %1$s (%2$d Foto übersprungen)</item>
+        <item quantity="other">Letztes Backup: %1$s (%2$d Fotos übersprungen)</item>
+    </plurals>
+    <string name="auto_backup_channel_name">Automatische Backups</string>
+    <string name="auto_backup_progress_channel_name">Backup läuft</string>
+    <string name="auto_backup_progress_title">Backup wird erstellt…</string>
+    <string name="auto_backup_progress_body">Deine Pflanzen werden in deinem Backup-Ordner gespeichert</string>
+    <string name="auto_backup_notification_title">Problem beim automatischen Backup</string>
+    <string name="auto_backup_notification_folder_body">YAPT erreicht deinen Backup-Ordner nicht mehr. Öffne die Einstellungen und wähle ihn erneut aus.</string>
+    <string name="auto_backup_notification_failed_body">Die letzten automatischen Backups sind fehlgeschlagen. Details findest du in den Einstellungen.</string>
+    <string name="backup_in_progress_title">Bitte warten…</string>
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_section_reminders">Erinnerungen</string>
+    <string name="settings_notifications_subtitle">Benachrichtigung, wenn Pflanzen Pflege brauchen</string>
+    <string name="post_watering_reminder_title">Erinnerung ans Abgießen</string>
+    <string name="post_watering_reminder_subtitle">30 Minuten nach dem Gießen erinnern, die Untersetzer zu leeren</string>
+    <string name="settings_section_seasonal_watering">Saisonales Gießen</string>
+    <string name="seasonal_amplitude_subtitle">Wie stark sich die Gießintervalle im Winter dehnen und im Sommer verkürzen</string>
+    <string name="seasonal_amplitude_off">Aus</string>
+    <string name="seasonal_amplitude_mild">Mild</string>
+    <string name="seasonal_amplitude_standard">Standard</string>
+    <string name="seasonal_amplitude_strong">Stark</string>
+    <string name="seasonal_curve_title">Saisonale Gießkurve</string>
+    <string name="seasonal_curve_range">Spanne im Jahresverlauf: %1$.2f× – %2$.2f×</string>
+    <string name="seasonal_curve_today">Heute: %1$.2f×</string>
+    <string name="seasonal_curve_range_days">Spanne im Jahresverlauf: %1$d T – %2$d T</string>
+    <string name="seasonal_curve_today_days">Heute: %1$d T</string>
+    <string name="seasonal_curve_hemisphere_caption">Basierend auf der Zeitzone deines Geräts — %1$s, Höhepunkt im %2$s</string>
+    <string name="seasonal_curve_hemisphere_northern">Nordhalbkugel</string>
+    <string name="seasonal_curve_hemisphere_southern">Südhalbkugel</string>
+    <string name="seasonal_curve_pinned_note">Fixiert — das Intervall dieser Pflanze folgt nicht der saisonalen Kurve</string>
+    <string name="settings_section_display">Anzeige</string>
+    <string name="settings_section_overviews">Übersichten</string>
+    <string name="graveyard_settings_title">Pflanzenfriedhof</string>
+    <string name="settings_section_about">Über</string>
+    <string name="settings_about_app_name">YAPT – Yet Another Plant Tracker</string>
+    <string name="settings_about_version">Version %s · Offline-first · Keine Datenerfassung</string>
+    <string name="whats_new_got_it">Verstanden</string>
+    <string name="whats_new_section_added">Neu</string>
+    <string name="whats_new_section_fixed">Behoben</string>
+    <string name="whats_new_section_changed">Geändert</string>
+    <string name="whats_new_release_state_expanded">Aufgeklappt</string>
+    <string name="whats_new_release_state_collapsed">Zugeklappt</string>
+    <string name="whats_new_release_expand_action">Aufklappen</string>
+    <string name="whats_new_release_collapse_action">Zuklappen</string>
+    <string name="settings_whats_new_title">Neuigkeiten</string>
+    <string name="settings_whats_new_subtitle">Versionsverlauf ansehen</string>
+    <string name="reschedule_watering_title">Gießen verschieben</string>
+    <string name="reschedule_watering_today">Heute</string>
+    <string name="reschedule_watering_option_date">%1$s · %2$s</string>
+    <plurals name="reschedule_watering_plus_days">
+        <item quantity="one">+1 Tag</item>
+        <item quantity="other">+%d Tage</item>
+    </plurals>
+    <string name="reschedule_watering_custom_date">Eigenes Datum…</string>
+    <plurals name="watering_reschedule_delta_days">
+        <item quantity="one">Um 1 Tag verschoben</item>
+        <item quantity="other">Um %d Tage verschoben</item>
+    </plurals>
+    <string name="reschedule_reverted_snackbar">Verschieben rückgängig gemacht</string>
+    <string name="watering_due_action_water">Gießen</string>
+    <string name="water_fertilize_combined_button">Gießen + Düngen</string>
+    <string name="water_reason_question">Warum jetzt?</string>
+    <string name="water_reason_plant_needed_it">Die Pflanze brauchte es</string>
+    <string name="water_reason_just_my_timing">Nur mein Zeitplan</string>
+    <string name="water_reason_question_late">Warum so spät?</string>
+    <string name="water_reason_soil_still_moist_late">Die Erde war noch feucht</string>
+    <string name="water_reason_just_my_timing_late">Vergessen oder keine Zeit</string>
+    <string name="soil_too_dry_option">Die Erde war schon zu trocken</string>
+    <string name="notification_check_title">%s prüfen</string>
+    <string name="notification_action_watered">Gegossen</string>
+    <string name="notification_action_not_now">Nicht jetzt</string>
+    <string name="post_watering_notification_title">Auf Staunässe prüfen</string>
+    <string name="post_watering_notification_body">Gieße überschüssiges Wasser aus den Untersetzern deiner Pflanzen ab.</string>
+    <string name="water_feedback_sheet_title">%s gießen?</string>
+    <string name="water_fertilize_feedback_sheet_title">%s gießen &amp; düngen?</string>
+    <string name="quick_water_log">Eintragen</string>
+    <string name="quick_log_water_cd">Schnell gießen</string>
+    <string name="quick_log_fertilize_cd">Schnell düngen</string>
+    <string name="quick_log_watered">%s gegossen</string>
+    <string name="quick_log_fertilized">%s gedüngt</string>
+    <string name="quick_log_repotted">%s umgetopft</string>
+    <string name="quick_log_pruned">%s geschnitten</string>
+    <string name="quick_log_watered_and_fertilized">%s gegossen und gedüngt</string>
+    <string name="quick_log_other">%1$s %2$s</string>
+    <string name="quick_log_already_watered">%s an diesem Tag bereits gegossen</string>
+    <string name="quick_log_already_fertilized">%s an diesem Tag bereits gedüngt</string>
+    <string name="care_history_show_less">Weniger anzeigen</string>
+    <plurals name="care_history_show_more">
+        <item quantity="one">1 weiteren anzeigen</item>
+        <item quantity="other">%d weitere anzeigen</item>
+    </plurals>
+    <string name="notification_watering_due_today">Gießen heute fällig</string>
+    <string name="notification_fertilizing_due_today">Düngen heute fällig</string>
+    <string name="notification_fertilize_with_watering">Beim Gießen düngen</string>
+    <string name="notification_repotting_due_today">Umtopfen heute fällig</string>
+    <string name="notification_custom_reminder_due_today">%1$s heute fällig</string>
+    <plurals name="notification_watering_overdue">
+        <item quantity="one">Gießen seit 1 Tag überfällig</item>
+        <item quantity="other">Gießen seit %d Tagen überfällig</item>
+    </plurals>
+    <plurals name="notification_fertilizing_overdue">
+        <item quantity="one">Düngen seit 1 Tag überfällig</item>
+        <item quantity="other">Düngen seit %d Tagen überfällig</item>
+    </plurals>
+    <plurals name="notification_repotting_overdue">
+        <item quantity="one">Umtopfen seit 1 Tag überfällig</item>
+        <item quantity="other">Umtopfen seit %d Tagen überfällig</item>
+    </plurals>
+    <string name="notification_repotting_planned_spring">Umtopfen für diesen Frühling geplant</string>
+    <string name="notification_repotting_planned_summer">Umtopfen für diesen Sommer geplant</string>
+    <string name="notification_repotting_planned_autumn">Umtopfen für diesen Herbst geplant</string>
+    <string name="notification_repotting_planned_winter">Umtopfen für diesen Winter geplant</string>
+    <plurals name="notification_repotting_plan_overdue">
+        <item quantity="one">Geplantes Umtopfen seit 1 Tag überfällig</item>
+        <item quantity="other">Geplantes Umtopfen seit %d Tagen überfällig</item>
+    </plurals>
+    <plurals name="notification_custom_reminder_overdue">
+        <item quantity="one">%1$s seit 1 Tag überfällig</item>
+        <item quantity="other">%1$s seit %2$d Tagen überfällig</item>
+    </plurals>
+    <plurals name="notification_combined_title">
+        <item quantity="one">1 Pflanze braucht Pflege</item>
+        <item quantity="other">%d Pflanzen brauchen Pflege</item>
+    </plurals>
+    <string name="care_history_expand_cd">Pflegeverlauf aufklappen</string>
+    <string name="care_history_collapse_cd">Pflegeverlauf zuklappen</string>
+    <string name="watering_history_expand_cd">Gießverlauf aufklappen</string>
+    <string name="watering_history_collapse_cd">Gießverlauf zuklappen</string>
+    <string name="interval_suggestion_title">Gießintervall anpassen?</string>
+    <string name="interval_suggestion_body">Vorschlag: alle %1$d Tage gießen (aktuell %2$d Tage)</string>
+    <string name="interval_suggestion_field_label">Tage</string>
+    <string name="interval_suggestion_apply">Übernehmen</string>
+    <string name="dismiss">Schließen</string>
+    <string name="fert_label_due_with_watering">Fällig beim nächsten Gießen</string>
+    <string name="filter_unassigned">Nicht zugewiesen</string>
+    <string name="cd_sort_plants">Pflanzen sortieren</string>
+    <string name="cd_search_plants">Pflanzen suchen</string>
+    <string name="search_plants_placeholder">Pflanzen suchen</string>
+    <string name="cd_clear_search">Suche löschen</string>
+    <string name="field_plant_name">Pflanzenname *</string>
+    <string name="field_species">Art</string>
+    <string name="field_location">Standort / Raum</string>
+    <string name="placeholder_location">z. B. Wohnzimmer</string>
+    <string name="field_notes">Notizen</string>
+    <string name="cd_back">Zurück</string>
+    <string name="cd_more_options">Weitere Optionen</string>
+    <string name="cd_add_photo">Foto hinzufügen</string>
+    <string name="field_notes_optional">Notizen (optional)</string>
+    <string name="placeholder_notes_amount">z. B. Gießmenge</string>
+    <string name="cd_pick_date">Datum auswählen</string>
+    <string name="cd_plant_cover_photo">Titelfoto der Pflanze</string>
+    <string name="cd_plant_photo_fullscreen">Pflanzenfoto im Vollbild</string>
+    <string name="cd_close_photo_viewer">Fotoansicht schließen</string>
+    <string name="cd_photo_viewer_date">Foto aufgenommen am %1$s</string>
+    <string name="cd_edit_plant">Pflanze bearbeiten</string>
+    <string name="cd_edit_log">Eintrag bearbeiten</string>
+    <string name="cd_delete_log">Eintrag löschen</string>
+    <string name="cd_plant_photo">Pflanzenfoto</string>
+    <string name="cd_care_log_photo">Foto des Pflegeeintrags</string>
+    <string name="cd_delete_photo">Foto löschen</string>
+    <string name="cd_set_cover_photo">Als Titelfoto festlegen</string>
+    <string name="cd_cover_photo_current">Aktuelles Titelfoto</string>
+    <string name="cd_cover_photo">Titelfoto</string>
+    <string name="cover_photo_updated">Titelfoto aktualisiert</string>
+    <string name="fert_label_never_fertilized">Nie gedüngt</string>
+    <string name="fert_label_fertilizing">Düngen %1$s</string>
+    <string name="no_care_logs_detail">Noch keine Pflege eingetragen.\nTippe auf +, um deinen ersten Pflegeeintrag zu erfassen.</string>
+    <string name="watering_interval_label">Alle %1$d Tage gießen</string>
+    <string name="watering_reminder_label">Gießerinnerung</string>
+    <string name="watering_interval_decrease_cd">Gießintervall verringern</string>
+    <string name="watering_interval_increase_cd">Gießintervall erhöhen</string>
+    <string name="fertilizing_interval_label">Alle %1$d Tage düngen</string>
+    <string name="fertilizing_reminder_label">Düngeerinnerung</string>
+    <string name="fertilizing_interval_decrease_cd">Düngeintervall verringern</string>
+    <string name="fertilizing_interval_increase_cd">Düngeintervall erhöhen</string>
+    <string name="season_spring">Frühling</string>
+    <string name="season_summer">Sommer</string>
+    <string name="season_autumn">Herbst</string>
+    <string name="season_winter">Winter</string>
+    <string name="season_name_spring">Frühling</string>
+    <string name="season_name_summer">Sommer</string>
+    <string name="season_name_autumn">Herbst</string>
+    <string name="season_name_winter">Winter</string>
+    <plurals name="watering_seasonal_adjustment">
+        <item quantity="one">Angepasst für %1$s · Basis %2$d Tag</item>
+        <item quantity="other">Angepasst für %1$s · Basis %2$d Tage</item>
+    </plurals>
+    <string name="fertilizing_current_season">Aktuelle Jahreszeit</string>
+    <string name="fertilizing_active_seasons_label">Aktiv im</string>
+    <string name="fertilizing_last_season_locked_snackbar">Mindestens eine Jahreszeit muss aktiv bleiben. Um das Düngen zu beenden, schalte die Düngeerinnerung aus.</string>
+    <string name="fertilizing_out_of_season">Außerhalb der Saison — nächstes Düngen %1$s</string>
+    <string name="fertilizing_post_repot_pause_note">Nach dem Umtopfen pausiert bis %1$s</string>
+    <string name="fertilizing_dormancy_pause_note">Düngeerinnerungen pausieren während der Ruhephase dieser Pflanze.</string>
+    <plurals name="repotting_interval_label">
+        <item quantity="one">Jeden Monat umtopfen</item>
+        <item quantity="other">Alle %d Monate umtopfen</item>
+    </plurals>
+    <string name="repotting_reminder_label">Umtopf-Erinnerung</string>
+    <string name="repotting_preferred_seasons_label">Umtopfen bevorzugt im</string>
+    <string name="repotting_last_season_locked_snackbar">Mindestens eine Jahreszeit muss ausgewählt bleiben. Um Umtopf-Erinnerungen zu beenden, schalte die Umtopf-Erinnerung aus.</string>
+    <string name="repotting_interval_decrease_cd">Umtopf-Intervall verkürzen</string>
+    <string name="repotting_interval_increase_cd">Umtopf-Intervall verlängern</string>
+    <string name="liquid_fertilizer_label">Beim Gießen düngen (Flüssigdünger)</string>
+    <string name="care_log_title_edit">Pflegeeintrag bearbeiten</string>
+    <!-- Single optional WATER-log flag (#570, product ADR-0027), reworded to the shared reason
+         vocabulary in #586 (product ADR-0030) so the form and the quick-log prompt read alike. -->
+    <string name="care_log_feedback_plant_needed_it">Die Pflanze hat es gebraucht</string>
+    <string name="care_log_fertilizer_type_label">Düngerart</string>
+    <string name="fertilizer_type_liquid">Flüssig</string>
+    <string name="fertilizer_type_solid">Fest</string>
+    <string name="care_log_photo_label_required">Foto</string>
+    <string name="care_log_error_already_watered">Für diese Pflanze ist an diesem Tag bereits Gießen eingetragen.</string>
+    <string name="care_log_error_already_fertilized">Für diese Pflanze ist an diesem Tag bereits Düngen eingetragen.</string>
+    <string name="plant_detail_photos_section">Fotos</string>
+    <string name="plant_detail_care_logs_count">%d Einträge</string>
+    <!-- Custom reminders card (#232) -->
+    <string name="custom_reminders_section">Eigene Erinnerungen</string>
+    <string name="custom_reminders_empty">Noch keine eigenen Erinnerungen. Lege eine für Behandlungen oder alles andere an, was du im Blick behalten willst.</string>
+    <string name="cd_add_custom_reminder">Eigene Erinnerung hinzufügen</string>
+    <string name="cd_edit_custom_reminder">Eigene Erinnerung bearbeiten</string>
+    <string name="cd_delete_custom_reminder">Eigene Erinnerung löschen</string>
+    <string name="cd_mark_custom_reminder_done">%1$s als erledigt markieren</string>
+    <string name="custom_reminder_add_title">Eigene Erinnerung hinzufügen</string>
+    <string name="custom_reminder_edit_title">Eigene Erinnerung bearbeiten</string>
+    <string name="custom_reminder_name_label">Name</string>
+    <string name="custom_reminder_name_placeholder">z. B. Behandlung mit Neemöl</string>
+    <string name="custom_reminder_interval_label">Alle wie viele Tage?</string>
+    <plurals name="custom_reminder_interval_summary">
+        <item quantity="one">Jeden Tag</item>
+        <item quantity="other">Alle %d Tage</item>
+    </plurals>
+    <string name="custom_reminder_delete_title">Eigene Erinnerung löschen?</string>
+    <string name="custom_reminder_delete_confirm">„%1$s“ und die zugehörigen Verlaufseinträge bleiben im Journal erhalten, aber künftige Erinnerungen entfallen. Das kann nicht rückgängig gemacht werden.</string>
+    <!-- Plant issues card (#564) -->
+    <string name="plant_issues_section">Aktive Probleme</string>
+    <string name="plant_issues_empty">Keine aktiven Probleme. Melde eines, wenn dir Schädlinge, Krankheiten oder Stress auffallen.</string>
+    <string name="cd_report_plant_issue">Problem melden</string>
+    <string name="cd_resolve_plant_issue">%1$s als gelöst markieren</string>
+    <string name="plant_issue_report_title">Problem melden</string>
+    <string name="plant_issue_name_label">Was ist los?</string>
+    <string name="plant_issue_name_placeholder">z. B. Spinnmilben</string>
+    <plurals name="plant_issue_ongoing_days">
+        <item quantity="one">Besteht seit 1 Tag</item>
+        <item quantity="other">Besteht seit %d Tagen</item>
+    </plurals>
+    <string name="plant_issue_linked_reminder">Erinnerung: %1$s</string>
+    <string name="plant_issue_set_reminder_toggle">Behandlungserinnerung einrichten</string>
+    <string name="plant_issue_reminder_name_label">Name der Erinnerung</string>
+    <string name="plant_issue_reminder_interval_label">Alle wie viele Tage?</string>
+    <string name="plant_issue_resolve_title">Als gelöst markieren?</string>
+    <string name="plant_issue_resolve_confirm">„%1$s“ als gelöst markieren. Die verknüpfte Erinnerung (falls vorhanden) läuft unabhängig weiter.</string>
+    <string name="plant_issue_resolution_note_label">Notiz zur Lösung (optional)</string>
+    <string name="plant_issue_resolve_action">Als gelöst markieren</string>
+    <plurals name="cd_plant_card_active_issues">
+        <item quantity="one">1 aktives Problem</item>
+        <item quantity="other">%d aktive Probleme</item>
+    </plurals>
+    <!-- Pin interval (#569): per-plant opt-out from the seasonal curve -->
+    <!-- Per-plant seasonal strength (#700): App default / Custom / Pin -->
+    <string name="watering_strength_label">Saisonale Menge</string>
+    <string name="watering_strength_mode_default">App-Standard</string>
+    <string name="watering_strength_mode_custom">Eigene</string>
+    <string name="watering_strength_mode_pin">Fixiert</string>
+    <string name="watering_strength_subtitle_default">Folgt der saisonalen Menge aus den Einstellungen</string>
+    <string name="watering_strength_subtitle_custom">Diese Pflanze wird mit ihrer eigenen Menge gestreckt und gestaucht</string>
+    <string name="watering_strength_custom_options_label">Eigene Menge</string>
+    <string name="pin_interval_subtitle">Gießintervall dieser Pflanze fest halten und die saisonale Kurve ignorieren</string>
+    <string name="dormancy_window_label">Ruhephase</string>
+    <string name="dormancy_window_subtitle">In diesen Monaten einen Gießplan für die Ruhephase verwenden</string>
+    <string name="dormant_watering_label">Gießintervall in der Ruhephase</string>
+    <string name="dormant_watering_suspended">Pausiert — keine Gießerinnerungen</string>
+    <plurals name="dormant_watering_every_weeks">
+        <item quantity="one">Jede Woche</item>
+        <item quantity="other">Alle %1$d Wochen</item>
+    </plurals>
+    <string name="dormant_watering_interval_decrease_cd">Gießrhythmus in der Ruhephase verkürzen</string>
+    <string name="dormant_watering_interval_increase_cd">Gießrhythmus in der Ruhephase verlängern</string>
+    <string name="dormancy_start_month">Beginn</string>
+    <string name="dormancy_end_month">Ende</string>
+    <string name="dormancy_month_selection_cd">%1$s: %2$s</string>
+    <string-array name="dormancy_months">
+        <item>Januar</item>
+        <item>Februar</item>
+        <item>März</item>
+        <item>April</item>
+        <item>Mai</item>
+        <item>Juni</item>
+        <item>Juli</item>
+        <item>August</item>
+        <item>September</item>
+        <item>Oktober</item>
+        <item>November</item>
+        <item>Dezember</item>
+    </string-array>
+    <!-- Plant Detail per-action tabs (#436) -->
+    <string name="plant_detail_tab_home">Übersicht</string>
+    <string name="plant_detail_tab_water">Gießen</string>
+    <string name="plant_detail_tab_fertilize">Düngen</string>
+    <string name="plant_detail_tab_repot">Umtopfen</string>
+    <string name="plant_detail_tab_prune">Schneiden</string>
+    <string name="plant_detail_tab_photo">Foto</string>
+    <string name="plant_detail_action_add_photo">Foto hinzufügen</string>
+    <string name="plant_detail_watering_section">Letztes Gießen</string>
+    <string name="plant_detail_tab_fertilize_empty">Noch kein Düngen eingetragen.</string>
+    <string name="plant_detail_tab_repot_empty">Noch kein Umtopfen eingetragen.</string>
+    <string name="plant_detail_tab_prune_empty">Noch kein Rückschnitt eingetragen.</string>
+    <string name="repot_plan_action">Umtopfen planen</string>
+    <string name="repot_plan_dialog_title">Umtopfen planen für</string>
+    <string name="repot_plan_season_option">%1$s %2$d</string>
+    <string name="repot_plan_planned_spring">Geplant: Frühling %1$d</string>
+    <string name="repot_plan_planned_summer">Geplant: Sommer %1$d</string>
+    <string name="repot_plan_planned_autumn">Geplant: Herbst %1$d</string>
+    <string name="repot_plan_planned_winter">Geplant: Winter %1$d</string>
+    <string name="repot_plan_edit">Bearbeiten</string>
+    <string name="repot_plan_edit_cd">Umtopfplan bearbeiten</string>
+    <string name="repot_plan_clear">Entfernen</string>
+    <string name="repot_plan_clear_cd">Umtopfplan entfernen</string>
+    <string name="repot_plan_next_due">Nächstes Umtopfen fällig %1$s</string>
+    <string name="repot_plan_preferred_seasons">Umtopfen: %1$s</string>
+    <string name="plant_detail_tab_photo_empty">Noch keine Fotos.</string>
+    <!-- Propagate tab and plant families (#960, product ADR-0073) -->
+    <string name="plant_detail_tab_propagate">Vermehren</string>
+    <string name="plant_detail_tab_propagate_empty">Noch keine Vermehrung eingetragen.</string>
+    <string name="propagate_action">Vermehren</string>
+    <string name="quick_log_propagated">%s vermehrt</string>
+    <string name="insight_propagations">Vermehrungen</string>
+    <string name="insight_last_propagated">Zuletzt vermehrt</string>
+    <string name="propagate_offer_title">Neue Pflanze hinzufügen?</string>
+    <string name="propagate_offer_message">Verknüpfe eine Pflanze als Ableger mit %s, damit die Familie zusammenbleibt.</string>
+    <string name="propagate_offer_new">Neue Pflanze</string>
+    <string name="propagate_offer_existing">Vorhandene Pflanze</string>
+    <string name="propagate_offer_not_now">Nicht jetzt</string>
+    <string name="propagate_child_name">%s (Ableger)</string>
+    <string name="add_plant_propagated_from">Vermehrt von %s</string>
+    <string name="add_plant_care_settings_copied">Pflegeeinstellungen von %s übernommen; ändere sie unten</string>
+    <string name="family_title">Familie</string>
+    <string name="family_propagated_from">Vermehrt von</string>
+    <string name="family_link_parent">Mutterpflanze verknüpfen…</string>
+    <string name="family_children">Ableger</string>
+    <string name="family_no_children">Noch keine Ableger</string>
+    <string name="family_link_existing">Vorhandene Pflanze verknüpfen…</string>
+    <string name="family_add_new">Neue Pflanze hinzufügen</string>
+    <string name="family_unlink">Verknüpfung lösen</string>
+    <string name="family_row_actions_label">Familienaktionen anzeigen</string>
+    <string name="family_relative_archived">%s, archiviert</string>
+    <string name="family_relative_hidden">%s, ausgeblendet</string>
+    <string name="family_picker_title_parent">Mutterpflanze verknüpfen</string>
+    <string name="family_picker_title_child">Vorhandene Pflanze verknüpfen</string>
+    <string name="family_picker_search">Pflanzen suchen</string>
+    <string name="family_picker_empty">Keine Pflanzen zum Verknüpfen</string>
+    <string name="family_picker_no_match">Keine Pflanzen passen zu deiner Suche</string>
+    <string name="family_picker_currently_from">Aktuell von %s</string>
+    <string name="family_link_refused">Diese Verknüpfung ist nicht möglich: Eine Pflanze kann nicht von sich selbst abstammen.</string>
+    <!-- Custom Reminders / Active Issues tabs + tab-row collapse/expand toggle (#590) -->
+    <string name="plant_detail_tab_custom_reminders">Erinnerungen</string>
+    <string name="plant_detail_tab_issues">Probleme</string>
+    <string name="plant_detail_tabs_expand_cd">Alle Tabs anzeigen</string>
+    <string name="plant_detail_tabs_expand_attention_cd">Alle Tabs anzeigen. Aufmerksamkeit erforderlich.</string>
+    <string name="plant_detail_tabs_collapse_cd">Weniger Tabs anzeigen</string>
+    <!-- Plant Detail per-tab insights (#436, sub-task 3) -->
+    <string name="insight_waterings">Gießen</string>
+    <string name="insight_fertilizings">Düngen</string>
+    <string name="insight_repottings">Umtopfen</string>
+    <string name="insight_prunings">Rückschnitte</string>
+    <string name="insight_photos">Fotos</string>
+    <string name="insight_avg_interval">Ø Intervall</string>
+    <!-- #603: last watered/fertilized restored to the tabs layout after StatsRow was removed there -->
+    <string name="insight_last_watered">Zuletzt gegossen</string>
+    <string name="insight_last_fertilized">Zuletzt gedüngt</string>
+    <string name="insight_last_repotted">Zuletzt umgetopft</string>
+    <string name="insight_last_pruned">Zuletzt geschnitten</string>
+    <!-- #530: Home tab summary card -->
+    <string name="home_summary_next_watering">Nächstes Gießen</string>
+    <string name="home_summary_next_fertilizing">Nächstes Düngen</string>
+    <string name="home_summary_date_with_relative">%1$s · %2$s</string>
+    <string name="insight_first_photo">Erstes Foto</string>
+    <string name="insight_latest_photo">Neuestes Foto</string>
+    <plurals name="insight_interval_days">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <string name="plant_detail_watering_interval">💧 Alle %1$d Tage</string>
+    <!-- #927: hero line when today's seasonal interval differs from the base. %2$s = lowercase season name; "d" in "base %3$dd" is deliberate. -->
+    <string name="plant_detail_watering_interval_seasonal">💧 Alle %1$d Tage · %2$s (Basis %3$d T)</string>
+    <string name="plant_detail_watering_dormant">💧 Ruhephase</string>
+    <plurals name="plant_detail_watering_dormant_cadence">
+        <item quantity="one">💧 Jede Woche · Ruhephase</item>
+        <item quantity="other">💧 Alle %1$d Wochen · Ruhephase</item>
+    </plurals>
+    <string name="plant_detail_location">📍 %1$s</string>
+    <string name="empty_state_both_due">Aktuell brauchen keine Pflanzen\ngleichzeitig Wasser und Dünger.</string>
+    <string name="empty_state_all_assigned">Alle Pflanzen sind einem Raum zugeordnet.</string>
+    <string name="empty_state_cared_today">Heute noch keine Pflanze gepflegt</string>
+    <string name="empty_state_active_issues">Keine Pflanzen mit aktiven Problemen</string>
+    <string name="empty_state_no_search_matches">Keine Pflanzen passen zu „%1$s“</string>
+    <string name="sort_alphabetical">Alphabetisch</string>
+    <string name="sort_alphabetical_asc">Alphabetisch (A→Z)</string>
+    <string name="sort_alphabetical_desc">Alphabetisch (Z→A)</string>
+    <string name="sort_watering_due">Gießen fällig</string>
+    <string name="sort_fertilizing_due">Düngen fällig</string>
+    <string name="sort_recently_added">Zuletzt hinzugefügt</string>
+    <string name="sort_both_due">Gießen + Düngen fällig</string>
+    <string name="sort_cared_for_today">Heute gepflegt</string>
+    <string name="sort_active_issues">Aktive Probleme</string>
+    <string name="date_group_overdue">Überfällig</string>
+    <string name="date_group_today">Heute</string>
+    <string name="date_group_tomorrow">Morgen</string>
+    <string name="date_relative_today">Heute</string>
+    <string name="date_relative_yesterday">Gestern</string>
+    <plurals name="date_relative_in_days">
+        <item quantity="one">In %1$d Tag</item>
+        <item quantity="other">In %1$d Tagen</item>
+    </plurals>
+    <plurals name="date_relative_days_ago">
+        <item quantity="one">Vor %1$d Tag</item>
+        <item quantity="other">Vor %1$d Tagen</item>
+    </plurals>
+    <string name="date_group_later">Später</string>
+    <string name="date_group_dormant">In Ruhephase</string>
+    <string name="date_group_not_scheduled">Nicht geplant</string>
+    <plurals name="calendar_dormant_badge_cd">
+        <item quantity="one">%d Pflanze in Ruhephase</item>
+        <item quantity="other">%d Pflanzen in Ruhephase</item>
+    </plurals>
+    <string name="water_label_never_watered">Nie gegossen</string>
+    <string name="care_type_watered">Gegossen</string>
+    <string name="care_type_fertilized">Gedüngt</string>
+    <string name="care_type_pruned">Geschnitten</string>
+    <string name="care_type_misted">Besprüht</string>
+    <string name="care_type_repotted">Umgetopft</string>
+    <string name="care_type_note">Notiz</string>
+    <string name="care_type_photo">Foto</string>
+    <string name="care_type_custom">Eigene Pflege</string>
+    <string name="care_type_check">Kontrolliert</string>
+    <string name="care_type_propagated">Vermehrt</string>
+    <string name="feedback_still_wet">Noch nass</string>
+    <string name="feedback_just_right">Genau richtig</string>
+    <string name="feedback_too_dry">Zu trocken</string>
+    <string name="feedback_emoji_still_wet">💦</string>
+    <string name="feedback_emoji_just_right">✅</string>
+    <string name="feedback_emoji_too_dry">🏜️</string>
+    <string name="feedback_label_format">%1$s %2$s</string>
+    <string name="photo_source_take_photo">Foto aufnehmen</string>
+    <string name="photo_source_choose_gallery">Aus Galerie wählen</string>
+    <string name="camera_permission_rationale_title">Kameraberechtigung erforderlich</string>
+    <string name="camera_permission_rationale_text">Für Fotos deiner Pflanzen wird der Kamerazugriff benötigt.</string>
+    <string name="camera_permission_denied_title">Kamerazugriff verweigert</string>
+    <string name="camera_permission_denied_text">Die Kameraberechtigung wurde dauerhaft verweigert. Bitte aktiviere sie in den Einstellungen.</string>
+    <string name="camera_permission_open_settings">Einstellungen öffnen</string>
+    <string name="camera_not_available">Auf diesem Gerät ist keine Kamera verfügbar</string>
+    <string name="photo_viewer_page_indicator">%1$d / %2$d</string>
+    <string name="delete_photo">Foto löschen</string>
+    <string name="delete_photo_confirm">Dieses Foto entfernen? Das kann nicht rückgängig gemacht werden.</string>
+    <string name="snackbar_moved_to_graveyard">In den Pflanzenfriedhof verschoben</string>
+    <string name="snackbar_undo">RÜCKGÄNGIG</string>
+    <string name="snackbar_plant_hidden">Pflanze ausgeblendet</string>
+    <string name="snackbar_plant_unhidden">Pflanze eingeblendet</string>
+    <string name="graveyard_title">Pflanzenfriedhof</string>
+    <string name="graveyard_empty_state">Keine Pflanzen auf dem Friedhof</string>
+    <string name="graveyard_restore_button">Wiederherstellen</string>
+    <string name="cd_graveyard_delete_forever">Endgültig löschen</string>
+    <string name="graveyard_overflow_empty">Friedhof leeren</string>
+    <string name="graveyard_delete_permanent_title">Endgültig löschen?</string>
+    <string name="graveyard_delete_permanent_confirm">Diese Pflanze und ihr gesamter Pflegeverlauf werden für immer gelöscht. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="graveyard_delete_button">Endgültig löschen</string>
+    <string name="graveyard_empty_title">Friedhof leeren?</string>
+    <string name="graveyard_empty_confirm">Alle archivierten Pflanzen und ihr Pflegeverlauf werden endgültig gelöscht. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="graveyard_restored_snackbar">Pflanze wiederhergestellt</string>
+    <string name="graveyard_deleted_snackbar">Pflanze endgültig gelöscht</string>
+    <string name="graveyard_emptied_snackbar">Friedhof geleert</string>
+    <plurals name="graveyard_settings_subtitle">
+        <item quantity="one">1 Pflanze archiviert</item>
+        <item quantity="other">%d Pflanzen archiviert</item>
+    </plurals>
+
+    <!-- Hidden plants (#915, product ADR-0066) -->
+    <string name="hide_plant">Pflanze ausblenden</string>
+    <string name="unhide_plant">Pflanze einblenden</string>
+    <string name="hide_plant_hint">Behalte sie, aber lass sie in Pflege, Erinnerungen, Kalender und Pflanzenliste weg. In den Einstellungen findest du sie wieder.</string>
+    <string name="unhide_plant_hint">Diese Pflanze ist ausgeblendet. Blende sie ein, um sie wieder in Pflege, Erinnerungen und Pflanzenliste zu sehen.</string>
+    <string name="hidden_plants_settings_title">Ausgeblendete Pflanzen</string>
+    <plurals name="hidden_plants_settings_subtitle">
+        <item quantity="one">1 Pflanze ausgeblendet</item>
+        <item quantity="other">%d Pflanzen ausgeblendet</item>
+    </plurals>
+    <string name="hidden_plants_title">Ausgeblendete Pflanzen</string>
+    <string name="hidden_plants_empty_state">Keine ausgeblendeten Pflanzen</string>
+    <string name="unhide_button">Einblenden</string>
+
+    <!-- Repotting overview (#525, product ADR-0059) -->
+    <string name="repotting_overview_title">Umtopf-Übersicht</string>
+    <string name="repotting_overview_chip_never">Nie</string>
+    <string name="repotting_overview_chip_one_year">1+ J.</string>
+    <string name="repotting_overview_chip_two_years">2+ J.</string>
+    <string name="repotting_overview_chip_three_years">3+ J.</string>
+    <string name="repotting_overview_header_never">Nie umgetopft</string>
+    <string name="repotting_overview_header_one_year">Seit 1+ Jahr nicht umgetopft</string>
+    <string name="repotting_overview_header_two_years">Seit 2+ Jahren nicht umgetopft</string>
+    <string name="repotting_overview_header_three_years">Seit 3+ Jahren nicht umgetopft</string>
+    <string name="repotting_overview_planned_header">Geplant</string>
+    <string name="repotting_overview_last_repotted">Zuletzt umgetopft: %1$s</string>
+    <string name="repotting_overview_never_repotted">Nie umgetopft · hinzugefügt %1$s</string>
+    <string name="repotting_overview_plan_overdue">%1$s · Überfällig</string>
+    <string name="repotting_overview_no_plants">Noch keine Pflanzen. Füge eine Pflanze hinzu, um das Umtopfen zu verfolgen.</string>
+    <string name="repotting_overview_nothing_here">Hier ist nichts umzutopfen – gut gemacht</string>
+    <string name="repotting_overview_no_other_matches">Keine weiteren Pflanzen passen.</string>
+    <string name="repotting_overview_row_actions_label">Aktionen anzeigen</string>
+    <string name="repotting_overview_action_repot">Umtopfen…</string>
+    <string name="repotting_overview_action_plan">Umtopfen planen…</string>
+    <string name="repotting_overview_action_change_plan">Plan ändern…</string>
+    <string name="repotting_overview_action_clear_plan">Plan löschen</string>
+    <string name="repotting_overview_plan_saved">Umtopfen geplant für %1$s</string>
+    <string name="repotting_overview_plan_cleared">Umtopfplan für %1$s gelöscht</string>
+    <string name="repotting_overview_action_failed">Es wurde nichts geändert. Bitte versuche es erneut.</string>
+    <string name="repotting_overview_settings_subtitle_none">Keine Pflanzen zu prüfen</string>
+    <plurals name="repotting_overview_settings_subtitle_never">
+        <item quantity="one">%d Pflanze nie umgetopft</item>
+        <item quantity="other">%d Pflanzen nie umgetopft</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_one_year">
+        <item quantity="one">%d Pflanze seit 1+ Jahr nicht umgetopft</item>
+        <item quantity="other">%d Pflanzen seit 1+ Jahr nicht umgetopft</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_two_years">
+        <item quantity="one">%d Pflanze seit 2+ Jahren nicht umgetopft</item>
+        <item quantity="other">%d Pflanzen seit 2+ Jahren nicht umgetopft</item>
+    </plurals>
+    <plurals name="repotting_overview_settings_subtitle_three_years">
+        <item quantity="one">%d Pflanze seit 3+ Jahren nicht umgetopft</item>
+        <item quantity="other">%d Pflanzen seit 3+ Jahren nicht umgetopft</item>
+    </plurals>
+
+    <!-- Watering overview (#901, product ADR-0064) -->
+    <string name="watering_overview_title">Gieß-Übersicht</string>
+    <string name="watering_overview_settings_subtitle">Sieh, wie oft jede Pflanze Wasser braucht</string>
+    <string name="watering_overview_no_plants">Noch keine Pflanzen. Füge eine Pflanze hinzu, um zu sehen, wie oft sie Wasser braucht.</string>
+    <string name="watering_overview_group_1_3">Alle 1–3 Tage</string>
+    <string name="watering_overview_group_4_7">Alle 4–7 Tage</string>
+    <string name="watering_overview_group_8_14">Alle 8–14 Tage</string>
+    <string name="watering_overview_group_15_plus">Alle 15+ Tage</string>
+    <string name="watering_overview_group_resting">Ruhephase</string>
+    <string name="watering_overview_group_no_schedule">Kein Gießplan</string>
+    <string name="watering_overview_header_with_count">%1$s · %2$d</string>
+    <plurals name="watering_overview_count_plants">
+        <item quantity="one">%d Pflanze</item>
+        <item quantity="other">%d Pflanzen</item>
+    </plurals>
+    <string name="watering_overview_count_scheduled">%d mit Gießplan</string>
+    <string name="watering_overview_count_resting">%d in Ruhephase</string>
+    <string name="watering_overview_count_no_schedule">%d ohne Gießplan</string>
+    <string name="watering_overview_count_join">%1$s · %2$s</string>
+    <string name="watering_overview_bar_description">Pflanzen nach Gießhäufigkeit: %1$s</string>
+    <string name="watering_overview_bar_description_item">%1$s %2$d</string>
+    <string name="watering_overview_bar_description_join">%1$s, %2$s</string>
+    <plurals name="watering_overview_every_days">
+        <item quantity="one">Jeden Tag</item>
+        <item quantity="other">Alle %d Tage</item>
+    </plurals>
+    <string name="watering_overview_interval_next">%1$s · Nächstes: %2$s</string>
+    <string name="watering_overview_next_only">Nächstes: %1$s</string>
+    <string name="watering_overview_paused">Gießen pausiert</string>
+    <string name="watering_overview_show_all">Alle %d anzeigen</string>
+
+    <string name="photo_reminder_setting_title">Foto-Erinnerung</string>
+    <string name="photo_reminder_setting_subtitle">Erinnere mich alle 30 Tage ans Fotografieren der Pflanzen</string>
+    <string name="combine_notifications_title">Erinnerungen bündeln</string>
+    <string name="combine_notifications_subtitle">Alle fälligen Pflanzen in einer Benachrichtigung zeigen</string>
+    <string name="fertilizing_notifications_title">Benachrichtigung fürs Düngen</string>
+    <string name="fertilizing_notifications_subtitle">Erinnere mich, wenn nur Düngen fällig ist</string>
+    <string name="photo_reminder_dialog_title">Zeit für ein Foto!</string>
+    <string name="photo_reminder_dialog_text">Seit %1$d Tagen kein Foto – jetzt eins machen?</string>
+
+    <string name="nav_tab_plants">Pflanzen</string>
+    <string name="nav_tab_today">Pflege</string>
+    <string name="nav_tab_calendar">Kalender</string>
+    <string name="nav_tab_settings">Einstellungen</string>
+    <string name="today_first_use">Füge deine erste Pflanze hinzu, um hier ihren Pflegeplan zu sehen.</string>
+    <string name="today_caught_up">Du bist auf dem neuesten Stand. Heute ist nichts fällig und morgen muss nicht gegossen werden.</string>
+    <string name="today_error">Die Pflegeliste konnte nicht geladen werden.</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="today_task_treatment">%1$s behandeln</string>
+    <string name="care_section_watering">Gießen</string>
+    <string name="care_section_watering_overdue">Gießen · Überfällig</string>
+    <string name="care_section_watering_today">Gießen · Heute</string>
+    <string name="care_section_watering_tomorrow">Gießen · Morgen</string>
+    <string name="care_section_issue_treatments">Behandlungen</string>
+    <string name="care_section_fertilizing">Düngen</string>
+    <string name="care_section_custom_reminders">Eigene Erinnerungen</string>
+    <string name="care_section_repotting">Umtopfen</string>
+    <string name="care_section_photos">Fotos</string>
+    <string name="care_section_watered_today">Heute gegossen</string>
+    <string name="care_watered_today_photo_cd">%1$s, heute gegossen</string>
+    <string name="care_watered_today_more">+%1$d</string>
+    <plurals name="care_watered_today_more_cd">
+        <item quantity="one">%1$d weitere gegossene Pflanze anzeigen</item>
+        <item quantity="other">%1$d weitere gegossene Pflanzen anzeigen</item>
+    </plurals>
+    <string name="care_watered_today_less">Weniger anzeigen</string>
+    <string name="care_watered_today_less_cd">Weniger gegossene Pflanzen anzeigen</string>
+    <string name="care_nothing_due_today">Heute ist nichts fällig</string>
+    <string name="care_tile_actions_label">Schnellaktionen anzeigen</string>
+    <string name="care_tile_water_cd">%1$s, Gießen</string>
+    <string name="care_tile_fertilize_cd">%1$s, Düngen</string>
+    <string name="care_tile_water_fertilize_cd">%1$s, Gießen und Düngen</string>
+    <string name="care_tile_repot_cd">%1$s, Umtopfen</string>
+    <string name="care_tile_repot_planned_cd">%1$s, Umtopfen, %2$s</string>
+    <string name="care_tile_repot_planned_spring">Für den Frühling geplant</string>
+    <string name="care_tile_repot_planned_summer">Für den Sommer geplant</string>
+    <string name="care_tile_repot_planned_autumn">Für den Herbst geplant</string>
+    <string name="care_tile_repot_planned_winter">Für den Winter geplant</string>
+    <string name="care_tile_photo_cd">%1$s, Fortschrittsfoto</string>
+    <string name="care_tile_reminder_cd">%1$s, %2$s</string>
+    <string name="care_group_header">%1$s · %2$d</string>
+    <plurals name="care_group_header_cd">
+        <item quantity="one">%1$s, %2$d Pflanze</item>
+        <item quantity="other">%1$s, %2$d Pflanzen</item>
+    </plurals>
+    <string name="care_group_state_expanded">Aufgeklappt</string>
+    <string name="care_group_state_collapsed">Zugeklappt</string>
+    <string name="care_group_collapse_action">Zuklappen</string>
+    <string name="care_group_expand_action">Aufklappen</string>
+    <string name="today_action_water">Gießen</string>
+    <string name="today_action_fertilize">Düngen</string>
+    <string name="today_action_water_fertilize">Gießen &amp; düngen</string>
+    <string name="today_action_repot">Umtopfen…</string>
+    <string name="today_action_reschedule">Verschieben</string>
+    <string name="today_action_mark_done">Erledigt</string>
+    <string name="today_action_photo">Foto aufnehmen</string>
+    <string name="today_action_failed">Es wurde nichts geändert. Bitte versuche es erneut.</string>
+    <string name="today_custom_completed">%1$s erledigt</string>
+    <string name="today_custom_already_completed">%1$s war bereits erledigt</string>
+    <string name="today_photo_saved">Foto für %1$s gespeichert</string>
+    <string name="calendar_empty_state">Diesen Monat ist keine Pflege geplant.</string>
+    <string name="calendar_prev_month_cd">Vorheriger Monat</string>
+    <string name="calendar_next_month_cd">Nächster Monat</string>
+    <plurals name="calendar_badge_cd">
+        <item quantity="one">%1$d Pflanze fällig</item>
+        <item quantity="other">%1$d Pflanzen fällig</item>
+    </plurals>
+    <string name="calendar_badge_state_overdue">überfällig</string>
+    <string name="calendar_chip_water">Gießen</string>
+    <string name="calendar_chip_fertilize">Düngen</string>
+
+    <!-- Multi-select (tap and hold) bulk care actions -->
+    <plurals name="bulk_selected_count">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+    <string name="state_room_chip_has_selection">Enthält ausgewählte Pflanzen</string>
+    <string name="state_room_chip_selected_has_selection">Ausgewählt, enthält ausgewählte Pflanzen</string>
+    <string name="cd_bulk_select_plant">Pflanze auswählen</string>
+    <string name="cd_open_plant_details">Pflanzendetails öffnen</string>
+    <string name="cd_bulk_clear_selection">Auswahl aufheben</string>
+    <string name="cd_bulk_select_all">Alle auswählen</string>
+    <plurals name="bulk_action_bar_title">
+        <item quantity="one">Auf %d Pflanze anwenden</item>
+        <item quantity="other">Auf %d Pflanzen anwenden</item>
+    </plurals>
+    <string name="bulk_action_water">Gießen</string>
+    <string name="bulk_action_fertilize">Düngen</string>
+    <string name="bulk_action_prune">Schneiden</string>
+    <string name="bulk_action_repot">Umtopfen</string>
+    <string name="bulk_action_move_to_graveyard">Zum Friedhof</string>
+    <plurals name="bulk_snackbar_logged">
+        <item quantity="one">%1$s · 1 Pflanze</item>
+        <item quantity="other">%1$s · %2$d Pflanzen</item>
+    </plurals>
+    <plurals name="bulk_snackbar_logged_with_skipped">
+        <item quantity="one">%1$s · %2$d von %3$d Pflanze (%4$d heute schon eingetragen)</item>
+        <item quantity="other">%1$s · %2$d von %3$d Pflanzen (%4$d heute schon eingetragen)</item>
+    </plurals>
+    <plurals name="bulk_moved_to_graveyard">
+        <item quantity="one">1 Pflanze auf den Friedhof verschoben</item>
+        <item quantity="other">%d Pflanzen auf den Friedhof verschoben</item>
+    </plurals>
+    <string name="bulk_delete_confirm_title">Auf den Friedhof verschieben?</string>
+    <plurals name="bulk_delete_confirm_text">
+        <item quantity="one">1 Pflanze auf den Friedhof verschieben? Du kannst sie später wiederherstellen.</item>
+        <item quantity="other">%d Pflanzen auf den Friedhof verschieben? Du kannst sie später wiederherstellen.</item>
+    </plurals>
+    <string name="bulk_delete_confirm_button">Verschieben</string>
+    <string name="bulk_delete_cancel_button">Abbrechen</string>
+    <string name="cd_version_row_show_version">App-Version anzeigen</string>
+    <plurals name="dev_mode_countdown_taps_away">
+        <item quantity="one">Noch 1 Tippen bis zum Entwicklermodus</item>
+        <item quantity="other">Noch %d Tippen bis zum Entwicklermodus</item>
+    </plurals>
+    <string name="dev_mode_enabled_snackbar">Entwicklermodus aktiviert</string>
+    <string name="dev_mode_disabled_snackbar">Entwicklermodus deaktiviert</string>
+    <string name="dev_mode_section_title">Entwickler</string>
+    <string name="dev_mode_master_switch_title">Entwicklermodus</string>
+    <string name="dev_mode_master_switch_subtitle">Ausschalten, um diesen Bereich auszublenden; zum Zurückkehren 5-mal auf die Version tippen</string>
+    <string name="dev_mode_build_info_version_title">Version</string>
+    <string name="dev_mode_build_info_version_value">%1$s (%2$d)</string>
+    <string name="dev_mode_build_info_build_type_title">Build-Typ</string>
+    <string name="dev_mode_build_info_db_version_title">Datenbankversion</string>
+    <string name="dev_mode_build_info_api_level_title">API-Level des Geräts</string>
+    <string name="dev_mode_feature_flags_section_title">Feature-Flags</string>
+    <string name="dev_mode_feature_flags_empty">Keine Feature-Flags in diesem Build</string>
+    <string name="dev_mode_debug_actions_section_title">Debug-Aktionen</string>
+    <string name="dev_mode_action_reset_whats_new_title">„Neuigkeiten“-Status zurücksetzen</string>
+    <string name="dev_mode_action_reset_whats_new_subtitle">Zeigt das Neuigkeiten-Fenster beim nächsten Start automatisch an</string>
+    <string name="dev_mode_reset_whats_new_snackbar">„Neuigkeiten“-Status zurückgesetzt</string>
+    <string name="dev_mode_action_run_reminder_check_title">Erinnerungsprüfung jetzt ausführen</string>
+    <string name="dev_mode_action_run_reminder_check_subtitle">Sendet echte Benachrichtigungen für jede fällige Pflanze</string>
+    <string name="dev_mode_run_reminder_check_snackbar">Erinnerungsprüfung eingeplant</string>
+    <string name="dev_mode_run_reminder_check_denied_snackbar">Benachrichtigungen sind für diese App deaktiviert, daher wurde keine Erinnerung gesendet</string>
+    <string name="dev_mode_action_show_drain_water_reminder_title">Erinnerung ans Abgießen jetzt anzeigen</string>
+    <string name="dev_mode_action_show_drain_water_reminder_subtitle">Zeigt den Erinnerungsdialog im Vordergrund sofort an</string>
+    <string name="dev_mode_show_drain_water_reminder_snackbar">Erinnerung ans Abgießen angezeigt</string>
+    <string name="dev_mode_action_seed_demo_title">Demo-Pflanzen anlegen</string>
+    <string name="dev_mode_action_seed_demo_subtitle">Ersetzt vorhandene Demo-Pflanzen durch einen neuen Datensatz mit 10 Pflanzen</string>
+    <string name="dev_mode_seed_demo_confirm_title">Demo-Pflanzen anlegen?</string>
+    <string name="dev_mode_seed_demo_confirm_text">Fügt 10 Demo-Pflanzen mit rückdatiertem Pflegeverlauf und dem Präfix „[Demo] “ ein. Vorhandene Demo-Pflanzen werden zuvor entfernt.</string>
+    <string name="dev_mode_seed_demo_confirm_button">Anlegen</string>
+    <plurals name="dev_mode_seed_demo_result">
+        <item quantity="one">1 Demo-Pflanze angelegt</item>
+        <item quantity="other">%d Demo-Pflanzen angelegt</item>
+    </plurals>
+    <string name="dev_mode_action_remove_demo_title">Demo-Pflanzen entfernen</string>
+    <string name="dev_mode_action_remove_demo_subtitle">Löscht jede Pflanze mit dem Präfix „[Demo] “ endgültig</string>
+    <string name="dev_mode_remove_demo_confirm_title">Demo-Pflanzen entfernen?</string>
+    <string name="dev_mode_remove_demo_confirm_text">Löscht jede Pflanze mit dem Präfix „[Demo] “ und ihren Pflegeverlauf endgültig. Das kann nicht rückgängig gemacht werden.</string>
+    <string name="dev_mode_remove_demo_confirm_button">Entfernen</string>
+    <plurals name="dev_mode_remove_demo_result">
+        <item quantity="one">1 Demo-Pflanze entfernt</item>
+        <item quantity="other">%d Demo-Pflanzen entfernt</item>
+    </plurals>
+    <string name="dev_mode_remove_demo_none">Keine Demo-Pflanzen zum Entfernen</string>
+    <!-- "Why this date?" watering transparency sheet (#572) -->
+    <string name="why_this_date_button">Warum dieses Datum?</string>
+    <string name="watering_explanation_title">Warum dieses Datum?</string>
+    <string name="watering_explanation_next_watering">Nächstes Gießen</string>
+    <string name="watering_explanation_dormant">Ausgesetzt während der Ruhephase</string>
+    <string name="watering_explanation_dormant_schedule">Plan für die Ruhephase</string>
+    <string name="watering_explanation_growing_season_schedule">Plan für die Wachstumsphase</string>
+    <string name="watering_explanation_base_interval">Basisintervall</string>
+    <plurals name="watering_explanation_learned_from">
+        <item quantity="one">aus %1$d Gießvorgang gelernt</item>
+        <item quantity="other">aus %1$d Gießvorgängen gelernt</item>
+    </plurals>
+    <string name="watering_explanation_season_slower">kürzere Tage, langsameres Wachstum</string>
+    <string name="watering_explanation_season_faster">längere Tage, schnelleres Wachstum</string>
+    <string name="watering_explanation_season_transitional">Übergangsphase im Wachstum</string>
+    <string name="watering_explanation_multiplier">× %1$.2f</string>
+    <plurals name="watering_explanation_effective_interval">
+        <item quantity="one">Gießen jeden Tag</item>
+        <item quantity="other">Gießen alle %1$d Tage</item>
+    </plurals>
+    <string name="watering_explanation_last_watered">Zuletzt gegossen</string>
+    <string name="watering_explanation_confidence">Sicherheit</string>
+    <string name="confidence_still_learning">Lernt noch</string>
+    <string name="confidence_getting_there">Fast da</string>
+    <string name="confidence_dialed_in">Optimal eingestellt</string>
+    <!-- Water tab confidence row (#510): the level label reuses confidence_* above -->
+    <string name="watering_confidence_row_caption">Jedes eingetragene Gießen verfeinert dieses Datum</string>
+    <string name="watering_confidence_row_why">Warum?</string>
+    <string name="cd_watering_confidence_level">Sicherheit: %1$s</string>
+    <string name="watering_explanation_recent_adjustments">Letzte Anpassungen</string>
+    <string name="watering_explanation_no_adjustments">Noch keine Anpassungen</string>
+    <string name="watering_explanation_adjustment_unchanged">unverändert</string>
+    <string name="watering_explanation_adjustment_change">%1$d → %2$d Tage</string>
+    <string name="adjustment_trigger_water_too_soon">noch nass</string>
+    <string name="adjustment_trigger_water_too_late">zu trocken</string>
+    <string name="adjustment_trigger_water_just_right">genau richtig</string>
+    <string name="adjustment_trigger_water_neutral">gegossen</string>
+    <string name="adjustment_trigger_water_not_attributed">nicht wegen der Pflanze</string>
+    <string name="adjustment_trigger_check_still_moist">Prüfung: noch feucht</string>
+    <string name="adjustment_trigger_dialog_dismissal">Plan beibehalten</string>
+    <string name="adjustment_trigger_dialog_edit">Vorschlag übernommen</string>
+    <string name="adjustment_trigger_manual_edit">manuell geändert</string>
+    <string name="adjustment_trigger_silent_apply_undone">rückgängig gemacht</string>
+    <string name="adjustment_trigger_repot_reset">umgetopft — lernt neu</string>
+    <string name="adjustment_trigger_room_change_reset">Raum gewechselt — lernt neu</string>
+    <string name="adjustment_trigger_frozen_post_repot">gewöhnt sich nach dem Umtopfen noch ein</string>
+    <string name="adjustment_trigger_history_bootstrap">aus deinem Gieß-Verlauf geschätzt</string>
+    <string name="adjustment_trigger_seasonal_graduation_fixup">nach einem App-Update neu abgeglichen</string>
+    <string name="adjustment_trigger_dormancy_excluded">in Ruhephase — nicht gezählt</string>
+    <string name="adjustment_trigger_dormancy_exit">Ruhephase beendet</string>
+    <string name="adjustment_trigger_away_excluded">abwesend — nicht gezählt</string>
+    <string name="adjustment_trigger_propagate_confidence_drop">vermehrt — lernt schneller neu</string>
+    <!-- "Ask before changing intervals" toggle (#572) -->
+    <string name="ask_before_changing_intervals_title">Vor Intervalländerungen fragen</string>
+    <string name="ask_before_changing_intervals_subtitle">Zeigt einen Bestätigungsdialog, bevor ein adaptiver Gießvorschlag übernommen wird. Aus: wird still übernommen, mit Rückgängig.</string>
+    <string name="interval_auto_applied_snackbar">Gießintervall auf %1$d Tage aktualisiert</string>
+    <!-- Away mode (#898, product ADR-0065) -->
+    <string name="away_section_title">Abwesenheitsmodus</string>
+    <string name="away_section_intro">Pausiert Erinnerungen, solange du unterwegs bist. Tage deiner Abwesenheit fließen auch nicht in das Gießintervall ein, das YAPT für jede Pflanze lernt.</string>
+    <string name="away_row_title">Reise</string>
+    <string name="away_status_none">Keine Reise geplant</string>
+    <string name="away_status_planned">%1$s – %2$s · Erinnerungen wieder ab %3$s</string>
+    <string name="away_status_away">Gerade abwesend · %1$s – %2$s · Erinnerungen wieder ab %3$s</string>
+    <string name="away_state_none">Keine Reise</string>
+    <string name="away_state_planned">Reise geplant</string>
+    <string name="away_state_away">Abwesend</string>
+    <string name="away_action_plan">Reise planen</string>
+    <string name="away_action_edit">Daten ändern</string>
+    <string name="away_action_cancel">Reise abbrechen</string>
+    <string name="away_action_back">Ich bin zurück</string>
+    <string name="away_sheet_save">Speichern</string>
+    <string name="away_error_first_after_last">Der erste Tag darf nicht nach dem letzten Tag liegen.</string>
+    <string name="away_error_ends_in_past">Der letzte Tag darf nicht in der Vergangenheit liegen.</string>
+    <string name="away_error_too_long">Eine Reise darf höchstens %1$d Tage dauern.</string>
+    <string name="away_error_overlaps">Diese Daten überschneiden sich mit deiner Reise vom %1$s – %2$s.</string>
+    <string name="away_error_another_trip">Du hast bereits eine Reise vom %1$s – %2$s. Brich sie ab oder tippe zuerst auf „Ich bin zurück“.</string>
+    <string name="away_banner_active">Abwesend bis %1$s · Erinnerungen pausiert</string>
+    <string name="away_banner_upcoming">Erinnerungen pausieren ab %1$s · abwesend bis %2$s</string>
+    <string name="away_banner_state_away">Abwesend</string>
+    <string name="away_banner_state_upcoming">Reise steht bevor</string>
+    <plurals name="away_visits_removed">
+        <item quantity="one">%1$d Pflanzensitter-Besuch außerhalb deiner Reise entfernt</item>
+        <item quantity="other">%1$d Pflanzensitter-Besuche außerhalb deiner Reise entfernt</item>
+    </plurals>
+
+    <string name="away_action_plan_visit">Sitter-Besuch planen</string>
+    <string name="away_action_before_leave">Vor der Abreise</string>
+    <string name="away_action_sitter_rhythm">Sitter-Rhythmus</string>
+    <string name="away_rhythm_not_set">Sitter-Besuche: Häufigkeit noch nicht festgelegt</string>
+    <plurals name="away_rhythm_set">
+        <item quantity="one">Sitter-Besuche: etwa jeden Tag</item>
+        <item quantity="other">Sitter-Besuche: etwa alle %d Tage</item>
+    </plurals>
+
+    <string name="sitter_rhythm_title">Sitter-Besuche</string>
+    <string name="sitter_rhythm_heading">Wie oft soll der Sitter kommen?</string>
+    <string name="sitter_rhythm_assumption">Dabei wird angenommen, dass an deinem letzten Tag zu Hause alles gegossen wird, was fällig ist: %1$s.</string>
+    <plurals name="sitter_rhythm_option">
+        <item quantity="one">Jeden Tag</item>
+        <item quantity="other">Alle %d Tage</item>
+    </plurals>
+    <string name="sitter_rhythm_flagged_none">Keine Pflanze muss länger als üblich warten</string>
+    <plurals name="sitter_rhythm_flagged_count">
+        <item quantity="one">%d Pflanze muss länger als üblich warten</item>
+        <item quantity="other">%d Pflanzen müssen länger als üblich warten</item>
+    </plurals>
+    <string name="sitter_rhythm_recommended">Empfohlen</string>
+    <string name="sitter_rhythm_flagged_heading">Länger als üblich</string>
+    <plurals name="sitter_rhythm_flagged_plant">
+        <item quantity="one">%1$s (sonst jeden Tag)</item>
+        <item quantity="other">%1$s (sonst alle %2$d Tage)</item>
+    </plurals>
+    <string name="sitter_rhythm_save">Speichern</string>
+    <string name="sitter_rhythm_no_trip">Plane zuerst eine Reise und wähle dann, wie oft ein Sitter kommen soll.</string>
+    <string name="sitter_ask_title">Sitter fragen</string>
+    <string name="sitter_ask_weekly">Könntest du etwa einmal pro Woche vorbeikommen? Das erste Mal bis %1$s.</string>
+    <string name="sitter_ask_fortnightly">Könntest du etwa alle zwei Wochen vorbeikommen? Das erste Mal bis %1$s.</string>
+    <plurals name="sitter_ask_days">
+        <item quantity="one">Könntest du etwa jeden Tag vorbeikommen? Das erste Mal bis %2$s.</item>
+        <item quantity="other">Könntest du etwa alle %1$d Tage vorbeikommen? Das erste Mal bis %2$s.</item>
+    </plurals>
+    <string name="sitter_ask_copy">Kopieren</string>
+
+    <string name="before_leave_title">Vor der Abreise</string>
+    <plurals name="before_leave_not_available">
+        <item quantity="one">„Vor der Abreise“ öffnet %d Tag vor Reisebeginn. Schau dann wieder vorbei, um deine Gießtermine zu planen.</item>
+        <item quantity="other">„Vor der Abreise“ öffnet %d Tage vor Reisebeginn. Schau dann wieder vorbei, um deine Gießtermine zu planen.</item>
+    </plurals>
+    <string name="before_leave_hold_title">Für den letzten Tag aufheben</string>
+    <string name="before_leave_hold_hint">Sie werden vor deiner Abreise fällig, können aber bis %1$s warten. Dann gegossen, halten sie die ganze Reise durch; früher gegossen, brauchen sie während deiner Abwesenheit vielleicht erneut Wasser.</string>
+    <string name="before_leave_hold_empty">Nichts aufzuheben. Komm am %1$s für den Plan für deinen letzten Tag zurück.</string>
+    <string name="before_leave_intro">Der erste Besuch ist etwa am %1$s. Gieße, was bis dahin austrocknen würde, und prüfe die Erde bei dem, was später austrocknen könnte.</string>
+    <string name="before_leave_water_today">Heute gießen</string>
+    <string name="before_leave_check_soil">Erde prüfen</string>
+    <string name="before_leave_check_soil_hint">Gieße nur, wenn die Erde trocken ist; sonst gießt sie der Sitter.</string>
+    <plurals name="before_leave_can_wait">
+        <item quantity="one">%d weitere Pflanze kann warten</item>
+        <item quantity="other">%d weitere Pflanzen können warten</item>
+    </plurals>
+    <plurals name="before_leave_watered_today">
+        <item quantity="one">%d heute schon gegossen</item>
+        <item quantity="other">%d heute schon gegossen</item>
+    </plurals>
+    <plurals name="before_leave_log_action">
+        <item quantity="one">%d als gegossen eintragen</item>
+        <item quantity="other">%d als gegossen eintragen</item>
+    </plurals>
+    <plurals name="before_leave_logged">
+        <item quantity="one">%d Pflanze als gegossen eingetragen</item>
+        <item quantity="other">%d Pflanzen als gegossen eingetragen</item>
+    </plurals>
+    <plurals name="before_leave_skipped">
+        <item quantity="one">%d wurde heute schon gegossen</item>
+        <item quantity="other">%d wurden heute schon gegossen</item>
+    </plurals>
+    <string name="before_leave_logged_with_skipped">%1$s · %2$s</string>
+
+    <string name="sitter_plan_title">Sitter-Besuch planen</string>
+    <string name="sitter_plan_no_trip">Plane zuerst eine Reise, dann kannst du hier die Besuche des Sitters planen.</string>
+    <string name="sitter_plan_when">Wann</string>
+    <string name="sitter_plan_today">Heute</string>
+    <string name="sitter_plan_tomorrow">Morgen</string>
+    <string name="sitter_plan_pick_date">Datum wählen</string>
+    <string name="sitter_plan_gap_title">Nächster Besuch danach, etwa</string>
+    <plurals name="sitter_plan_gap_value">
+        <item quantity="one">in %d Tag</item>
+        <item quantity="other">in %d Tagen</item>
+    </plurals>
+    <string name="sitter_plan_gap_decrease">Weniger Tage bis zum nächsten Besuch</string>
+    <string name="sitter_plan_gap_increase">Mehr Tage bis zum nächsten Besuch</string>
+    <string name="sitter_plan_includes_due_by">Die Liste enthält alles, was bis %1$s fällig ist</string>
+    <string name="sitter_plan_nothing_to_water">Bei diesem Besuch muss keine Pflanze gegossen werden</string>
+    <string name="sitter_plan_room_count">%1$s %2$d</string>
+    <string name="sitter_plan_rooms_separator">" · "</string>
+    <plurals name="sitter_plan_resting">
+        <item quantity="one">+ %d ruht</item>
+        <item quantity="other">+ %d ruhen</item>
+    </plurals>
+    <string name="sitter_plan_names_more">%1$s und %2$d weitere</string>
+    <plurals name="sitter_plan_note_missed">
+        <item quantity="one">%1$d Pflanze wurde letztes Mal verpasst: %2$s</item>
+        <item quantity="other">%1$d Pflanzen wurden letztes Mal verpasst: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_longer">
+        <item quantity="one">%1$d Pflanze muss länger als üblich warten: %2$s</item>
+        <item quantity="other">%1$d Pflanzen müssen länger als üblich warten: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_longer_hint">
+        <item quantity="one">Sie warten etwa %d Tag auf den nächsten Besuch.</item>
+        <item quantity="other">Sie warten etwa %d Tage auf den nächsten Besuch.</item>
+    </plurals>
+    <plurals name="sitter_plan_note_no_photo">
+        <item quantity="one">%1$d aufgeführte Pflanze hat kein Foto: %2$s</item>
+        <item quantity="other">%1$d aufgeführte Pflanzen haben kein Foto: %2$s</item>
+    </plurals>
+    <plurals name="sitter_plan_note_look_alike">
+        <item quantity="one">%1$d Pflanze hat denselben Namen und Raum wie eine andere und kein Foto zur Unterscheidung: %2$s</item>
+        <item quantity="other">%1$d Pflanzen haben denselben Namen und Raum wie andere und kein Foto zur Unterscheidung: %2$s</item>
+    </plurals>
+    <string name="sitter_pick_section_listed">Bei diesem Besuch</string>
+    <string name="sitter_pick_section_not_listed">Nicht bei diesem Besuch</string>
+    <string name="sitter_pick_section_resting">Ruhend</string>
+    <string name="sitter_pick_resting_hint">Wird normalerweise trocken gelassen. Hake eine an, um sie zu diesem Besuch hinzuzufügen.</string>
+    <string name="sitter_pick_longer_tag">Länger als üblich</string>
+    <string name="sitter_plan_share_pdf">Liste teilen (PDF)</string>
+    <string name="sitter_plan_share_text">Als Text teilen</string>
+
+    <string name="sitter_confirm_title">Letzten Besuch bestätigen</string>
+    <string name="sitter_confirm_heading">Besuch am %1$s</string>
+    <string name="sitter_confirm_hint">Entferne den Haken bei Pflanzen, die der Sitter übersprungen hat. „Weiter“ trägt die übrigen als an diesem Tag gegossen ein.</string>
+    <string name="sitter_confirm_continue">Weiter</string>
+    <string name="sitter_confirm_did_not_happen">Der Besuch hat nicht stattgefunden</string>
+    <string name="sitter_confirm_did_not_happen_done">Als nicht stattgefunden markiert</string>
+    <plurals name="sitter_confirm_skipped">
+        <item quantity="one">%d wurde an diesem Tag schon gegossen</item>
+        <item quantity="other">%d wurden an diesem Tag schon gegossen</item>
+    </plurals>
+
+    <plurals name="sitter_confirm_prompt">
+        <item quantity="one">%d Sitter-Besuch zu bestätigen</item>
+        <item quantity="other">%d Sitter-Besuche zu bestätigen</item>
+    </plurals>
+    <string name="sitter_confirm_prompt_oldest">Beginnend mit dem Besuch am %1$s</string>
+    <string name="sitter_confirm_prompt_state">Sitter-Besuche zu bestätigen</string>
+    <string name="sitter_confirm_prompt_action">Besuch bestätigen</string>
+    <string name="sitter_visits_heading">Sitter-Besuche</string>
+    <string name="sitter_visit_state_planned">Geplant</string>
+    <string name="sitter_visit_state_confirmed">Bestätigt</string>
+    <string name="sitter_visit_state_did_not_happen">Nicht stattgefunden</string>
+    <plurals name="sitter_visit_plant_count">
+        <item quantity="one">%d Pflanze</item>
+        <item quantity="other">%d Pflanzen</item>
+    </plurals>
+    <plurals name="sitter_visit_watered_count">
+        <item quantity="one">%1$d von %2$d Pflanze gegossen</item>
+        <item quantity="other">%1$d von %2$d Pflanzen gegossen</item>
+    </plurals>
+    <string name="sitter_visit_confirm_description">Besuch am %1$s bestätigen</string>
+    <string name="sitter_visit_confirm_action">Bestätigen</string>
+    <string name="sitter_visit_edit_description">Besuch am %1$s bearbeiten</string>
+    <string name="sitter_visit_more_options">Weitere Optionen für den Besuch am %1$s</string>
+    <string name="sitter_visit_menu_edit">Bearbeiten</string>
+    <string name="sitter_visit_delete_title">Diesen Besuch löschen?</string>
+    <string name="sitter_visit_delete_message">Der Besuch und seine Pflanzenliste werden entfernt. Diese Pflanzen können beim nächsten Besuch wieder auftauchen.</string>
+
+    <string name="sitter_share_chooser_title">Pflanzenliste teilen</string>
+    <string name="sitter_share_failed">PDF konnte nicht erstellt werden. Versuche stattdessen „Als Text teilen“.</string>
+    <string name="sitter_visit_title">Zu gießende Pflanzen am %1$s</string>
+    <plurals name="sitter_water_count">
+        <item quantity="one">%d Pflanze gießen</item>
+        <item quantity="other">%d Pflanzen gießen</item>
+    </plurals>
+    <string name="sitter_room_none">Kein Raum</string>
+    <string name="sitter_room_continued">%1$s (Fortsetzung)</string>
+    <string name="sitter_no_photo">Kein Foto</string>
+    <string name="sitter_missed_tag">Letztes Mal verpasst</string>
+    <string name="sitter_footer_only_water">Gieße nur die Pflanzen auf dieser Seite</string>
+    <string name="sitter_footer_page">Seite %1$d von %2$d</string>
+    <string name="sitter_brand_name">YAPT</string>
+    <string name="sitter_brand_line">Erstellt mit YAPT · %1$s</string>
+    <string name="sitter_tips_heading">Gießtipps</string>
+    <string name="sitter_tip_soil">Prüfe zuerst die Erde: Ist sie 2–3 cm tief trocken, gieße.</string>
+    <string name="sitter_tip_slowly">Gieße langsam, bis unten etwas herausläuft.</string>
+    <string name="sitter_tip_saucer">Leere Untersetzer nach etwa 15 Minuten.</string>
+    <string name="sitter_tip_doubt">Im Zweifel lieber trocken lassen.</string>
+    <string name="sitter_text_bullet">- %1$s</string>
+    <string name="sitter_text_name_species">%1$s (%2$s)</string>
+    <string name="sitter_text_with_missed">%1$s · %2$s</string>
+    <string name="sitter_caption_single">Zu gießende Pflanzen am %1$s, nach Raum. Gieße nur, was auf dieser Seite steht.</string>
+    <string name="sitter_caption_multi">Zu gießende Pflanzen am %1$s, nach Raum. Gieße nur, was auf den Seiten 1 bis %2$d steht.</string>
+    <!-- Add plant wizard (#943, product ADR-0086) -->
+    <string name="add_plant_name_required">Pflanzenname ist erforderlich</string>
+    <string name="add_plant_step_progress">Schritt %1$d von %2$d</string>
+    <string name="add_plant_step_details">Name und Standort</string>
+    <string name="add_plant_step_photo">Foto</string>
+    <string name="add_plant_step_care">Pflege</string>
+    <string name="add_plant_step_review">Überprüfen</string>
+    <string name="add_plant_next">Weiter</string>
+    <string name="add_plant_back">Zurück</string>
+    <string name="add_plant_finish">Pflanze hinzufügen</string>
+    <string name="add_plant_intro_details">Gib deiner Pflanze einen Namen, den du wiedererkennst. Art und Raum sind optional, helfen dir aber, sie später zu finden.</string>
+    <string name="add_plant_intro_photo">Mit einem Foto erkennst du deine Pflanze in der Liste sofort, und es wird ihr Titelbild. Spätere Fotos zeigen, wie sie wächst. Du kannst das überspringen und jederzeit eins hinzufügen.</string>
+    <string name="add_plant_intro_care">Wähle, welche Erinnerungen du möchtest. Gießen und Düngen sind die üblichen. Alles hier ist optional und lässt sich später unter „Pflanze bearbeiten“ ändern.</string>
+    <string name="add_plant_intro_review">Prüfe, was angelegt wird. Tippe neben einer Zeile auf „Ändern“, um sie zu bearbeiten.</string>
+    <string name="info_strength_cd">Über die saisonale Menge</string>
+    <string name="info_fertilizing_seasons_cd">Über die Düngezeiten</string>
+    <string name="info_fertilizing_seasons_text">Düngeerinnerungen kommen nur in den Jahreszeiten, die du auswählst. Die meisten Zimmerpflanzen wachsen im Frühling und Sommer und brauchen im Herbst und Winter wenig oder keinen Dünger. Eine Erinnerung, die in eine Pause fiele, wartet bis zur nächsten aktiven Jahreszeit.</string>
+    <string name="info_dormancy_cd">Über das Ruhephasen-Zeitfenster</string>
+    <string name="info_repotting_cd">Über die Umtopf-Erinnerung</string>
+    <string name="info_repotting_seasons_cd">Über „Umtopfen bevorzugt im“</string>
+    <string name="info_strength_text">Pflanzen trinken im Winter weniger und im Sommer mehr. Das legt fest, wie stark sich das Gießintervall dieser Pflanze im Jahresverlauf dehnt und verkürzt. „App-Standard“ folgt den Einstellungen; „Benutzerdefiniert“ wählt eine Menge nur für diese Pflanze. „Fixieren“ behält das Intervall dieser Pflanze das ganze Jahr genau so, wie du es eingestellt hast – gut für Pflanzen, deren Bedarf sich kaum ändert.</string>
+    <string name="info_dormancy_text">Manche Pflanzen, etwa viele Kakteen und Sukkulenten, ruhen einige Monate und brauchen kaum Wasser. Wähle diese Monate, und Gießerinnerungen pausieren oder kommen seltener.</string>
+    <string name="info_repotting_text">Erinnert dich ans Umtopfen nach der gewählten Anzahl Monate, gezählt ab dem letzten Umtopfen oder ab dem Hinzufügen der Pflanze. Die meisten Zimmerpflanzen brauchen das alle ein bis zwei Jahre.</string>
+    <string name="info_repotting_seasons_text">Verschiebt die Umtopf-Erinnerung in die nächstgelegene Jahreszeit, die du auswählst, damit das Umtopfen zu einer guten Zeit stattfindet, etwa im Frühling.</string>
+    <string name="add_plant_review_heading">Was angelegt wird</string>
+    <string name="add_plant_summary_change">Ändern</string>
+    <string name="add_plant_summary_photo_added">Foto: hinzugefügt</string>
+    <string name="add_plant_summary_photo_none">Foto: keins</string>
+    <string name="add_plant_summary_name">Name: %1$s</string>
+    <string name="add_plant_summary_species">Art: %1$s</string>
+    <string name="add_plant_summary_location">Standort: %1$s</string>
+    <string name="add_plant_summary_watering_on">Gießen: alle %1$d Tage</string>
+    <string name="add_plant_summary_watering_off">Gießen: aus</string>
+    <string name="add_plant_summary_fertilizing_on">Düngen: alle %1$d Tage</string>
+    <string name="add_plant_summary_fertilizing_off">Düngen: aus</string>
+    <plurals name="add_plant_summary_repotting_on">
+        <item quantity="one">Umtopfen: jeden Monat</item>
+        <item quantity="other">Umtopfen: alle %d Monate</item>
+    </plurals>
+    <string name="add_plant_summary_dormancy">Ruhephase: %1$s–%2$s</string>
+    <string name="add_plant_summary_strength">Gießmenge: %1$s</string>
+    <string name="add_plant_summary_repotting_seasons">Umtopf-Jahreszeiten: %1$s</string>
+    <string name="add_plant_more_options">Weitere Optionen</string>
+    <string name="add_plant_more_options_expanded">Aufgeklappt</string>
+    <string name="add_plant_more_options_collapsed">Zugeklappt</string>
+    <string name="add_plant_discard_title">Diese Pflanze verwerfen?</string>
+    <string name="add_plant_discard_message">Deine bisherigen Eingaben gehen verloren.</string>
+    <string name="add_plant_discard_confirm">Verwerfen</string>
+    <string name="add_plant_discard_keep_editing">Weiter bearbeiten</string>
+    <string name="countdown_due_today">Heute fällig</string>
+    <plurals name="countdown_overdue_by_days">
+        <item quantity="one">Seit %1$d Tag überfällig</item>
+        <item quantity="other">Seit %1$d Tagen überfällig</item>
+    </plurals>
+    <plurals name="countdown_in_days">
+        <item quantity="one">In %1$d Tag</item>
+        <item quantity="other">In %1$d Tagen</item>
+    </plurals>
+</resources>
