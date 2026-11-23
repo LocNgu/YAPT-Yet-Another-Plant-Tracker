@@ -103,6 +103,13 @@ android {
         unitTests.isIncludeAndroidResources = true
     }
 
+    lint {
+        // Every English string needs a German entry (or translatable="false"), and values-de may
+        // not carry keys the default locale lacks (#1005). MissingTranslation is pinned to error
+        // explicitly so a future lint default change can't silently relax the gate.
+        error += setOf("MissingTranslation", "ExtraTranslation")
+    }
+
     packaging {
         resources {
             excludes += setOf(

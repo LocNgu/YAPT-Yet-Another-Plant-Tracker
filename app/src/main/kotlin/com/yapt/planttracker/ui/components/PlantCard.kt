@@ -33,8 +33,8 @@ import com.yapt.planttracker.ui.theme.IssuePurple
 import com.yapt.planttracker.ui.theme.OkGreen
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
+import com.yapt.planttracker.ui.util.countdownText
 import com.yapt.planttracker.ui.util.relativeDateText
-import com.yapt.planttracker.util.DateUtils
 
 @Composable
 fun PlantCard(
@@ -136,7 +136,7 @@ private fun WaterStatusLabel(status: PlantCareStatus) {
             stringResource(R.string.date_group_dormant)
         status.lastWateredAt == null -> neverWateredLabel
         status.nextWateringDueAt != null ->
-            DateUtils.formatCountdown(status.nextWateringDueAt)
+            countdownText(status.nextWateringDueAt)
         else -> relativeDateText(status.lastWateredAt)
     }
 
@@ -190,7 +190,7 @@ private fun fertilizerLabel(status: PlantCareStatus): String {
             stringResource(R.string.fert_label_due_with_watering)
         status.lastFertilizedAt == null -> fertLabelNever
         status.nextFertilizingDueAt != null ->
-            DateUtils.formatCountdown(status.nextFertilizingDueAt)
+            countdownText(status.nextFertilizingDueAt)
         else -> fertLabelFertilizing ?: fertLabelNever
     }
 }

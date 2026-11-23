@@ -5,11 +5,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.time.LocalDate
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 
+// Robolectric: localized date patterns come from android.text.format.DateFormat (#1005).
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class DateUtilsTest {
 
     private val now = 1_700_000_000_000L // 2023-11-14 22:13:20 UTC
@@ -143,63 +149,63 @@ class DateUtilsTest {
         assertTrue(result.isNotEmpty())
     }
 
-    // formatCountdown
+    // countdown
 
     @Test
-    fun `formatCountdown due later same calendar day returns Due today`() {
+    fun `countdown due later same calendar day returns DueToday`() {
         // now = 22:13 UTC, +1h = 23:13 UTC — still same calendar day
         val dueAt = now + TimeUnit.HOURS.toMillis(1)
-        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.DueToday, DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown due exactly now returns Due today`() {
-        assertEquals("Due today", DateUtils.formatCountdown(now, now))
+    fun `countdown due exactly now returns DueToday`() {
+        assertEquals(DateUtils.Countdown.DueToday, DateUtils.countdown(now, now))
     }
 
     @Test
-    fun `formatCountdown overdue earlier same calendar day returns Due today`() {
+    fun `countdown overdue earlier same calendar day returns DueToday`() {
         // now = 22:13 UTC, -6h = 16:13 UTC — still same calendar day
         val dueAt = now - TimeUnit.HOURS.toMillis(6)
-        assertEquals("Due today", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.DueToday, DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown overdue on previous calendar day returns Overdue even if less than 24h ago`() {
+    fun `countdown overdue on previous calendar day returns Overdue even if less than 24h ago`() {
         // now = 22:13 UTC, -23h = 23:13 UTC previous day — different calendar day
         val dueAt = now - TimeUnit.HOURS.toMillis(23)
-        assertEquals("Overdue by 1 day", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.Overdue(1), DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown overdue exactly 1 day returns singular`() {
+    fun `countdown overdue exactly 1 day returns singular`() {
         val dueAt = now - TimeUnit.DAYS.toMillis(1)
-        assertEquals("Overdue by 1 day", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.Overdue(1), DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown overdue multiple days returns plural`() {
+    fun `countdown overdue multiple days returns plural`() {
         val dueAt = now - TimeUnit.DAYS.toMillis(5)
-        assertEquals("Overdue by 5 days", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.Overdue(5), DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown due tomorrow returns In 1 day`() {
+    fun `countdown due tomorrow returns In 1 day`() {
         // now = 22:13 UTC, +2h = 00:13 UTC next day
         val dueAt = now + TimeUnit.HOURS.toMillis(2)
-        assertEquals("In 1 day", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.InDays(1), DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown due in exactly 1 day returns singular`() {
+    fun `countdown due in exactly 1 day returns singular`() {
         val dueAt = now + TimeUnit.DAYS.toMillis(1)
-        assertEquals("In 1 day", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.InDays(1), DateUtils.countdown(dueAt, now))
     }
 
     @Test
-    fun `formatCountdown due in multiple days returns plural`() {
+    fun `countdown due in multiple days returns plural`() {
         val dueAt = now + TimeUnit.DAYS.toMillis(7)
-        assertEquals("In 7 days", DateUtils.formatCountdown(dueAt, now))
+        assertEquals(DateUtils.Countdown.InDays(7), DateUtils.countdown(dueAt, now))
     }
 
     // formatWeekdayDate
@@ -208,6 +214,20 @@ class DateUtilsTest {
     fun `formatWeekdayDate returns weekday and date`() {
         val epochDay = LocalDate.of(2023, 11, 14).toEpochDay()
         assertEquals("Tue, Nov 14", DateUtils.formatWeekdayDate(epochDay))
+    }
+
+    @Test
+    fun `formatDate follows the German field order`() {
+        Locale.setDefault(Locale.GERMANY)
+        val timestamp = LocalDate.of(2023, 10, 30).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        assertEquals("30. Okt. 2023", DateUtils.formatDate(timestamp))
+    }
+
+    @Test
+    fun `formatWeekdayDate follows the German field order`() {
+        Locale.setDefault(Locale.GERMANY)
+        val epochDay = LocalDate.of(2023, 11, 14).toEpochDay()
+        assertEquals("Di., 14. Nov.", DateUtils.formatWeekdayDate(epochDay))
     }
 
     // todayRangeMillis

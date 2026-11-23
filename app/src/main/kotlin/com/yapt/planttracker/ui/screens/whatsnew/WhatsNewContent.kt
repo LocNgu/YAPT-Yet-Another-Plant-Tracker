@@ -18,6 +18,9 @@ object WhatsNewContent {
             "Adding a plant now takes four short steps: name, photo, care, review; " +
                 "rare settings sit under More options",
             "Add Plant has short intros, and the rarer settings have an (i) icon that explains them"
+        ),
+        added = listOf(
+            "YAPT now speaks German: set your phone to German to use it"
         )
     )
 

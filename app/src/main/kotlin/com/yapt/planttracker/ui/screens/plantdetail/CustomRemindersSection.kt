@@ -38,7 +38,7 @@ import com.yapt.planttracker.domain.model.CustomReminder
 import com.yapt.planttracker.domain.model.CustomReminderStatus
 import com.yapt.planttracker.ui.theme.OverdueRed
 import com.yapt.planttracker.ui.theme.WarnOrange
-import com.yapt.planttracker.util.DateUtils
+import com.yapt.planttracker.ui.util.countdownText
 
 /**
  * Bundles the [CustomRemindersCard]/[CustomReminderRow] callbacks into one parameter so neither
@@ -128,7 +128,7 @@ private fun CustomReminderRow(
                 reminder.intervalDays,
                 reminder.intervalDays
             )
-            val countdown = status?.nextDueAt?.let { DateUtils.formatCountdown(it) }
+            val countdown = status?.nextDueAt?.let { countdownText(it) }
             val statusColor = when {
                 status?.isOverdue == true -> OverdueRed
                 status?.isDueSoon == true -> WarnOrange
