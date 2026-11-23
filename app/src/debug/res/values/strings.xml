@@ -10,7 +10,7 @@
 
          Not referenced by FeatureFlagRegistry.all (which ships empty) - used by SettingsScreenTest
          to prove the registry-driven flag row renders generically from an injected test entry,
-         per #521 AC33. -->
-    <string name="feature_flag_test_title">Test flag</string>
-    <string name="feature_flag_test_description">Used only by Compose tests to prove registry-driven rendering.</string>
+         per #521 AC33. translatable="false": test fixtures, exempt from the German gate (#1005). -->
+    <string name="feature_flag_test_title" translatable="false">Test flag</string>
+    <string name="feature_flag_test_description" translatable="false">Used only by Compose tests to prove registry-driven rendering.</string>
 </resources>

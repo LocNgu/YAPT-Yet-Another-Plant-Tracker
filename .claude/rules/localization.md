@@ -3,6 +3,7 @@ description: German translation (values-de), the missing-translation gate, and l
 paths:
   - "app/src/main/res/values/strings.xml"
   - "app/src/main/res/values-*/strings.xml"
+  - "app/src/debug/res/values/strings.xml"
   - "app/src/main/kotlin/com/yapt/planttracker/util/DateUtils.kt"
   - "app/src/main/kotlin/com/yapt/planttracker/ui/util/CountdownText.kt"
   - "app/src/test/kotlin/com/yapt/planttracker/resources/**"
@@ -21,7 +22,8 @@ paths:
 ## Every new string ships in both files
 - `lintDebug` fails on `MissingTranslation` and `ExtraTranslation` (pinned to error in `app/build.gradle.kts`).
   Add the German entry in the same PR, or mark a genuinely untranslatable string `translatable="false"`
-  (brand/URL tokens such as `sitter_brand_url`). Copying a string unchanged into `values-de` is also fine.
+  (brand/URL tokens such as `sitter_brand_url`, and the test-only fixtures in `src/debug/res/values/strings.xml`
+  — lint checks every source set). Copying a string unchanged into `values-de` is also fine.
 - `GermanTranslationParityTest` (plain JVM, reads both XML files) also fails on: a string whose placeholders
   differ from English, a German plural without exactly `one` + `other`, a German `other` whose placeholders
   differ from English `other`, a German `one` with a placeholder English `other` lacks, or a `string-array`
