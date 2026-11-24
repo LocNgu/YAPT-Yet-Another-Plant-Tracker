@@ -4,6 +4,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
@@ -2101,6 +2104,12 @@ class PlantDetailScreenTest {
         composeTestRule.onNodeWithText("(base", substring = true).assertDoesNotExist()
     }
 
+    private fun expandWaterMoreOptions() {
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.add_plant_more_options)))
+        composeTestRule.onNodeWithText(str(R.string.add_plant_more_options)).performClick()
+    }
+
     @Test
     fun waterTab_showsDormancyOffEvenWithoutWateringSchedule() {
         val plant = Plant(id = 133L, name = "Cactus", createdAt = 0L, updatedAt = 0L)
@@ -2116,9 +2125,71 @@ class PlantDetailScreenTest {
             )
         }
 
+        expandWaterMoreOptions()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasContentDescription("Dormancy window"))
         composeTestRule.onNodeWithContentDescription("Dormancy window").assertIsOff().assertIsDisplayed()
+    }
+
+    @Test
+    fun waterTab_moreOptionsStartsCollapsedAndHidesTheMovedSettings() {
+        val plant = Plant(id = 134L, name = "Fern", createdAt = 0L, updatedAt = 0L, wateringIntervalDays = 7)
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.add_plant_more_options)))
+        composeTestRule.onNodeWithText(str(R.string.add_plant_more_options))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, str(R.string.add_plant_more_options_collapsed)))
+        composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertDoesNotExist()
+
+        composeTestRule.onNodeWithText(str(R.string.add_plant_more_options)).performClick()
+
+        composeTestRule.onNodeWithText(str(R.string.add_plant_more_options))
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, str(R.string.add_plant_more_options_expanded)))
+        composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertExists()
+    }
+
+    @Test
+    fun waterTab_collapsedHeaderSummarisesNonDefaultValuesWithoutExpanding() {
+        val plant = Plant(
+            id = 135L,
+            name = "Cactus",
+            createdAt = 0L,
+            updatedAt = 0L,
+            wateringIntervalDays = 7,
+            dormancyStartMonth = 11,
+            dormancyEndMonth = 2,
+            pinIntervalToBase = true
+        )
+        val viewModel = makeViewModelWithPlantRepo(plant, reactivePlantRepo(plant))
+
+        composeTestRule.setContent {
+            PlantDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = {},
+                onNavigateToEdit = {},
+                onNavigateToEditLog = {},
+                initialTab = PlantDetailTab.WATER
+            )
+        }
+
+        composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
+            .performScrollToNode(hasText(str(R.string.watering_more_options_summary_pinned), substring = true))
+        composeTestRule.onNodeWithText(str(R.string.watering_more_options_summary_pinned), substring = true)
+            .assertIsDisplayed()
+        composeTestRule.onNodeWithText(" · ", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
     }
 
     @Test
@@ -3654,6 +3725,7 @@ class PlantDetailScreenTest {
         val baseIntervalDays = plant.wateringBaseIntervalDays ?: plant.wateringIntervalDays!!.toDouble()
         val expectedDays = (expectedMultiplier * baseIntervalDays).roundToInt()
 
+        expandWaterMoreOptions()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasText(seasonalCurveTodayDaysText(expectedDays)))
         composeTestRule.onNodeWithText(seasonalCurveTodayDaysText(expectedDays)).assertIsDisplayed()
@@ -3677,6 +3749,7 @@ class PlantDetailScreenTest {
             )
         }
 
+        expandWaterMoreOptions()
         composeTestRule.onNodeWithTag(PLANT_DETAIL_CONTENT_TEST_TAG)
             .performScrollToNode(hasTestTag("watering_strength_mode_PIN"))
         composeTestRule.onNodeWithTag("watering_strength_mode_PIN").assertIsNotSelected()

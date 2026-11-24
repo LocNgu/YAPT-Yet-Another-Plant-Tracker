@@ -17,7 +17,8 @@ object WhatsNewContent {
         changed = listOf(
             "Adding a plant now takes four short steps: name, photo, care, review; " +
                 "rare settings sit under More options",
-            "Add Plant has short intros, and the rarer settings have an (i) icon that explains them"
+            "Add Plant has short intros, and the rarer settings have an (i) icon that explains them",
+            "The Water tab keeps the basics up front; strength and dormancy are under More options"
         )
     )
 

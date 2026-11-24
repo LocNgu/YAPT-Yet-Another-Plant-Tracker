@@ -1157,6 +1157,13 @@
     <string name="add_plant_more_options">More options</string>
     <string name="add_plant_more_options_expanded">Expanded</string>
     <string name="add_plant_more_options_collapsed">Collapsed</string>
+    <string name="watering_more_options_summary_dormant">Dormant %1$s–%2$s</string>
+    <plurals name="watering_more_options_summary_dormant_cadence">
+        <item quantity="one">Dormant %1$s–%2$s, watered every %3$d week</item>
+        <item quantity="other">Dormant %1$s–%2$s, watered every %3$d weeks</item>
+    </plurals>
+    <string name="watering_more_options_summary_custom_strength">Custom strength</string>
+    <string name="watering_more_options_summary_pinned">Interval pinned</string>
     <string name="add_plant_discard_title">Discard this plant?</string>
     <string name="add_plant_discard_message">What you entered so far will be lost.</string>
     <string name="add_plant_discard_confirm">Discard</string>
