@@ -2186,7 +2186,13 @@ class PlantDetailScreenTest {
             .performScrollToNode(hasText(str(R.string.watering_more_options_summary_pinned), substring = true))
         composeTestRule.onNodeWithText(str(R.string.watering_more_options_summary_pinned), substring = true)
             .assertIsDisplayed()
-        composeTestRule.onNodeWithText(" · ", substring = true).assertIsDisplayed()
+        val dormantPart = str(R.string.watering_more_options_summary_dormant).substringBefore(" ")
+        composeTestRule.onNode(
+            hasText(str(R.string.add_plant_more_options), substring = true) and
+                hasText(dormantPart, substring = true) and
+                hasText(" · ", substring = true) and
+                hasText(str(R.string.watering_more_options_summary_pinned), substring = true)
+        ).assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Dormancy window").assertDoesNotExist()
     }
 
