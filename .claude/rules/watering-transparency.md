@@ -66,7 +66,7 @@ A dedicated table, not a `CareLog` replay: dismissals, manual edits and silent a
 
 ## The sheet (`WateringExplanationSheet.kt`)
 - Entry points (#927, product ADR-0068), all setting `showWateringExplanationSheet`, which is screen-level so it works from any tab:
-  - the "Why this date?" `TextButton` (`testTag("why_this_date_button")`) in the Water tab's inline-settings card, shown whenever `computedNextWateringDueAt != null`;
+  - the "Why this date?" `TextButton` (`testTag("why_this_date_button")`) in the Water tab's inline-settings card (it stays in the card, not in More options), shown whenever `computedNextWateringDueAt != null`;
   - the Water tab's "Adjusted for winter · base 8 days" line (`WateringSeasonalAdjustmentLine`, only while a seasonal adjustment shows);
   - the hero 💧 line (`WateringHeroLine`, any tab).
   - the Water tab's confidence row (`WateringConfidenceRow`, #510; see Confidence below).

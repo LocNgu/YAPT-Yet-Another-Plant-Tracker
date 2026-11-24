@@ -97,26 +97,19 @@ import com.yapt.planttracker.domain.model.PlantIssue
 import com.yapt.planttracker.domain.schedule.CareSchedule
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.domain.schedule.SeasonalWatering
-import com.yapt.planttracker.domain.schedule.resolveWateringAmplitude
-import com.yapt.planttracker.domain.schedule.wateringStrengthMode
 import com.yapt.planttracker.ui.components.CameraPhotoDialogs
 import com.yapt.planttracker.ui.components.CareLogItem
 import com.yapt.planttracker.ui.components.CoverPhotoAction
-import com.yapt.planttracker.ui.components.DormancyWindowSetting
 import com.yapt.planttracker.ui.components.EmptyStateView
 import com.yapt.planttracker.ui.components.FertilizingSeasonsSelector
 import com.yapt.planttracker.ui.components.FullScreenPhotoViewer
 import com.yapt.planttracker.ui.components.PhotoGallery
 import com.yapt.planttracker.ui.components.PhotoReminderDialog
-import com.yapt.planttracker.ui.components.SeasonalCurvePlantContext
-import com.yapt.planttracker.ui.components.SeasonalWateringCurveChart
 import com.yapt.planttracker.ui.components.SteppedSlider
 import com.yapt.planttracker.ui.components.SteppedSliderCallbacks
 import com.yapt.planttracker.ui.components.SteppedSliderLabels
 import com.yapt.planttracker.ui.components.WateringHistoryChart
 import com.yapt.planttracker.ui.components.WateringReasonBottomSheet
-import com.yapt.planttracker.ui.components.WateringStrengthCallbacks
-import com.yapt.planttracker.ui.components.WateringStrengthSetting
 import com.yapt.planttracker.ui.components.rememberCameraPhotoState
 import com.yapt.planttracker.ui.util.relativeDateText
 import com.yapt.planttracker.ui.util.showSnackbarOnce
@@ -229,6 +222,7 @@ fun PlantDetailScreen(
     val scrolledPastHero = listState.firstVisibleItemIndex > 0
 
     var selectedTab by rememberSaveable { mutableStateOf(initialTab ?: PlantDetailTab.DEFAULT) }
+    var isWateringMoreOptionsExpanded by rememberSaveable(selectedTab) { mutableStateOf(false) }
     var isTabRowExpanded by rememberSaveable { mutableStateOf(initialTab?.isInCollapsedRow == true) }
 
     // #644: the field mirrors what the "Suggested: ... days" sentence below shows — the effective
@@ -920,43 +914,6 @@ fun PlantDetailScreen(
                                                 }
                                             )
                                         }
-                                        if (plant?.wateringIntervalDays != null) {
-                                            WateringStrengthSetting(
-                                                mode = wateringStrengthMode(
-                                                    plant?.pinIntervalToBase == true,
-                                                    plant?.wateringAmplitudeOverride
-                                                ),
-                                                customStrength = plant?.wateringAmplitudeOverride,
-                                                callbacks = WateringStrengthCallbacks(
-                                                    onSelectAppDefault = { viewModel.setWateringStrength(false, null) },
-                                                    onSelectCustom = { viewModel.setWateringStrength(false, it) },
-                                                    onSelectPin = { viewModel.setWateringStrength(true, null) }
-                                                )
-                                            )
-                                        }
-                                        DormancyWindowSetting(
-                                            startMonth = plant?.dormancyStartMonth,
-                                            endMonth = plant?.dormancyEndMonth,
-                                            dormantWateringIntervalDays = plant?.dormantWateringIntervalDays,
-                                            onWindowChange = viewModel::setDormancyWindow
-                                        )
-                                        if (plant?.wateringIntervalDays != null) {
-                                            val hemisphere = remember { SeasonalWatering.currentHemisphere() }
-                                            SeasonalWateringCurveChart(
-                                                amplitude = resolveWateringAmplitude(
-                                                    pinned = false,
-                                                    override = plant?.wateringAmplitudeOverride,
-                                                    globalAmplitude = seasonalAmplitudeValue
-                                                ),
-                                                hemisphere = hemisphere,
-                                                modifier = Modifier.padding(top = 12.dp),
-                                                plantContext = SeasonalCurvePlantContext(
-                                                    isPinned = plant?.pinIntervalToBase == true,
-                                                    baseIntervalDays = plant?.wateringBaseIntervalDays
-                                                        ?: plant?.wateringIntervalDays?.toDouble(),
-                                                )
-                                            )
-                                        }
                                         if (careStatus?.computedNextWateringDueAt != null) {
                                             TextButton(
                                                 onClick = { showWateringExplanationSheet = true },
@@ -968,6 +925,21 @@ fun PlantDetailScreen(
                                             }
                                         }
                                     }
+                                    Spacer(Modifier.height(8.dp))
+                                }
+                                item {
+                                    WateringMoreOptionsSection(
+                                        state = WateringMoreOptionsState(
+                                            plant = plant,
+                                            globalAmplitude = seasonalAmplitudeValue,
+                                            expanded = isWateringMoreOptionsExpanded
+                                        ),
+                                        actions = WateringMoreOptionsActions(
+                                            onToggle = { isWateringMoreOptionsExpanded = it },
+                                            onStrengthChange = viewModel::setWateringStrength,
+                                            onWindowChange = viewModel::setDormancyWindow
+                                        )
+                                    )
                                     Spacer(Modifier.height(16.dp))
                                 }
                             }
