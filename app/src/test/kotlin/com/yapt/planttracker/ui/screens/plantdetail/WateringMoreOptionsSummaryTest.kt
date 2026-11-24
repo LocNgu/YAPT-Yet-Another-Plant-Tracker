@@ -30,7 +30,9 @@ class WateringMoreOptionsSummaryTest {
 
     @Test
     fun `dormant cadence is reported in whole weeks`() {
-        val changes = wateringOptionChanges(defaults.copy(dormancyStartMonth = 12, dormancyEndMonth = 2, dormantWateringIntervalDays = 35))
+        val changes = wateringOptionChanges(
+            defaults.copy(dormancyStartMonth = 12, dormancyEndMonth = 2, dormantWateringIntervalDays = 35)
+        )
         assertEquals(listOf(WateringOptionChange.Dormancy(12, 2, 5)), changes)
     }
 
@@ -58,6 +60,9 @@ class WateringMoreOptionsSummaryTest {
 
     @Test
     fun `summary joins parts with a middle dot`() {
-        assertEquals("Dormant Nov–Feb · Custom strength", joinWateringSummary(listOf("Dormant Nov–Feb", "Custom strength")))
+        assertEquals(
+            "Dormant Nov–Feb · Custom strength",
+            joinWateringSummary(listOf("Dormant Nov–Feb", "Custom strength"))
+        )
     }
 }

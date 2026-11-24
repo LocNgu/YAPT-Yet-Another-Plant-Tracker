@@ -20,9 +20,9 @@ internal const val WATERING_SUMMARY_SEPARATOR = " · "
 /** Settings not at their default, in display order. A null [WateringMoreOptionsValues.strengthMode] means the strength control is hidden. */
 internal fun wateringOptionChanges(values: WateringMoreOptionsValues): List<WateringOptionChange> {
     val changes = mutableListOf<WateringOptionChange>()
-    val start = values.dormancyStartMonth
-    val end = values.dormancyEndMonth
-    if (start != null && end != null && start in MONTH_RANGE && end in MONTH_RANGE) {
+    val start = values.dormancyStartMonth?.takeIf { it in MONTH_RANGE }
+    val end = values.dormancyEndMonth?.takeIf { it in MONTH_RANGE }
+    if (start != null && end != null) {
         changes += WateringOptionChange.Dormancy(
             start,
             end,
