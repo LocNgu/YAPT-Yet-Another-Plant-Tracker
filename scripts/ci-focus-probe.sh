@@ -37,8 +37,10 @@ case "${1:-}" in
         # Screenshot (at most 6) whenever something other than the app or the launcher has focus.
         if [ "$shots" -lt 6 ] && echo "$focus" | grep -q "mCurrentFocus=Window" \
             && ! echo "$focus" | grep -q "mCurrentFocus=Window{[^}]*$pkg"; then
-          adb exec-out screencap -p > "$out/shot-$ts.png" 2>/dev/null
-          adb shell dumpsys window windows > "$out/windows-$ts.txt" 2>&1
+          # No colons in file names: actions/upload-artifact rejects them.
+          fts=$(date -u +%H%M%S)
+          adb exec-out screencap -p > "$out/shot-$fts.png" 2>/dev/null
+          adb shell dumpsys window windows > "$out/windows-$fts.txt" 2>&1
           shots=$((shots + 1))
         fi
         sleep 2
