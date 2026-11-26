@@ -215,7 +215,7 @@ jobs:
           api-level: 35
           arch: x86_64
           # The runner executes each script line as its own command, so this stays one line.
-          script: scripts/ci-background-build.sh wait && gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.numShards=${{ strategy.job-total }} -Pandroid.testInstrumentationRunnerArguments.shardIndex=${{ matrix.shard }}
+          script: scripts/ci-focus-probe.sh start; scripts/ci-background-build.sh wait && gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.numShards=${{ strategy.job-total }} -Pandroid.testInstrumentationRunnerArguments.shardIndex=${{ matrix.shard }}; status=$?; scripts/ci-focus-probe.sh stop; exit $status
 
       - name: Upload instrumented test results
         if: always()
@@ -223,6 +223,14 @@ jobs:
         with:
           name: instrumented-test-results-${{ github.sha }}-shard-${{ matrix.shard }}
           path: app/build/reports/androidTests/connected/
+          retention-days: 7
+
+      - name: Upload focus diagnostics (#1036 bisect only)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: focus-diag-shard-${{ matrix.shard }}
+          path: focus-diag/
           retention-days: 7
 
       - name: Upload debug APK
