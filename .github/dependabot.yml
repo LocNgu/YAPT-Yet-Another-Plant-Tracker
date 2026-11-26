@@ -18,9 +18,8 @@
 # closed, never auto-merged); treat such PRs as "bump the whole Kotlin toolchain
 # together, or close".
 #
-# Not covered: the Gradle wrapper (gradle/wrapper/gradle-wrapper.properties) — the
-# Dependabot `gradle` ecosystem does not update the wrapper, so wrapper version
-# bumps (also part of the toolchain coupling) still have to be done manually.
+# The Gradle wrapper (gradle/wrapper/gradle-wrapper.properties) is also updated by
+# the `gradle` ecosystem, in its own ungrouped `gradle-wrapper` PRs (e.g. #949, #1037).
 version: 2
 updates:
   - package-ecosystem: "gradle"
