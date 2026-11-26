@@ -51,6 +51,12 @@ updates:
       # spec'd issue rather than a recurring red-CI Dependabot PR (#518).
       - dependency-name: "com.patrykandpatrick.vico:*"
         update-types: ["version-update:semver-major"]
+      # AGP 9.5.x makes two Espresso.pressBack() instrumented tests on shard 0 fail with
+      # RootViewWithoutFocusException (the app window never gets focus). It reproduces
+      # with AGP as the only change (#1036, bisect #1055). Hold it until that is fixed,
+      # then drop this entry.
+      - dependency-name: "com.android.application"
+        versions: [">= 9.5.0, < 9.6.0"]
 
   # Keep the GitHub Actions used by the CI workflow current (low-risk, and the
   # pull_request CI validates any bump before it can merge).
