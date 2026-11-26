@@ -19,7 +19,7 @@ paths:
 - The hemisphere comes from `SeasonalWatering.currentHemisphere()`. There is no learning, confidence or history; dormancy is a separate, additional pause.
 
 ## `FertilizingSeasonsSelector` chip row (`ui/components/`)
-Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with `labelRes`) Add/Edit's repotting seasons.
+Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with a `SeasonsLabel`) Add/Edit's repotting seasons.
 - **It reports a toggle of the tapped season, never a full replacement set (#804).** A full set built from a stale `selected` snapshot let a second fast tap discard the first.
 - **The last selected chip stays enabled and selected (#813).** Tapping it wiggles, buzzes (`HapticFeedbackType.Reject`) and calls `onLastSeasonLocked` (never `onToggle`). The screen then shows "At least one season must stay active. To stop fertilizing, turn off the fertilizing reminder." through `SnackbarHostState.showSnackbarOnce()` (`ui/util/SnackbarExtensions.kt`), so repeats don't queue.
 - **Styling:**
@@ -27,5 +27,5 @@ Shared by Add/Edit Plant, Plant Detail's Fertilize tab and (with `labelRes`) Add
   - There is no checkmark `leadingIcon`; the outline that only unselected chips have is the non-color cue.
   - The current season's chip has a decorative trailing dot. Its "Current season" wording lives in the chip's `stateDescription` for TalkBack.
 - **Applying the toggle:**
-  - Add/Edit applies it to local form state (synchronous, so it can't race).
+  - Add/Edit applies it to the latest form state inside one atomic `uiState` update (`rules/add-edit-plant.md`).
   - Plant Detail's `toggleFertilizingSeason()` (`PlantDetailScheduleSettingsActions.kt`) re-reads the plant inside `plantEditMutex` and applies it there. If that would empty the set (two fast taps on the last two chips), it emits `Event.FertilizingSeasonToggleRejected` → the same snackbar, without a wiggle.
