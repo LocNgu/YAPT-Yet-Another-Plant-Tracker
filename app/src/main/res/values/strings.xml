@@ -1161,4 +1161,31 @@
     <string name="add_plant_discard_message">What you entered so far will be lost.</string>
     <string name="add_plant_discard_confirm">Discard</string>
     <string name="add_plant_discard_keep_editing">Keep editing</string>
+
+    <!-- Species presets (product ADR-0088): display names; botanical names stay in code -->
+    <string name="preset_monstera">Monstera</string>
+    <string name="preset_pothos">Pothos</string>
+    <string name="preset_snake_plant">Snake plant</string>
+    <string name="preset_zz_plant">ZZ plant</string>
+    <string name="preset_peace_lily">Peace lily</string>
+    <string name="preset_spider_plant">Spider plant</string>
+    <string name="preset_fiddle_leaf_fig">Fiddle-leaf fig</string>
+    <string name="preset_rubber_plant">Rubber plant</string>
+    <string name="preset_aloe_vera">Aloe vera</string>
+    <string name="preset_jade_plant">Jade plant</string>
+    <string name="preset_calathea">Calathea</string>
+    <string name="preset_boston_fern">Boston fern</string>
+    <string name="preset_heartleaf_philodendron">Heartleaf philodendron</string>
+    <string name="preset_chinese_evergreen">Chinese evergreen</string>
+    <string name="preset_dragon_tree">Dragon tree</string>
+    <string name="preset_moth_orchid">Moth orchid</string>
+    <string name="preset_christmas_cactus">Christmas cactus</string>
+    <string name="preset_string_of_pearls">String of pearls</string>
+    <string name="preset_wax_plant">Wax plant</string>
+    <string name="preset_english_ivy">English ivy</string>
+    <string name="preset_areca_palm">Areca palm</string>
+    <string name="preset_suggestions_cd">Matching plant presets</string>
+    <string name="preset_suggestion_hint">Pick one to pre-fill the Care step</string>
+    <string name="preset_applied_note">Care step pre-filled for %1$s. You can still change everything.</string>
+    <string name="preset_care_label">Suggested starting values, adjust to your home</string>
 </resources>

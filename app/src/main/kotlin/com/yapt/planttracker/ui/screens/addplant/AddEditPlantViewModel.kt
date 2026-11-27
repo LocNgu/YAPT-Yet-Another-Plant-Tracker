@@ -199,13 +199,50 @@ class AddEditPlantViewModel(
         }
     }
 
-    fun setWateringIntervalEnabled(enabled: Boolean) = mutate { it.copy(wateringIntervalEnabled = enabled) }
+    /** Species presets are offered only in a plain Add; Propagate already copies the parent's care (#1002). */
+    val presetsAvailable: Boolean = plantId == null && propagatedFromId == null
 
-    fun setWateringIntervalDays(days: Int) = mutate { it.copy(wateringIntervalDays = days) }
+    /**
+     * Picks a bundled species preset (product ADR-0088): sets the species text and seeds the Care step with
+     * every value the user hasn't changed by hand. The watering base is shown as today's effective interval
+     * so the existing save path re-anchors it; nothing is stored beyond the form.
+     */
+    fun pickPreset(presetId: String) {
+        val preset = SpeciesPresets.byId(presetId)
+        if (!presetsAvailable || preset == null) return
+        setSpecies(preset.botanicalName)
+        viewModelScope.launch {
+            val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
+            val shown = SeasonalWatering.effectiveInterval(
+                preset.wateringBaseIntervalDays.toDouble(),
+                nowProvider().toLocalDate(),
+                amplitude,
+                hemisphere()
+            )
+            val dormancy = preset.dormancy?.let { d ->
+                if (hemisphere() == Hemisphere.SOUTHERN) {
+                    d.copy(startMonth = d.startMonth.shiftedSixMonths(), endMonth = d.endMonth.shiftedSixMonths())
+                } else {
+                    d
+                }
+            }
+            mutate { it.withPresetApplied(preset, shown, dormancy) }
+        }
+    }
 
-    fun setFertilizingIntervalEnabled(enabled: Boolean) = mutate { it.copy(fertilizingIntervalEnabled = enabled) }
+    private fun Int.shiftedSixMonths() = (this + SIX_MONTHS - 1) % MONTHS_IN_YEAR + 1
 
-    fun setFertilizingIntervalDays(days: Int) = mutate { it.copy(fertilizingIntervalDays = days) }
+    fun setWateringIntervalEnabled(enabled: Boolean) =
+        mutate { it.copy(wateringIntervalEnabled = enabled).touched(PresetField.WATERING) }
+
+    fun setWateringIntervalDays(days: Int) =
+        mutate { it.copy(wateringIntervalDays = days).touched(PresetField.WATERING) }
+
+    fun setFertilizingIntervalEnabled(enabled: Boolean) =
+        mutate { it.copy(fertilizingIntervalEnabled = enabled).touched(PresetField.FERTILIZING) }
+
+    fun setFertilizingIntervalDays(days: Int) =
+        mutate { it.copy(fertilizingIntervalDays = days).touched(PresetField.FERTILIZING) }
 
     fun setUseLiquidFertilizer(enabled: Boolean) = mutate { it.copy(useLiquidFertilizer = enabled) }
 
@@ -246,7 +283,7 @@ class AddEditPlantViewModel(
                 dormancyStartMonth = startMonth,
                 dormancyEndMonth = endMonth,
                 dormantWateringIntervalDays = if (startMonth == null || endMonth == null) null else dormantIntervalDays
-            )
+            ).touched(PresetField.DORMANCY)
         }
     }
 
@@ -257,7 +294,9 @@ class AddEditPlantViewModel(
      * selection (#795).
      */
     fun toggleFertilizingSeason(season: FertilizingSeason) =
-        mutate { it.copy(fertilizingSeasons = toggledSeasons(it.fertilizingSeasons, season)) }
+        mutate {
+            it.copy(fertilizingSeasons = toggledSeasons(it.fertilizingSeasons, season)).touched(PresetField.FERTILIZING)
+        }
 
     /** Same toggle contract as [toggleFertilizingSeason], for the repotting reminder's preferred seasons (#809). */
     fun toggleRepottingSeason(season: FertilizingSeason) =
@@ -495,7 +534,11 @@ class AddEditPlantViewModel(
 
     private suspend fun saveNew(form: AddEditPlantFormState, plant: Plant, newWateringIntervalDays: Int?, now: Long) {
         val wateringBaseIntervalDays = if (newWateringIntervalDays != null && !form.pinIntervalToBase) {
-            deseasonalizedBaseOrNull(form, newWateringIntervalDays, now)
+            val base = deseasonalizedBaseOrNull(form, newWateringIntervalDays, now)
+            // An untouched preset value keeps the preset's exact base instead of a rounded round-trip.
+            val seededBase = form.presetWateringBaseDays
+                ?.takeIf { newWateringIntervalDays == form.presetWateringShownDays }
+            if (base != null && seededBase != null) seededBase.toDouble() else base
         } else {
             null
         }
@@ -608,6 +651,8 @@ class AddEditPlantViewModel(
         const val MIN_REPOTTING_MONTHS = 3
         const val MAX_REPOTTING_MONTHS = 36
         const val DEFAULT_REPOTTING_MONTHS = 12
+        private const val SIX_MONTHS = 6
+        private const val MONTHS_IN_YEAR = 12
         private const val KEY_FORM = "add_edit_plant_form"
         private const val KEY_NAME = "add_edit_plant_name"
         private const val KEY_SPECIES = "add_edit_plant_species"

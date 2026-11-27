@@ -14,6 +14,9 @@ object WhatsNewContent {
     val unreleased: ReleaseNotes = ReleaseNotes(
         versionCode = 0,
         versionName = "Unreleased",
+        added = listOf(
+            "Pick a common houseplant as the species and its care reminders are filled in for you"
+        ),
         changed = listOf(
             "Adding a plant now takes four short steps: name, photo, care, review; " +
                 "rare settings sit under More options",

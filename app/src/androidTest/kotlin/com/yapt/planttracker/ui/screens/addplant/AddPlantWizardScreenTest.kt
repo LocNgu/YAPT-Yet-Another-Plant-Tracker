@@ -281,4 +281,28 @@ class AddPlantWizardScreenTest {
         assertStep(3)
         composeTestRule.onNodeWithContentDescription("Dormancy window").performScrollTo().assertIsDisplayed()
     }
+
+    @Test
+    fun typingASpeciesSuggestsPresetsAndPickingOnePreFillsTheCareStep() {
+        val viewModel = launch()
+        composeTestRule.onNodeWithText(str(R.string.field_species)).performTextInput("monstéra")
+
+        composeTestRule.onNodeWithText("Monstera deliciosa").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Monstera").performClick()
+
+        composeTestRule.onNodeWithText(str(R.string.preset_applied_note, "Monstera")).assertIsDisplayed()
+        composeTestRule.runOnIdle { viewModel.goToStep(AddPlantStep.CARE) }
+        composeTestRule.onNodeWithText(str(R.string.preset_care_label)).assertIsDisplayed()
+        composeTestRule.onNodeWithText(str(R.string.watering_interval_label, 7)).assertIsDisplayed()
+    }
+
+    @Test
+    fun aFreeTextSpeciesWithNoMatchShowsNoSuggestionsAndNoCareLabel() {
+        val viewModel = launch()
+        composeTestRule.onNodeWithText(str(R.string.field_species)).performTextInput("Unobtainium")
+
+        composeTestRule.onNodeWithText(str(R.string.preset_suggestion_hint)).assertDoesNotExist()
+        composeTestRule.runOnIdle { viewModel.goToStep(AddPlantStep.CARE) }
+        composeTestRule.onNodeWithText(str(R.string.preset_care_label)).assertDoesNotExist()
+    }
 }
