@@ -76,7 +76,7 @@ internal fun PropagatedFromNote(parentName: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PlantIdentityFields(viewModel: AddEditPlantViewModel, rooms: List<String>) {
+internal fun PlantIdentityFields(viewModel: AddEditPlantViewModel, rooms: List<String>, presetId: String? = null) {
     val keyboardController = LocalSoftwareKeyboardController.current
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedTextField(
@@ -93,6 +93,7 @@ internal fun PlantIdentityFields(viewModel: AddEditPlantViewModel, rooms: List<S
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
+        if (viewModel.presetsAvailable) SpeciesPresetSuggestions(viewModel, presetId)
         OutlinedTextField(
             value = viewModel.room,
             onValueChange = viewModel::setRoom,

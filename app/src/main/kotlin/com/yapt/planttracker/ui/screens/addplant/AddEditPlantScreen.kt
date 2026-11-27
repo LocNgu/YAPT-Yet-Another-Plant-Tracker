@@ -204,10 +204,17 @@ private fun WizardStepContent(
             AddPlantStep.PHOTO -> PhotoStep(form, actions.onPickPhoto)
             AddPlantStep.DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 form.propagatedFromName?.let { PropagatedFromNote(it) }
-                PlantIdentityFields(viewModel, rooms)
+                PlantIdentityFields(viewModel, rooms, form.presetId)
             }
             AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 form.propagatedFromName?.let { PropagatedFromNote(it) }
+                if (form.presetId != null) {
+                    Text(
+                        text = stringResource(R.string.preset_care_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 WizardCareSections(viewModel, form, actions)
             }
             AddPlantStep.REVIEW ->

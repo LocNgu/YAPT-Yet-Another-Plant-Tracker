@@ -10,7 +10,12 @@ import kotlinx.serialization.json.Json
 
 internal const val DEFAULT_WATERING_INTERVAL_DAYS = 7
 internal const val DEFAULT_FERTILIZING_INTERVAL_DAYS = 30
+internal val WATERING_SLIDER_RANGE = 1..60
 private val ALL_SEASONS = FertilizingSeason.entries.toSet()
+
+/** The groups of Care values a preset seeds, tracked so a second pick leaves hand-edited ones alone. */
+@Serializable
+enum class PresetField { WATERING, FERTILIZING, DORMANCY }
 
 enum class AddPlantStep {
     DETAILS,
@@ -63,7 +68,14 @@ data class AddEditPlantFormState(
     /** Propagate: the parent's care settings were applied, so a restored form must not get them again. */
     val prefillDone: Boolean = false,
     /** Wizard Care step: whether "More options" (dormancy, strength/pin, repotting) is open; saved with the draft. */
-    val moreOptionsExpanded: Boolean = false
+    val moreOptionsExpanded: Boolean = false,
+    /** Add mode: the species preset picked in this draft (product ADR-0088); drives the Care step's label. */
+    val presetId: String? = null,
+    /** Care groups the user changed by hand; a later preset never overwrites them. */
+    val presetTouched: Set<PresetField> = emptySet(),
+    /** The picked preset's season-neutral watering days, and the slider value it was shown as (save re-anchors it). */
+    val presetWateringBaseDays: Int? = null,
+    val presetWateringShownDays: Int? = null
 ) {
     /** Whether the "adjusted for winter" hint still describes the strength the form has chosen. */
     val seasonalHintApplies: Boolean
@@ -100,7 +112,11 @@ data class AddEditPlantFormState(
             linkedParentId = null,
             propagatedFromName = null,
             editLoaded = false,
-            prefillDone = false
+            prefillDone = false,
+            presetId = null,
+            presetTouched = emptySet(),
+            presetWateringBaseDays = null,
+            presetWateringShownDays = null
         ) != AddEditPlantFormState()
 
     fun toJson(): String = JSON.encodeToString(serializer(), this)
@@ -146,6 +162,50 @@ data class AddEditPlantFormState(
             )
         }
         return s
+    }
+
+    fun touched(field: PresetField): AddEditPlantFormState =
+        if (field in presetTouched) this else copy(presetTouched = presetTouched + field)
+
+    /**
+     * Seeds the Care values of [preset] (product ADR-0088), skipping every group the user changed since the
+     * previous pick (none are skipped on the first pick of a draft).
+     * [shownWateringDays] is the preset's base interval as today's slider value; the dormancy window arrives
+     * already shifted for the hemisphere. A dormancy change opens More options so nothing is applied unseen.
+     */
+    fun withPresetApplied(
+        preset: SpeciesPreset,
+        shownWateringDays: Int,
+        dormancy: PresetDormancy?
+    ): AddEditPlantFormState {
+        // Hand edits made before the first pick in this draft never block it; later picks respect them.
+        val touchedSincePick = if (presetId == null) emptySet() else presetTouched
+        var s = copy(presetId = preset.id, presetTouched = touchedSincePick)
+        if (PresetField.WATERING !in touchedSincePick) {
+            s = s.copy(
+                wateringIntervalEnabled = true,
+                wateringIntervalDays = shownWateringDays.coerceIn(WATERING_SLIDER_RANGE),
+                presetWateringBaseDays = preset.wateringBaseIntervalDays,
+                presetWateringShownDays = shownWateringDays.coerceIn(WATERING_SLIDER_RANGE)
+            )
+        }
+        if (PresetField.FERTILIZING !in touchedSincePick) {
+            val days = preset.fertilizingIntervalDays
+            s = s.copy(
+                fertilizingIntervalEnabled = days != null,
+                fertilizingIntervalDays = days ?: DEFAULT_FERTILIZING_INTERVAL_DAYS,
+                fertilizingSeasons = preset.fertilizingSeasons
+            )
+        }
+        if (PresetField.DORMANCY !in touchedSincePick) {
+            s = s.copy(
+                dormancyStartMonth = dormancy?.startMonth,
+                dormancyEndMonth = dormancy?.endMonth,
+                dormantWateringIntervalDays = dormancy?.dormantWateringIntervalDays
+            )
+        }
+        val changed = s.moreOptionsValues() != moreOptionsValues()
+        return if (changed) s.copy(moreOptionsExpanded = true) else s
     }
 
     /** Edit mode: copies the stored plant into the form once; [shownWatering] is today's live interval (#928). */
