@@ -15,10 +15,10 @@ paths:
 
 # CI / Build rules
 
-## Toolchain (AGP 9.4.1 / Gradle 9.9.1 / Kotlin plugins 2.4.20 / KSP 2.3.12)
+## Toolchain (AGP 9.4.1 / Gradle 9.9.1 / Kotlin plugins 2.4.21 / KSP 2.3.14)
 - Compose BOM 2026.09.00 · compileSdk 37 · targetSdk 35 · minSdk 26.
 - **Kotlin and KSP versions needn't match.** KSP has its own release line (the `<kotlin>-<ksp>` scheme is legacy), so a Dependabot PR with different numbers isn't self-evidently broken; validate through CI. The KotlinX/MockK ↔ Kotlin stdlib coupling noted in `.github/dependabot.yml` is real.
-- **AGP 9 compiles Kotlin itself.** Never re-add `org.jetbrains.kotlin.android` (AGP 9 errors). Compose/serialization plugins stay at 2.4.20. Use `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
+- **AGP 9 compiles Kotlin itself.** Never re-add `org.jetbrains.kotlin.android` (AGP 9 errors). Compose/serialization plugins stay at 2.4.21. Use `kotlin { compilerOptions { jvmTarget.set(JVM_17) } }`.
 - **`gradle-wrapper.properties` is the only Gradle version source** (#726). CI uses `gradle-version: wrapper`; never hardcode one there. Dependabot's `gradle` ecosystem bumps the wrapper too (`gradle-wrapper` PRs, e.g. #949, #1037); validate through CI like any toolchain bump.
 - `android.onlyEnableUnitTestForTheTestedBuildType=false` keeps `testReleaseUnitTest` for `release-build`, so `./gradlew test` runs both suites (#496).
 - Release build: `isMinifyEnabled`/`isShrinkResources` on; ProGuard keeps WorkManager workers and Room DAOs (reflection) (#4).
