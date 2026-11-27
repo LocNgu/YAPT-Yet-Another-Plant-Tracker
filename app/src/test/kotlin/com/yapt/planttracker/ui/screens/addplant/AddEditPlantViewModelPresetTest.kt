@@ -1,11 +1,16 @@
 package com.yapt.planttracker.ui.screens.addplant
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.preferencesOf
 import androidx.lifecycle.SavedStateHandle
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.Hemisphere
+import com.yapt.planttracker.domain.schedule.SeasonalWatering
 import com.yapt.planttracker.util.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.every
@@ -22,6 +27,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDate
+import java.time.ZoneId
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddEditPlantViewModelPresetTest {
@@ -37,15 +44,24 @@ class AddEditPlantViewModelPresetTest {
         every { plantRepo.getAllRooms() } returns flowOf(emptyList())
     }
 
+    private val january = LocalDate.of(2026, 1, 15)
+    private val nowMillis = january.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    private fun standardStore(): DataStore<Preferences> =
+        mockk { every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "STANDARD")) }
+
     private fun newVm(
         handle: SavedStateHandle = SavedStateHandle(),
         hemisphere: Hemisphere = Hemisphere.NORTHERN,
-        parentId: Long? = null
+        parentId: Long? = null,
+        dataStore: DataStore<Preferences>? = null
     ) = AddEditPlantViewModel(
         plantRepo,
         plantPhotoRepo,
         plantId = null,
+        dataStore = dataStore,
         hemisphere = { hemisphere },
+        nowProvider = { nowMillis },
         propagatedFromId = parentId,
         savedStateHandle = handle
     )
@@ -161,7 +177,7 @@ class AddEditPlantViewModelPresetTest {
     }
 
     @Test
-    fun `a picked preset saves the seeded interval and its exact base`() = runTest {
+    fun `a picked preset saves species and seeded intervals`() = runTest {
         val saved = slot<Plant>()
         coEvery { plantRepo.addPlant(capture(saved)) } returns 1L
         val vm = newVm()
@@ -174,6 +190,64 @@ class AddEditPlantViewModelPresetTest {
         assertEquals("Monstera deliciosa", saved.captured.species)
         assertEquals(7, saved.captured.wateringIntervalDays)
         assertEquals(30, saved.captured.fertilizingIntervalDays)
+    }
+
+    @Test
+    fun `a seasonal pick shows the effective value and saves the exact preset base`() = runTest {
+        val saved = slot<Plant>()
+        coEvery { plantRepo.addPlant(capture(saved)) } returns 1L
+        val vm = newVm(dataStore = standardStore())
+        vm.setName("Monty")
+        vm.pickPreset("monstera")
+
+        val effective = SeasonalWatering.effectiveInterval(7.0, january, 0.35, Hemisphere.NORTHERN)
+        assertTrue(effective != 7)
+        assertEquals(effective, vm.uiState.value.wateringIntervalDays)
+
+        vm.save()
+        advanceUntilIdle()
+
+        assertEquals(effective, saved.captured.wateringIntervalDays)
+        assertEquals(7.0, saved.captured.wateringBaseIntervalDays!!, 0.0)
+    }
+
+    @Test
+    fun `changing the slider after a seasonal pick de-seasonalizes the typed value instead`() = runTest {
+        val saved = slot<Plant>()
+        coEvery { plantRepo.addPlant(capture(saved)) } returns 1L
+        val vm = newVm(dataStore = standardStore())
+        vm.setName("Monty")
+        vm.pickPreset("monstera")
+        vm.setWateringIntervalDays(20)
+
+        vm.save()
+        advanceUntilIdle()
+
+        val expected = SeasonalWatering.deseasonalize(20.0, january, 0.35, Hemisphere.NORTHERN)
+        assertEquals(20, saved.captured.wateringIntervalDays)
+        assertEquals(expected, saved.captured.wateringBaseIntervalDays!!, 1e-9)
+    }
+
+    @Test
+    fun `a group touched before the first pick does not block it`() = runTest {
+        val vm = newVm()
+        vm.setWateringIntervalDays(12)
+        vm.pickPreset("monstera")
+        assertEquals(7, vm.uiState.value.wateringIntervalDays)
+
+        vm.setWateringIntervalDays(12)
+        vm.pickPreset("snake_plant")
+        assertEquals(12, vm.uiState.value.wateringIntervalDays)
+    }
+
+    @Test
+    fun `the last of two quick picks wins`() = runTest {
+        val vm = newVm(dataStore = standardStore())
+        vm.pickPreset("monstera")
+        vm.pickPreset("snake_plant")
+
+        assertEquals("snake_plant", vm.uiState.value.presetId)
+        assertEquals("Dracaena trifasciata", vm.species)
     }
 
     @Test

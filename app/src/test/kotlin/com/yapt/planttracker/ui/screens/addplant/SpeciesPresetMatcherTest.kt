@@ -14,7 +14,8 @@ class SpeciesPresetMatcherTest {
         "peace_lily" to "Peace lily",
         "boston_fern" to "Boston fern",
         "heartleaf_philodendron" to "Heartleaf philodendron",
-        "wax_plant" to "Wax plant"
+        "wax_plant" to "Wax plant",
+        "fiddle_leaf_fig" to "Fiddle-leaf fig"
     )
 
     private fun ids(query: String) = matchSpeciesPresets(query) { names[it.id] ?: it.id }.map { it.id }
@@ -29,6 +30,12 @@ class SpeciesPresetMatcherTest {
         assertEquals(listOf("calathea"), ids("cálathéa"))
         val accented = matchSpeciesPresets("peace lily") { if (it.id == "peace_lily") "Pèace lïly" else it.id }
         assertEquals(listOf("peace_lily"), accented.map { it.id })
+    }
+
+    @Test
+    fun `hyphens match as spaces`() {
+        assertEquals(listOf("fiddle_leaf_fig"), ids("fiddle leaf"))
+        assertEquals(listOf("fiddle_leaf_fig"), ids("fiddle-leaf"))
     }
 
     @Test

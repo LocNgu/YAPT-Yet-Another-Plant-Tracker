@@ -168,7 +168,8 @@ data class AddEditPlantFormState(
         if (field in presetTouched) this else copy(presetTouched = presetTouched + field)
 
     /**
-     * Seeds the Care values of [preset] (product ADR-0088), skipping every group the user already changed.
+     * Seeds the Care values of [preset] (product ADR-0088), skipping every group the user changed since the
+     * previous pick (none are skipped on the first pick of a draft).
      * [shownWateringDays] is the preset's base interval as today's slider value; the dormancy window arrives
      * already shifted for the hemisphere. A dormancy change opens More options so nothing is applied unseen.
      */
@@ -177,8 +178,10 @@ data class AddEditPlantFormState(
         shownWateringDays: Int,
         dormancy: PresetDormancy?
     ): AddEditPlantFormState {
-        var s = copy(presetId = preset.id)
-        if (PresetField.WATERING !in presetTouched) {
+        // Hand edits made before the first pick in this draft never block it; later picks respect them.
+        val touchedSincePick = if (presetId == null) emptySet() else presetTouched
+        var s = copy(presetId = preset.id, presetTouched = touchedSincePick)
+        if (PresetField.WATERING !in touchedSincePick) {
             s = s.copy(
                 wateringIntervalEnabled = true,
                 wateringIntervalDays = shownWateringDays.coerceIn(WATERING_SLIDER_RANGE),
@@ -186,7 +189,7 @@ data class AddEditPlantFormState(
                 presetWateringShownDays = shownWateringDays.coerceIn(WATERING_SLIDER_RANGE)
             )
         }
-        if (PresetField.FERTILIZING !in presetTouched) {
+        if (PresetField.FERTILIZING !in touchedSincePick) {
             val days = preset.fertilizingIntervalDays
             s = s.copy(
                 fertilizingIntervalEnabled = days != null,
@@ -194,7 +197,7 @@ data class AddEditPlantFormState(
                 fertilizingSeasons = preset.fertilizingSeasons
             )
         }
-        if (PresetField.DORMANCY !in presetTouched) {
+        if (PresetField.DORMANCY !in touchedSincePick) {
             s = s.copy(
                 dormancyStartMonth = dormancy?.startMonth,
                 dormancyEndMonth = dormancy?.endMonth,

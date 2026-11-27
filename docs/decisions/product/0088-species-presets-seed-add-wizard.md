@@ -26,7 +26,8 @@ download or online lookup (the app is offline-first, no network), and a preset r
   existing plants. The watering value is the season-neutral base interval; the slider shows today's effective
   equivalent and saving keeps the preset's exact base while the slider is untouched.
 - **Never overwrite the user.** Changing watering, fertilizing or dormancy by hand marks that group touched; a
-  later pick (preset B after A) replaces only untouched groups. Editing the species text after a pick keeps the
+  later pick (preset B after A) replaces only groups not changed since the previous pick. Edits made before
+  the first pick in a draft never block it. Editing the species text after a pick keeps the
   seeded values. The picked preset and the touched groups are part of the saved draft.
 - **Dormancy** can be seeded, only by an explicit pick, and More options opens when it changes so it is never
   applied unseen. The window is written for the northern hemisphere and shifted six months in the southern.

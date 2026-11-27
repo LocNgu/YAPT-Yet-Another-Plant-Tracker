@@ -31,6 +31,7 @@ import com.yapt.planttracker.domain.schedule.resolveWateringAmplitude
 import com.yapt.planttracker.domain.schedule.seasonalAmplitudeOnce
 import com.yapt.planttracker.domain.usecase.WateringLifecycleReset
 import com.yapt.planttracker.util.toLocalDate
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -211,7 +212,9 @@ class AddEditPlantViewModel(
         val preset = SpeciesPresets.byId(presetId)
         if (!presetsAvailable || preset == null) return
         setSpecies(preset.botanicalName)
-        viewModelScope.launch {
+        // The amplitude read suspends: a quick second pick must not be overtaken by this one.
+        presetJob?.cancel()
+        presetJob = viewModelScope.launch {
             val amplitude = dataStore?.seasonalAmplitudeOnce() ?: 0.0
             val shown = SeasonalWatering.effectiveInterval(
                 preset.wateringBaseIntervalDays.toDouble(),
@@ -229,6 +232,8 @@ class AddEditPlantViewModel(
             mutate { it.withPresetApplied(preset, shown, dormancy) }
         }
     }
+
+    private var presetJob: Job? = null
 
     private fun Int.shiftedSixMonths() = (this + SIX_MONTHS - 1) % MONTHS_IN_YEAR + 1
 

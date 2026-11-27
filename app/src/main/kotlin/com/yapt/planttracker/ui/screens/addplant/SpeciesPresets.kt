@@ -70,15 +70,15 @@ object SpeciesPresets {
 private const val MIN_QUERY_LENGTH = 2
 private const val MAX_SUGGESTIONS = 5
 private val COMBINING_MARKS = Regex("\\p{Mn}+")
-private val WHITESPACE = Regex("\\s+")
+private val SEPARATORS = Regex("[\\s\\p{P}]+")
 
-/** Lower-cased, accent-stripped, whitespace-collapsed text used to compare what the user typed with a name. */
+/** Lower-cased, accent-stripped, punctuation-as-space, whitespace-collapsed text used to compare what the user typed with a name. */
 internal fun normalizeForPresetMatch(text: String): String =
     Normalizer.normalize(text, Normalizer.Form.NFD)
         .replace(COMBINING_MARKS, "")
         .lowercase(Locale.ROOT)
         .trim()
-        .replace(WHITESPACE, " ")
+        .replace(SEPARATORS, " ")
 
 /**
  * Presets whose common or botanical name contains [query] (case- and accent-insensitive), names starting with
