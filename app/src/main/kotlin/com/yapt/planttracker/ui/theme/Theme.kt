@@ -12,7 +12,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme = lightColorScheme(
+/** Also the Care widget's light palette (#923). */
+internal val LightColorScheme = lightColorScheme(
     primary = SageGreen,
     onPrimary = OnSageGreen,
     primaryContainer = SageGreenContainer,
@@ -31,7 +32,8 @@ private val LightColorScheme = lightColorScheme(
     outline = MossGrey
 )
 
-private val DarkColorScheme = darkColorScheme(
+/** Also the Care widget's dark palette (#923). */
+internal val DarkColorScheme = darkColorScheme(
     primary = SageGreenLight,
     onPrimary = SageGreenDark,
     primaryContainer = SageGreenContainerDark,

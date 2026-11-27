@@ -24,14 +24,14 @@ import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.ui.components.PostWateringReminderDialog
-import com.yapt.planttracker.ui.navigation.Screen
+import com.yapt.planttracker.ui.navigation.AppDeepLink
 import com.yapt.planttracker.ui.navigation.YaptNavGraph
+import com.yapt.planttracker.ui.navigation.appDeepLink
 import com.yapt.planttracker.ui.theme.ThemeMode
 import com.yapt.planttracker.ui.theme.YaptTheme
 import com.yapt.planttracker.worker.ExistingCameraPhotoCompressionWorker
 import com.yapt.planttracker.worker.OrphanPhotoCleanupWorker
 import com.yapt.planttracker.worker.ReminderScheduler
-import com.yapt.planttracker.worker.ReminderWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private var initialPlantId by mutableStateOf<Long?>(null)
+    private var initialDeepLink by mutableStateOf<AppDeepLink?>(null)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         OrphanPhotoCleanupWorker.schedulePeriodic(this)
 
         if (savedInstanceState == null) {
-            initialPlantId = deepLinkPlantId(intent)
+            initialDeepLink = intent.appDeepLink()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -109,8 +109,9 @@ class MainActivity : ComponentActivity() {
         YaptTheme(darkTheme = darkTheme) {
             YaptNavGraph(
                 app = app,
-                initialPlantId = initialPlantId,
-                onDeepLinkConsumed = { initialPlantId = null }
+                initialPlantId = initialDeepLink?.plantId,
+                initialPlantDetailTab = initialDeepLink?.tab,
+                onDeepLinkConsumed = { initialDeepLink = null }
             )
             pendingPromptAt?.let { triggeredAt ->
                 PostWateringReminderDialog(
@@ -141,15 +142,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        initialPlantId = deepLinkPlantId(intent)
+        initialDeepLink = intent.appDeepLink()
     }
-
-    private fun deepLinkPlantId(intent: Intent): Long? =
-        if (intent.getBooleanExtra(PostWateringReminderPresentation.EXTRA_SHOW_CARED_TODAY, false)) {
-            Screen.PlantList.CARED_TODAY_DEEP_LINK_ID
-        } else {
-            intent.getLongExtra(ReminderWorker.EXTRA_PLANT_ID, 0L).takeIf { it != 0L }
-        }
 
     private fun scheduleReminderFromPrefs() {
         lifecycleScope.launch(Dispatchers.IO) {

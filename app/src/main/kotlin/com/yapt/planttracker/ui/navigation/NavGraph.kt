@@ -106,15 +106,18 @@ internal fun NavController.navigateToRootTab(route: String) {
 
 private fun NavController.navigateInitialDestination(
     initialPlantId: Long?,
+    initialPlantDetailTab: PlantDetailTab?,
     onShowCaredToday: () -> Unit,
     onConsumed: () -> Unit
 ) {
     if (initialPlantId == null) return
-    if (initialPlantId == Screen.PlantList.CARED_TODAY_DEEP_LINK_ID) {
-        onShowCaredToday()
-        navigateToRootTab(Screen.PlantList.createRoute())
-    } else {
-        navigate(Screen.PlantDetail.createRoute(initialPlantId))
+    when (initialPlantId) {
+        Screen.PlantList.CARED_TODAY_DEEP_LINK_ID -> {
+            onShowCaredToday()
+            navigateToRootTab(Screen.PlantList.createRoute())
+        }
+        Screen.Today.CARE_DEEP_LINK_ID -> navigateToRootTab(Screen.Today.route)
+        else -> navigate(Screen.PlantDetail.createRoute(initialPlantId, initialPlantDetailTab))
     }
     onConsumed()
 }
@@ -207,6 +210,7 @@ private fun ApplyCaredTodayDeepLink(
 fun YaptNavGraph(
     app: YaptApplication,
     initialPlantId: Long? = null,
+    initialPlantDetailTab: PlantDetailTab? = null,
     onDeepLinkConsumed: () -> Unit = {},
     navController: NavHostController = rememberNavController()
 ) {
@@ -225,9 +229,10 @@ fun YaptNavGraph(
         }
     }
 
-    LaunchedEffect(initialPlantId) {
+    LaunchedEffect(initialPlantId, initialPlantDetailTab) {
         navController.navigateInitialDestination(
             initialPlantId = initialPlantId,
+            initialPlantDetailTab = initialPlantDetailTab,
             onShowCaredToday = { pendingCaredTodayDeepLink = true },
             onConsumed = onDeepLinkConsumed
         )

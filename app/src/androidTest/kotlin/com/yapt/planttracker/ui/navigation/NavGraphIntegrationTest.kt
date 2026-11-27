@@ -26,6 +26,7 @@ import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.settingsDataStore
 import com.yapt.planttracker.ui.screens.plantdetail.PLANT_DETAIL_CONTENT_TEST_TAG
+import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -68,7 +69,7 @@ class NavGraphIntegrationTest {
         application.database.clearAllTables()
     }
 
-    private fun setGraph(initialPlantId: Long? = null) {
+    private fun setGraph(initialPlantId: Long? = null, initialPlantDetailTab: PlantDetailTab? = null) {
         composeTestRule.setContent {
             navController = remember {
                 TestNavHostController(application).apply {
@@ -79,6 +80,7 @@ class NavGraphIntegrationTest {
             YaptNavGraph(
                 app = application,
                 initialPlantId = initialPlantId,
+                initialPlantDetailTab = initialPlantDetailTab,
                 onDeepLinkConsumed = { deepLinkConsumedCount++ },
                 navController = navController
             )
@@ -189,6 +191,28 @@ class NavGraphIntegrationTest {
         waitForRoute(Screen.Today.route)
         assertEquals(listOf(Screen.Today.route), backStackRoutes())
         tab(CARE).assertIsSelected()
+    }
+
+    @Test
+    fun widgetRowDeepLinkOpensPlantDetailOnTheGivenTab() {
+        setGraph(initialPlantId = fernId, initialPlantDetailTab = PlantDetailTab.FERTILIZE)
+
+        assertOnPlantDetailFor(fernId, FERN)
+        assertEquals(
+            PlantDetailTab.FERTILIZE.name,
+            navController.currentBackStackEntry?.arguments?.getString(Screen.PlantDetail.TAB_ARG)
+        )
+        assertEquals(1, deepLinkConsumedCount)
+    }
+
+    @Test
+    fun careDeepLinkLandsOnCareAndIsConsumed() {
+        setGraph(initialPlantId = Screen.Today.CARE_DEEP_LINK_ID)
+
+        waitForRoute(Screen.Today.route)
+        composeTestRule.waitUntil(TIMEOUT_MS) { deepLinkConsumedCount == 1 }
+        tab(CARE).assertIsSelected()
+        assertEquals(listOf(Screen.Today.route), backStackRoutes())
     }
 
     @Test

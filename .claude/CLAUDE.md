@@ -12,7 +12,7 @@ watering intervals from the user's own feedback.
 - Kotlin · Jetpack Compose + Material 3 (nature palette) · MVVM + Repository
 - Room (SQLite, offline-first) · DataStore (prefs) · WorkManager + NotificationManager · Coil 2
 - Compose Navigation (type-safe `Screen` sealed class) · manual DI via `YaptApplication` lazy singletons (no Hilt)
-- Build: AGP 9.4.1, Kotlin plugins 2.4.20, KSP 2.3.12, Gradle 9.8.0, Compose BOM 2026.09.00; compileSdk 37 / targetSdk 35 / minSdk 26
+- Build: AGP 9.4.1, Kotlin plugins 2.4.20, KSP 2.3.12, Gradle 9.9.1, Compose BOM 2026.09.00; compileSdk 37 / targetSdk 35 / minSdk 26
 
 ## Commands
 ```bash
@@ -96,6 +96,6 @@ PR targets `develop`. Return to an up-to-date `develop` before starting anything
 
 ## Pointers — `.claude/rules/` (path-scoped: each loads automatically when you touch matching files)
 - Domain: `schedule.md` (CareSchedule, adaptive interval, dormancy) · `seasonal-watering.md` · `fertilizing-seasons.md` · `repotting.md` (plans + overview) · `watering-overview.md` (Settings → Watering overview page) · `care-logging.md` (quick-log, duplicates, reason prompt, post-watering reminder) · `day-change.md` · `hidden-plants.md` · `away-mode.md` (trip storage, date logic, backup; feature design is product ADR-0065)
-- Screens: `add-edit-plant.md` (Add wizard, form state, restore) · `care-queue.md` · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
+- Screens: `add-edit-plant.md` (Add wizard, form state, restore) · `care-queue.md` · `widget.md` (Care home-screen widget) · `plant-list.md` · `plant-detail.md` · `watering-transparency.md` ("Why this date?") · `chart.md` · `navigation.md` · `dev-mode.md`
 - Infra: `notifications.md` · `backup.md` (incl. backup-rule XMLs) · `photos.md` · `ci-build.md` · `release.md` · `whats-new.md` (What's New writing rule, length test, collapsible sheet) · `adr.md` · `permissions.md` · `github-access.md` (MCP vs `gh`, allowlisted `gh` writes)
 - **Feature history** → `CHANGELOG.md` + `docs/decisions/` + `git log`. `docs/overview/` — standalone HTML architecture map + adaptive-watering math reference.
