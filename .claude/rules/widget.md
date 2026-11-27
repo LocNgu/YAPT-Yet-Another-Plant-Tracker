@@ -21,11 +21,11 @@ paths:
 - **Taps (`CareWidgetIntents`):** header and message states → `openCare()` (`EXTRA_OPEN_CARE`); a row →
   `openPlantDetail(plantId, row.plantDetailTab)` (Care's `TodayCareKind.plantDetailTab()`). `MainActivity` reads every
   launch intent through `Intent.appDeepLink()` (`ui/navigation/AppDeepLink.kt`), which also covers the reminder
-  notification (`EXTRA_PLANT_ID`) and the post-watering "cared for today" link. Care is the sentinel
-  `Screen.Today.CARE_DEEP_LINK_ID` → `navigateToRootTab(Screen.Today.route)`; a plant id only counts when > 0.
+  notification (`EXTRA_PLANT_ID`) and the post-watering "cared for today" link. The Home tab (product ADR-0089) is the
+  sentinel `Screen.Today.CARE_DEEP_LINK_ID` → `navigateToRootTab(Screen.Today.route)`; a plant id only counts when > 0.
 - **Accessibility:** each row's content description is Care's tile description (`care_tile_water_cd` /
-  `care_tile_water_fertilize_cd`); the header's names the count and that it opens Care. All strings are `widget_care_*`
-  in `strings.xml`.
+  `care_tile_water_fertilize_cd`); the header's (`widget_care_open_care_cd`) names the count and that it opens Home.
+  All strings are `widget_care_*` in `strings.xml`.
 - **Size:** `care_widget_info.xml` sets a 2×2 minimum, resizable both ways; the list is a weighted Glance `LazyColumn` (row item ids
   are positive per-task ids, group headers use negative ids).
 - **Freshness:** for now only the system `updatePeriodMillis` (30 min) re-runs `provideGlance`. The `WidgetUpdater` hook

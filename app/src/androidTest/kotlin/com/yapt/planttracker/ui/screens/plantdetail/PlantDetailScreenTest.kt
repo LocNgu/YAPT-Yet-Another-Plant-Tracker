@@ -3122,7 +3122,7 @@ class PlantDetailScreenTest {
      */
     private val waterTabMatcher = hasText("Water") and isSelectable()
 
-    private val homeTabMatcher = hasText("Home") and isSelectable()
+    private val homeTabMatcher = hasText("Overview") and isSelectable()
 
     /**
      * Same collision as [waterTabMatcher]: since #532 `FertilizeDueActionRow` renders for every plant on

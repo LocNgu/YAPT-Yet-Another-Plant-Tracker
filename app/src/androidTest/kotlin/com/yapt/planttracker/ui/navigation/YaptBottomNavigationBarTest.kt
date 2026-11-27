@@ -20,7 +20,7 @@ class YaptBottomNavigationBarTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val tabLabels = listOf("Care", "Plants", "Calendar", "Settings")
+    private val tabLabels = listOf("Home", "Plants", "Calendar", "Settings")
 
     private fun tab(label: String) = hasText(label).and(hasClickAction())
 
