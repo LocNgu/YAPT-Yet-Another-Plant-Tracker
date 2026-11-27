@@ -1172,7 +1172,7 @@
         <item quantity="one">plant to water</item>
         <item quantity="other">plants to water</item>
     </plurals>
-    <string name="widget_care_open_care_cd">%1$s. Opens Care</string>
+    <string name="widget_care_open_care_cd">%1$s. Opens Home</string>
     <string name="widget_care_nothing_to_water">Nothing to water today</string>
     <string name="widget_care_first_use">Add your first plant in YAPT to see what needs watering.</string>
     <string name="widget_care_group_overdue">Overdue</string>

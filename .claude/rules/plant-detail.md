@@ -28,7 +28,7 @@ Current behaviour only; how each rule came about is in the cited issues/ADRs and
 - Per-tab filtered lists use prefixed keys (`"water-"`/`"fert-"`/`"repot-"`/`"prune-"` + id) so they never collide with the combined list's `it.id`.
 - Tests of a non-Home pane pass `initialTab = PlantDetailTab.WATER`/`FERTILIZE`/`REPOT`/`PRUNE`/`PROPAGATE` (REPOT, PRUNE and PROPAGATE also expand the row).
 
-### Overview tab (#530, product ADR-0060; labelled "Home" until product ADR-0088, enum `PlantDetailTab.HOME`)
+### Overview tab (#530, product ADR-0060; labelled "Home" until product ADR-0089, enum `PlantDetailTab.HOME`)
 In `PlantDetailScreen.kt`'s `HOME` branch, composables in `PlantDetailHomePane.kt`, top to bottom (items 1–3 gated on `careStatus != null`):
 1. `RescheduleChipAndWateringActions` — the reschedule delta chip above `WateringDueActionsRow`. **Shared with the Water tab** (same composable, same handlers and dialog state); never add a second code path.
 2. One `FertilizeDueActionRow`, shown whether or not a fertilizing interval is set (#532), with the screen's single `onFertilizeClick` (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).

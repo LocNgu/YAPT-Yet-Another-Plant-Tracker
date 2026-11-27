@@ -1,4 +1,4 @@
-# Product ADR-0088: The Care tab is renamed Home; Plant Detail's Home tab becomes Overview
+# Product ADR-0089: The Care tab is renamed Home; Plant Detail's Home tab becomes Overview
 
 **Status**: accepted
 

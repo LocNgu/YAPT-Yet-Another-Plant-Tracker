@@ -11,7 +11,7 @@ paths:
 
 # Care queue (product ADR-0054, product ADR-0056, product ADR-0069, product ADR-0071)
 
-User-facing name **Home** (renamed from Care, product ADR-0088); internal identifiers keep "Today".
+User-facing name **Home** (renamed from Care, product ADR-0089); internal identifiers keep "Today".
 
 ## Aggregation (`TodayQueueAggregator`, pure)
 - **The only source of Care tasks.** `TodayCareRepository.observeQueue()` combines the live repositories, settings and `dayChangeTicker()` and delegates to it. UI code never derives due tasks.
