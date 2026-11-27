@@ -59,7 +59,10 @@ sealed class Screen(val route: String) {
             if (day != null) "plan_sitter_visit?day=${day.toEpochDay()}" else "plan_sitter_visit"
     }
 
-    object Today : Screen("today")
+    object Today : Screen("today") {
+        /** Deep-link sentinel (alongside [PlantList.CARED_TODAY_DEEP_LINK_ID]): open the Care tab (#923). */
+        const val CARE_DEEP_LINK_ID = -3L
+    }
 
     object Calendar : Screen("calendar")
 }
