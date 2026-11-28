@@ -3,10 +3,11 @@ package com.yapt.planttracker.domain.usecase
 import android.app.Application
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.preferencesOf
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -67,7 +68,7 @@ class QuickLogUseCaseStaleSnapshotTest {
         val dataStore: DataStore<Preferences> = mockk {
             every { data } returns flow {
                 onDataStoreRead?.invoke()
-                emit(emptyPreferences())
+                emit(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
             }
         }
         useCase = QuickLogUseCase(
