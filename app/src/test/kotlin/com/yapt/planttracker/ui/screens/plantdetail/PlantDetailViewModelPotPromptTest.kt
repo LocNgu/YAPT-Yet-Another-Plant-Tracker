@@ -87,6 +87,7 @@ class PlantDetailViewModelPotPromptTest {
     private fun stubRepotLogged(logged: Boolean) {
         coEvery { quickLogUseCase.quickLog(any(), CareType.REPOT, any()) } returns
             QuickLogUseCase.QuickLogOutcome(message = "Repotted", logged = logged)
+        coEvery { quickLogUseCase.maybeBuildPhotoReminderRequest(1L) } returns null
     }
 
     @Test
