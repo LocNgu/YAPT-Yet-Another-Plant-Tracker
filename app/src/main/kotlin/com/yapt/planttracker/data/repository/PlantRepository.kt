@@ -2,7 +2,9 @@ package com.yapt.planttracker.data.repository
 
 import com.yapt.planttracker.data.db.PlantDao
 import com.yapt.planttracker.data.entity.PlantEntity
+import com.yapt.planttracker.domain.model.LightLevel
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PotMaterial
 import com.yapt.planttracker.domain.schedule.SeasonalAmplitude
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import kotlinx.coroutines.flow.Flow
@@ -87,6 +89,10 @@ class PlantRepository(
      */
     suspend fun setRepotPlan(id: Long, seasonStartAt: Long, madeAt: Long, updatedAt: Long) =
         plantDao.updateRepotPlan(id, seasonStartAt, madeAt, updatedAt)
+
+    /** Column-specific update of the pot facts (#1003) — see [PlantDao.updatePot]'s doc. */
+    suspend fun updatePot(id: Long, material: PotMaterial?, diameterCm: Int?, updatedAt: Long) =
+        plantDao.updatePot(id, material?.name, diameterCm, updatedAt)
 
     /** Clears the one-off planned repot (#809); the recurring interval date, if any, takes over again. */
     suspend fun clearRepotPlan(id: Long, updatedAt: Long) =
@@ -195,7 +201,10 @@ private fun PlantEntity.toDomain() = Plant(
     repotPlanMadeAt = repotPlanMadeAt,
     repottingSeasons = SeasonalFertilizing.decode(repottingSeasons),
     hiddenAt = hiddenAt,
-    propagatedFromId = propagatedFromId
+    propagatedFromId = propagatedFromId,
+    lightLevel = LightLevel.fromStorage(lightLevel),
+    potMaterial = PotMaterial.fromStorage(potMaterial),
+    potDiameterCm = potDiameterCm
 )
 
 private fun Plant.toEntity() = PlantEntity(
@@ -228,5 +237,8 @@ private fun Plant.toEntity() = PlantEntity(
     repotPlanMadeAt = repotPlanMadeAt,
     repottingSeasons = SeasonalFertilizing.encode(repottingSeasons),
     hiddenAt = hiddenAt,
-    propagatedFromId = propagatedFromId
+    propagatedFromId = propagatedFromId,
+    lightLevel = lightLevel?.name,
+    potMaterial = potMaterial?.name,
+    potDiameterCm = potDiameterCm
 )

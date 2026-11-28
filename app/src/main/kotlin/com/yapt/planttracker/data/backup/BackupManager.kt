@@ -16,6 +16,9 @@ import com.yapt.planttracker.data.entity.WateringAdjustmentEntity
 import com.yapt.planttracker.data.preferences.SettingsDefaults
 import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.domain.model.FertilizerType
+import com.yapt.planttracker.domain.model.LightLevel
+import com.yapt.planttracker.domain.model.PotDiameter
+import com.yapt.planttracker.domain.model.PotMaterial
 import com.yapt.planttracker.domain.schedule.SeasonalFertilizing
 import com.yapt.planttracker.notification.PostWateringReminderPresentation
 import com.yapt.planttracker.util.ImageUtils
@@ -31,6 +34,9 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
+// Schema 27 (#1003): lightLevel, potMaterial (enum names) and potDiameterCm added to BackupPlant — growing
+// conditions. Old backups deserialize them to null (unset); restore also drops unknown enum names and an
+// out-of-range diameter to null.
 // Schema 26 (#700, product ADR-0084): wateringAmplitudeOverride added to BackupPlant — the per-plant
 // seasonal strength (SeasonalAmplitude name). Null (every older backup) means follow the global setting.
 // Schema 25 (#1019, product ADR-0083): wateringDueDateOverrideMadeAt added to BackupPlant — when the active
@@ -94,7 +100,7 @@ import java.util.zip.ZipOutputStream
 // Schema 3 (PR #290): plant_photos table added — bump signals this backup may contain per-plant photo gallery data.
 // Schema 2 (PR #209): useLiquidFertilizer added.
 // wateringDueDateOverride (PR #176) was nullable with a default — backward-compatible, no bump was needed then.
-const val CURRENT_SCHEMA_VERSION = 26
+const val CURRENT_SCHEMA_VERSION = 27
 private const val BACKUP_JSON_ENTRY = "backup.json"
 private const val PHOTOS_DIR = "photos/"
 
@@ -257,7 +263,10 @@ class BackupManager(
                                     SeasonalFertilizing.decode(entity.repottingSeasons)
                                 ),
                                 hiddenAt = entity.hiddenAt,
-                                propagatedFromId = entity.propagatedFromId
+                                propagatedFromId = entity.propagatedFromId,
+                                lightLevel = entity.lightLevel,
+                                potMaterial = entity.potMaterial,
+                                potDiameterCm = entity.potDiameterCm
                             )
                         }
 
@@ -484,7 +493,10 @@ class BackupManager(
                     repottingSeasons = SeasonalFertilizing.encode(
                         SeasonalFertilizing.decode(bp.repottingSeasons)
                     ),
-                    hiddenAt = bp.hiddenAt
+                    hiddenAt = bp.hiddenAt,
+                    lightLevel = LightLevel.fromStorage(bp.lightLevel)?.name,
+                    potMaterial = PotMaterial.fromStorage(bp.potMaterial)?.name,
+                    potDiameterCm = bp.potDiameterCm?.takeIf { it in PotDiameter.MIN_CM..PotDiameter.MAX_CM }
                 )
             }
 

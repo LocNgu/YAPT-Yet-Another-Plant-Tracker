@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.yapt.planttracker.R
 import com.yapt.planttracker.domain.model.CareType
+import com.yapt.planttracker.domain.model.LightLevel
+import com.yapt.planttracker.domain.model.PotMaterial
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.model.WateringFeedback
 import com.yapt.planttracker.domain.model.WateringReason
@@ -242,4 +244,20 @@ fun WateringOverviewGroup.labelRes(): Int = when (this) {
     WateringOverviewGroup.EVERY_15_PLUS_DAYS -> R.string.watering_overview_group_15_plus
     WateringOverviewGroup.RESTING -> R.string.watering_overview_group_resting
     WateringOverviewGroup.NO_SCHEDULE -> R.string.watering_overview_group_no_schedule
+}
+
+@StringRes
+fun LightLevel.labelRes(): Int = when (this) {
+    LightLevel.LOW -> R.string.light_level_low
+    LightLevel.MEDIUM -> R.string.light_level_medium
+    LightLevel.BRIGHT_INDIRECT -> R.string.light_level_bright_indirect
+    LightLevel.DIRECT -> R.string.light_level_direct
+}
+
+@StringRes
+fun PotMaterial.labelRes(): Int = when (this) {
+    PotMaterial.PLASTIC -> R.string.pot_material_plastic
+    PotMaterial.TERRACOTTA -> R.string.pot_material_terracotta
+    PotMaterial.CERAMIC -> R.string.pot_material_ceramic
+    PotMaterial.OTHER -> R.string.pot_material_other
 }

@@ -205,6 +205,7 @@ private fun WizardStepContent(
             AddPlantStep.DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 form.propagatedFromName?.let { PropagatedFromNote(it) }
                 PlantIdentityFields(viewModel, rooms)
+                GrowingConditionsSection(viewModel, form)
             }
             AddPlantStep.CARE -> Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 form.propagatedFromName?.let { PropagatedFromNote(it) }
@@ -226,6 +227,7 @@ private fun EditForm(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         CoverPhotoPicker(uri = form.coverPhotoUri, onPickPhoto = actions.onPickPhoto)
         PlantIdentityFields(viewModel, rooms)
+        GrowingConditionsSection(viewModel, form)
         CareSections(viewModel, form, actions)
         PlantNotesField(viewModel)
         HorizontalDivider()

@@ -47,7 +47,7 @@ abstract class PlantDatabase : RoomDatabase() {
     companion object {
         // Single source of truth for the schema version, shared with the @Database
         // annotation above so the developer-mode build-info row can never drift from it (#520).
-        const val DB_VERSION = 23
+        const val DB_VERSION = 24
 
         @Volatile
         private var INSTANCE: PlantDatabase? = null
@@ -403,6 +403,17 @@ abstract class PlantDatabase : RoomDatabase() {
             }
         }
 
+        // #1003: growing conditions (LightLevel/PotMaterial names, pot diameter in cm). Nullable with no
+        // backfill: every existing plant reads as unset.
+        @Suppress("MagicNumber")
+        val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE plants ADD COLUMN lightLevel TEXT")
+                db.execSQL("ALTER TABLE plants ADD COLUMN potMaterial TEXT")
+                db.execSQL("ALTER TABLE plants ADD COLUMN potDiameterCm INTEGER")
+            }
+        }
+
         fun getInstance(context: Context): PlantDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -432,7 +443,8 @@ abstract class PlantDatabase : RoomDatabase() {
                         MIGRATION_19_20,
                         MIGRATION_20_21,
                         MIGRATION_21_22,
-                        MIGRATION_22_23
+                        MIGRATION_22_23,
+                        MIGRATION_23_24
                     )
                     .build()
                     .also { INSTANCE = it }

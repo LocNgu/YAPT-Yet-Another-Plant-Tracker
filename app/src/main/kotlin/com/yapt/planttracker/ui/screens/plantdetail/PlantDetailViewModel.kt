@@ -353,6 +353,14 @@ class PlantDetailViewModel(
     private val _photoReminderDaysSince = MutableStateFlow(0L)
     val photoReminderDaysSince: StateFlow<Long> = _photoReminderDaysSince.asStateFlow()
 
+    /** Non-null while the optional "update the pot?" prompt after a Plant Detail repot is showing (#1003). */
+    private val _potPrompt = MutableStateFlow<PotPrompt?>(null)
+    val potPrompt: StateFlow<PotPrompt?> = _potPrompt.asStateFlow()
+
+    internal fun setPotPrompt(prompt: PotPrompt?) {
+        _potPrompt.value = prompt
+    }
+
     private val _quickLogMessage = MutableSharedFlow<QuickLogMessage>()
     val quickLogMessage: SharedFlow<QuickLogMessage> = _quickLogMessage
 
@@ -495,6 +503,7 @@ class PlantDetailViewModel(
             val outcome = quickLogUseCase.quickLog(p, CareType.REPOT, loggedAt)
             if (!outcome.logged) return@launch
             _quickLogMessage.emit(QuickLogMessage.Repotted(p.name))
+            offerPotUpdate()
             maybeTriggerPhotoReminder(p.id)
         }
     }

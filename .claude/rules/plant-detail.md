@@ -33,6 +33,7 @@ In `PlantDetailScreen.kt`'s `HOME` branch, composables in `PlantDetailHomePane.k
 1. `RescheduleChipAndWateringActions` — the reschedule delta chip above `WateringDueActionsRow`. **Shared with the Water tab** (same composable, same handlers and dialog state); never add a second code path.
 2. One `FertilizeDueActionRow`, shown whether or not a fertilizing interval is set (#532), with the screen's single `onFertilizeClick` (liquid plant → `showLiquidFertilizeDatePicker`, else `quickFertilize()`).
 3. `HomeSummaryCard` — `TabInsightsCard` rows from pure `homeSummaryRows(status)`: Last/Next watering, plus Last/Next fertilizing only with a fertilizing interval. Values are `HomeSummaryValue.At` (`relativeDateText()` + `DateUtils.formatDate()`), `Never` or `Dormant`. Watering reads "Dormant" only for `WateringScheduleMode.DORMANT_SUSPENDED` (a dormant *cadence* shows its live date); fertilizing whenever `isDormant`; no next date → row hidden; the out-of-season shifted date comes straight from `nextFertilizingDueAt`. No settings controls (product ADR-0023). Tests: `HomeSummaryRowsTest`, `PlantDetailScreenTest`'s `homeTab_*`.
+3a. `GrowingConditionsCard` (`PlantDetailGrowingConditions.kt`, #1003) — read-only Light and Pot rows under the summary card, only the set values, nothing at all when all three are unset. Display-only: never an input to `CareSchedule`.
 4. The combined care history, last (renders even before `careStatus` loads). See "Care history".
 
 ## Inline scheduling settings (product ADR-0023, product ADR-0048, product ADR-0050)
@@ -55,6 +56,10 @@ In `PlantDetailScreen.kt`'s `HOME` branch, composables in `PlantDetailHomePane.k
 - `Mutex` is not reentrant: never hold it across `quickWater*`/`quickLiquidFertilize*` (they reach `applySuggestionOrPrompt()`, which takes it). Emit events after releasing it.
 - `revertReschedule()` captures the previous override from the fresh read; `deletePhoto()` decides "was it the cover" from the fresh read. `updateCoverPhotoUri` doesn't fire `onPhotoReferencesRemoved` (the daily orphan sweep covers it).
 - Tests: `PlantDetailPlantEditLockTest`. **Not covered yet (#872):** `QuickLogUseCase`'s caller-snapshot full-row writes (`persistAdaptiveState`, `clearWateringOverrideIfActive`, the backdated branch) and the Calendar/Plant List apply/dismiss copies.
+
+## Repot pot prompt (#1003)
+- After `quickRepot()` logs successfully (the Repot tab's date picker, Plant Detail only; Care, notification and widget repots never prompt), `offerPotUpdate()` re-reads the plant and sets `PlantDetailViewModel.potPrompt` (`PotPrompt`, in-memory only, so a skip or process death never re-shows it). `PotPromptDialog` is pre-filled; Skip writes nothing.
+- Save is `savePotPrompt(material, diameterText)`: validates with `PotDiameter` (blank = unset, 1-200), then writes only the pot columns via `PlantRepository.updatePot` (`PlantDao.updatePot`) inside `plantEditMutex` after a fresh `getPlantById` read. Tests: `PlantDetailViewModelPotPromptTest`.
 
 ## Per-tab insights (#436)
 `domain/insights/CareInsights.summarize(logs, careType)` → `CareTypeSummary(count, lastAt, averageIntervalDays)` (mean of consecutive calendar-day gaps via `CareSchedule.daysBetween`, rounded, floored at 1); Photo uses `summarizePhotos(galleryPhotos)`. Shared `TabInsightsCard` + `careTypeInsightItems(...)`; `lastAtLabel` is set on Water/Fertilize (`insight_last_watered`/`insight_last_fertilized`). JVM-tested (`CareInsightsTest`).
