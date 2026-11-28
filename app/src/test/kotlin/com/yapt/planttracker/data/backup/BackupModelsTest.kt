@@ -43,7 +43,10 @@ class BackupModelsTest {
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
         hiddenAt = hiddenAt,
-        propagatedFromId = propagatedFromId
+        propagatedFromId = propagatedFromId,
+        lightLevel = lightLevel,
+        potMaterial = potMaterial,
+        potDiameterCm = potDiameterCm
     )
 
     private fun BackupPlant.toPlantEntity() = PlantEntity(
@@ -73,7 +76,10 @@ class BackupModelsTest {
         repotPlanMadeAt = repotPlanMadeAt,
         repottingSeasons = repottingSeasons,
         hiddenAt = hiddenAt,
-        propagatedFromId = propagatedFromId
+        propagatedFromId = propagatedFromId,
+        lightLevel = lightLevel,
+        potMaterial = potMaterial,
+        potDiameterCm = potDiameterCm
     )
 
     private fun CareLogEntity.toBackupCareLog() = BackupCareLog(
@@ -124,7 +130,10 @@ class BackupModelsTest {
         repotPlanMadeAt = 1_790_000_000_000L,
         repottingSeasons = "SPRING,AUTUMN",
         hiddenAt = 1_694_000_000_000L,
-        propagatedFromId = 7L
+        propagatedFromId = 7L,
+        lightLevel = "BRIGHT_INDIRECT",
+        potMaterial = "TERRACOTTA",
+        potDiameterCm = 15
     )
 
     private val fullLog = CareLogEntity(
@@ -169,6 +178,9 @@ class BackupModelsTest {
         assertEquals(fullPlant.repottingSeasons, bp.repottingSeasons)
         assertEquals(fullPlant.hiddenAt, bp.hiddenAt)
         assertEquals(fullPlant.propagatedFromId, bp.propagatedFromId)
+        assertEquals(fullPlant.lightLevel, bp.lightLevel)
+        assertEquals(fullPlant.potMaterial, bp.potMaterial)
+        assertEquals(fullPlant.potDiameterCm, bp.potDiameterCm)
     }
 
     @Test

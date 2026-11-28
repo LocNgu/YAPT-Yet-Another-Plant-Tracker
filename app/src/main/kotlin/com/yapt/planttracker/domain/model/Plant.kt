@@ -104,7 +104,11 @@ data class Plant(
      * Never edited through Add/Edit Plant — it is carried over by `saveEdit()` and changed only from the
      * Propagate tab's Family card. Deleting the parent resets it to `null` (`ON DELETE SET NULL`).
      */
-    val propagatedFromId: Long? = null
+    val propagatedFromId: Long? = null,
+    /** Growing conditions (#1003): display-only facts, never an input to `CareSchedule` or adaptive watering. */
+    val lightLevel: LightLevel? = null,
+    val potMaterial: PotMaterial? = null,
+    val potDiameterCm: Int? = null
 ) {
     /** `true` when the plant belongs on operational surfaces: neither archived nor hidden (#915). */
     val isVisible: Boolean get() = archivedAt == null && hiddenAt == null

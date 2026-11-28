@@ -33,7 +33,10 @@ data class BackupPlant(
     val repotPlanMadeAt: Long? = null,
     val repottingSeasons: String? = null,
     val hiddenAt: Long? = null,
-    val propagatedFromId: Long? = null
+    val propagatedFromId: Long? = null,
+    val lightLevel: String? = null,
+    val potMaterial: String? = null,
+    val potDiameterCm: Int? = null
 )
 
 @Serializable

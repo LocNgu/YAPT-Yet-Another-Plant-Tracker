@@ -55,5 +55,11 @@ data class PlantEntity(
     /** Instant the plant was hidden from every operational surface; `null` = visible. Independent of [archivedAt] (#915). */
     val hiddenAt: Long? = null,
     /** The plant this one was propagated from (#960, product ADR-0073); self-FK, `ON DELETE SET NULL`. */
-    val propagatedFromId: Long? = null
+    val propagatedFromId: Long? = null,
+    /** [com.yapt.planttracker.domain.model.LightLevel] name; unknown or `null` = unset (#1003). */
+    val lightLevel: String? = null,
+    /** [com.yapt.planttracker.domain.model.PotMaterial] name; unknown or `null` = unset (#1003). */
+    val potMaterial: String? = null,
+    /** Pot diameter in cm; `null` = unset (#1003). */
+    val potDiameterCm: Int? = null
 )

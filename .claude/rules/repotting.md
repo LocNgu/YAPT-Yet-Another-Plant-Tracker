@@ -23,6 +23,9 @@ Two independent features, both unset by default, so due dates are unchanged unle
 - **Fertilizing hold** (#965, product ADR-0074): a REPOT log also pauses fertilizing reminders for 30 days. It is derived from `lastRepottedAt` (no stored field); see `rules/schedule.md`.
 - `AddEditPlantViewModel.saveEdit()` builds a fresh `Plant`: carry the plan over from `existing` (never edited there). `repottingSeasons` is saved even with the reminder off, so re-enabling it remembers the choice.
 
+## Pot facts (#1003)
+`Plant.potMaterial`/`potDiameterCm` (and `lightLevel`) are plain display facts. A REPOT logged from Plant Detail offers an optional pot-update prompt (`rules/plant-detail.md`); the quick-log path (`QuickLogUseCase`, Care, notification, widget) never prompts and never touches them.
+
 ## Pure rules (`domain/schedule/SeasonalRepotting.kt`)
 - **The plan wins outright** over the interval date, even when earlier, and needs no interval (unlike watering's defer-only override, product ADR-0039).
   - `resolvePlan()` derives the season and its end (the day after the season, found from the nearest season boundary to the stored timestamp; hemisphere-independent).

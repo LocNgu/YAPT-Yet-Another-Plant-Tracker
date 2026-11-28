@@ -141,6 +141,16 @@ interface PlantDao {
     )
 
     /**
+     * Column-specific update touching only the pot columns and `updatedAt` (#1003): the repot prompt on
+     * Plant Detail writes just these, so it can't revert a concurrent edit to any other column.
+     */
+    @Query(
+        "UPDATE plants SET potMaterial = :potMaterial, potDiameterCm = :potDiameterCm, " +
+            "updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updatePot(id: Long, potMaterial: String?, potDiameterCm: Int?, updatedAt: Long)
+
+    /**
      * Column-specific update touching only `wateringConfidence`/`updatedAt` (#960, product ADR-0073;
      * technical ADR-0036 point 3) — the PROPAGATE confidence drop re-reads the plant fresh and then writes
      * just this column, so it can't revert a concurrent edit to any other one.

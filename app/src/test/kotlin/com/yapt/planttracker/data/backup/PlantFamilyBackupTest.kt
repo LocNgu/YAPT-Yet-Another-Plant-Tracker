@@ -22,8 +22,42 @@ class PlantFamilyBackupTest {
     )
 
     @Test
-    fun `schema version is 26`() {
-        assertEquals(26, CURRENT_SCHEMA_VERSION)
+    fun `schema version is 27`() {
+        assertEquals(27, CURRENT_SCHEMA_VERSION)
+    }
+
+    @Test
+    fun `growing conditions round-trip through the v27 json`() {
+        val withConditions = root(null).let {
+            it.copy(
+                plants = listOf(
+                    it.plants[0].copy(lightLevel = "LOW", potMaterial = "PLASTIC", potDiameterCm = 12)
+                )
+            )
+        }
+        val json = backupJson.encodeToString(BackupRoot.serializer(), withConditions)
+
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), json).plants[0]
+
+        assertEquals("LOW", plant.lightLevel)
+        assertEquals("PLASTIC", plant.potMaterial)
+        assertEquals(12, plant.potDiameterCm)
+    }
+
+    @Test
+    fun `a v26 backup without growing conditions imports them as null`() {
+        val old = """
+            {"schemaVersion":26,"exportedAt":1700000000000,"appVersion":"1.0",
+             "plants":[{"id":1,"name":"Aloe","createdAt":1,"updatedAt":1}],
+             "careLogs":[],
+             "settings":{"notificationsEnabled":true,"reminderHour":9,"reminderMinute":0}}
+        """.trimIndent()
+
+        val plant = backupJson.decodeFromString(BackupRoot.serializer(), old).plants[0]
+
+        assertNull(plant.lightLevel)
+        assertNull(plant.potMaterial)
+        assertNull(plant.potDiameterCm)
     }
 
     @Test

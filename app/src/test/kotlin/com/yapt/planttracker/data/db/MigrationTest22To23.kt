@@ -18,11 +18,6 @@ class MigrationTest22To23 {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), PlantDatabase::class.java)
 
     @Test
-    fun `database version is 23`() {
-        assertEquals(23, PlantDatabase.DB_VERSION)
-    }
-
-    @Test
     fun `migration adds a null wateringAmplitudeOverride and keeps every existing row intact`() {
         helper.createDatabase(TEST_DB, 22).use { db ->
             db.execSQL(

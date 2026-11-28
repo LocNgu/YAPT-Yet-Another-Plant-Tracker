@@ -627,6 +627,15 @@ fun PlantDetailScreen(
         )
     }
 
+    val potPrompt by viewModel.potPrompt.collectAsStateWithLifecycle()
+    potPrompt?.let { prompt ->
+        PotPromptDialog(
+            prompt = prompt,
+            onSave = { material, diameterText -> viewModel.savePotPrompt(material, diameterText) },
+            onSkip = { viewModel.dismissPotPrompt() }
+        )
+    }
+
     if (showRepotPlanDialog) {
         RepotPlanSeasonDialog(
             onSelect = { season ->
@@ -848,6 +857,7 @@ fun PlantDetailScreen(
                                 item {
                                     HomeSummaryCard(status)
                                     Spacer(Modifier.height(16.dp))
+                                    plant?.let { GrowingConditionsCard(it) }
                                 }
                             }
                             // The combined log renders on Home only (#530, product ADR-0060); the other tabs

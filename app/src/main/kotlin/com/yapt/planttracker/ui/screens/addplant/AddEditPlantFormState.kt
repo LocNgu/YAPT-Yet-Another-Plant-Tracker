@@ -1,6 +1,9 @@
 package com.yapt.planttracker.ui.screens.addplant
 
+import com.yapt.planttracker.domain.model.LightLevel
 import com.yapt.planttracker.domain.model.Plant
+import com.yapt.planttracker.domain.model.PotDiameter
+import com.yapt.planttracker.domain.model.PotMaterial
 import com.yapt.planttracker.domain.schedule.DormancyWindow
 import com.yapt.planttracker.domain.schedule.FertilizingSeason
 import com.yapt.planttracker.domain.schedule.LiveWateringInterval
@@ -63,8 +66,15 @@ data class AddEditPlantFormState(
     /** Propagate: the parent's care settings were applied, so a restored form must not get them again. */
     val prefillDone: Boolean = false,
     /** Wizard Care step: whether "More options" (dormancy, strength/pin, repotting) is open; saved with the draft. */
-    val moreOptionsExpanded: Boolean = false
+    val moreOptionsExpanded: Boolean = false,
+    /** Growing conditions (#1003): display-only, never an input to the care schedule. */
+    val lightLevel: LightLevel? = null,
+    val potMaterial: PotMaterial? = null,
+    /** Typed pot diameter in cm; blank = unset, validated by [PotDiameter]. */
+    val potDiameterText: String = ""
 ) {
+    val potDiameterValid: Boolean get() = PotDiameter.isValidInput(potDiameterText)
+
     /** Whether the "adjusted for winter" hint still describes the strength the form has chosen. */
     val seasonalHintApplies: Boolean
         get() = !pinIntervalToBase && wateringAmplitudeOverride == loadedAmplitudeOverride
@@ -170,6 +180,9 @@ data class AddEditPlantFormState(
             dormancyStartMonth = plant.dormancyStartMonth,
             dormancyEndMonth = plant.dormancyEndMonth,
             dormantWateringIntervalDays = DormancyWindow.validWateringInterval(plant.dormantWateringIntervalDays),
+            lightLevel = plant.lightLevel,
+            potMaterial = plant.potMaterial,
+            potDiameterText = plant.potDiameterCm?.toString().orEmpty(),
             editLoaded = true
         )
     }

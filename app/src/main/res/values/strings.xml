@@ -1178,4 +1178,23 @@
     <string name="widget_care_group_overdue">Overdue</string>
     <string name="widget_care_group_today">Today</string>
     <string name="widget_care_group_tomorrow">Tomorrow</string>
+    <string name="growing_conditions_title">Growing conditions (optional)</string>
+    <string name="growing_conditions_light">Light</string>
+    <string name="growing_conditions_pot_material">Pot material</string>
+    <string name="growing_conditions_pot_size">Pot size (cm)</string>
+    <string name="growing_conditions_pot_size_error">Enter a whole number from 1 to 200</string>
+    <string name="growing_conditions_pot_label">Pot</string>
+    <string name="growing_conditions_pot_value">%1$s, %2$d cm</string>
+    <string name="growing_conditions_pot_size_value">%1$d cm</string>
+    <string name="light_level_low">Low</string>
+    <string name="light_level_medium">Medium</string>
+    <string name="light_level_bright_indirect">Bright indirect</string>
+    <string name="light_level_direct">Direct sun</string>
+    <string name="pot_material_plastic">Plastic</string>
+    <string name="pot_material_terracotta">Terracotta</string>
+    <string name="pot_material_ceramic">Ceramic</string>
+    <string name="pot_material_other">Other</string>
+    <string name="repot_pot_prompt_title">Update the pot?</string>
+    <string name="repot_pot_prompt_message">If the pot changed, update it here. Skipping leaves it as it is.</string>
+    <string name="repot_pot_prompt_skip">Skip</string>
 </resources>

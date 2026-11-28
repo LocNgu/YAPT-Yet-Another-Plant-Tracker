@@ -16,8 +16,11 @@ import com.yapt.planttracker.R
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
 import com.yapt.planttracker.data.repository.WateringAdjustmentRepository
+import com.yapt.planttracker.domain.model.LightLevel
 import com.yapt.planttracker.domain.model.Plant
 import com.yapt.planttracker.domain.model.PlantPhoto
+import com.yapt.planttracker.domain.model.PotDiameter
+import com.yapt.planttracker.domain.model.PotMaterial
 import com.yapt.planttracker.domain.model.WateringAdjustment
 import com.yapt.planttracker.domain.model.WateringAdjustmentTrigger
 import com.yapt.planttracker.domain.schedule.DormancyWindow
@@ -199,6 +202,12 @@ class AddEditPlantViewModel(
         }
     }
 
+    fun setLightLevel(level: LightLevel?) = mutate { it.copy(lightLevel = level) }
+
+    fun setPotMaterial(material: PotMaterial?) = mutate { it.copy(potMaterial = material) }
+
+    fun setPotDiameterText(text: String) = mutate { it.copy(potDiameterText = text.filter(Char::isDigit).take(3)) }
+
     fun setWateringIntervalEnabled(enabled: Boolean) = mutate { it.copy(wateringIntervalEnabled = enabled) }
 
     fun setWateringIntervalDays(days: Int) = mutate { it.copy(wateringIntervalDays = days) }
@@ -263,11 +272,19 @@ class AddEditPlantViewModel(
     fun toggleRepottingSeason(season: FertilizingSeason) =
         mutate { it.copy(repottingSeasons = toggledSeasons(it.repottingSeasons, season)) }
 
+    @StringRes
+    private fun detailsValidationError(): Int? = when {
+        name.isBlank() -> R.string.add_plant_name_required
+        !_form.value.potDiameterValid -> R.string.growing_conditions_pot_size_error
+        else -> null
+    }
+
     /** Advances the wizard; a blank name keeps step 1 and explains why. */
     fun goNext() {
         val current = _form.value.step
-        if (current == AddPlantStep.DETAILS && name.isBlank()) {
-            viewModelScope.launch { _events.emit(Event.ValidationError(R.string.add_plant_name_required)) }
+        val error = if (current == AddPlantStep.DETAILS) detailsValidationError() else null
+        if (error != null) {
+            viewModelScope.launch { _events.emit(Event.ValidationError(error)) }
             return
         }
         val next = AddPlantStep.entries.getOrNull(current.ordinal + 1) ?: return
@@ -297,9 +314,10 @@ class AddEditPlantViewModel(
 
     fun save() {
         if (saveInFlight) return
-        if (name.isBlank()) {
+        val error = detailsValidationError()
+        if (error != null) {
             if (!isEditMode) goToStep(AddPlantStep.DETAILS)
-            viewModelScope.launch { _events.emit(Event.ValidationError(R.string.add_plant_name_required)) }
+            viewModelScope.launch { _events.emit(Event.ValidationError(error)) }
             return
         }
         val form = _form.value
@@ -342,7 +360,10 @@ class AddEditPlantViewModel(
             dormancyEndMonth = form.dormancyEndMonth,
             fertilizingSeasons = form.fertilizingSeasons,
             repottingSeasons = form.repottingSeasons,
-            dormantWateringIntervalDays = form.dormantWateringIntervalDays
+            dormantWateringIntervalDays = form.dormantWateringIntervalDays,
+            lightLevel = form.lightLevel,
+            potMaterial = form.potMaterial,
+            potDiameterCm = PotDiameter.parseOrNull(form.potDiameterText)
         )
         if (isEditMode) {
             saveEdit(form, plant, newWateringIntervalDays, intervalChanged, now)
