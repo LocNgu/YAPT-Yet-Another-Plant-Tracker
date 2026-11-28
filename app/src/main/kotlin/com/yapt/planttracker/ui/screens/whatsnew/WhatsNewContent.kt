@@ -20,7 +20,8 @@ object WhatsNewContent {
             "Add Plant has short intros, and the rarer settings have an (i) icon that explains them"
         ),
         added = listOf(
-            "Add the Care widget to your home screen to see which plants need water today"
+            "Add the Care widget to your home screen to see which plants need water today",
+            "Collection insights in Settings shows plants watered late, recent care and ongoing plant issues"
         )
     )
 

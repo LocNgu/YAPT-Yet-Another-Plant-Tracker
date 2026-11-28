@@ -47,6 +47,8 @@ sealed class Screen(val route: String) {
 
     object WateringOverview : Screen("watering_overview")
 
+    object CollectionInsights : Screen("collection_insights")
+
     object SitterRhythm : Screen("sitter_rhythm")
 
     object BeforeYouLeave : Screen("before_you_leave")
