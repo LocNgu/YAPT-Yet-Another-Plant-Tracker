@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.preferencesOf
 import com.yapt.planttracker.data.db.PlantDatabase
+import com.yapt.planttracker.data.preferences.SettingsKeys
 import com.yapt.planttracker.data.repository.CareLogRepository
 import com.yapt.planttracker.data.repository.PlantPhotoRepository
 import com.yapt.planttracker.data.repository.PlantRepository
@@ -57,7 +58,8 @@ class QuickLogUseCaseOverrideRevertTest {
         coEvery { plantRepo.updatePlant(any()) } returns Unit
         stubPlantColumnWrites(plantRepo)
         coEvery { careLogRepo.getRecentWaterings(1L, limit = 3) } returns emptyList()
-        // Observed gap (7 days) agrees with the stored interval (7 days), so the adaptive model
+        // Observed gap (7 days) agrees with the stored interval (7 days) because the seasonal curve
+        // is off in adaptiveUseCase() (a STANDARD curve would skew the gap by date), so the adaptive model
         // raises confidence from 2 to 3 — the write these tests need to exercise the bug.
         coEvery { careLogRepo.getLastWateringBefore(1L, any()) } returns previousWatering()
     }
@@ -84,15 +86,15 @@ class QuickLogUseCaseOverrideRevertTest {
 
     /** The adaptive watering model is unconditional, so an observation can move [Plant.wateringConfidence]. */
     private fun adaptiveUseCase(): QuickLogUseCase {
-        val emptyDataStore: DataStore<Preferences> = mockk {
-            every { data } returns flowOf(preferencesOf())
+        val seasonalOffDataStore: DataStore<Preferences> = mockk {
+            every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
         }
         return QuickLogUseCase(
             application,
             plantRepo,
             careLogRepo,
             plantPhotoRepo,
-            emptyDataStore,
+            seasonalOffDataStore,
             database,
             wateringAdjustmentRepo
         )
