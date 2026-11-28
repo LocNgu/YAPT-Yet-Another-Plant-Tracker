@@ -59,6 +59,8 @@ import com.yapt.planttracker.ui.screens.graveyard.GraveyardScreen
 import com.yapt.planttracker.ui.screens.graveyard.GraveyardViewModel
 import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsScreen
 import com.yapt.planttracker.ui.screens.hidden.HiddenPlantsViewModel
+import com.yapt.planttracker.ui.screens.insights.CollectionInsightsScreen
+import com.yapt.planttracker.ui.screens.insights.CollectionInsightsViewModel
 import com.yapt.planttracker.ui.screens.plantdetail.FamilyNavigation
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailScreen
 import com.yapt.planttracker.ui.screens.plantdetail.PlantDetailTab
@@ -483,6 +485,7 @@ fun YaptNavGraph(
                     onNavigateToHiddenPlants = { navController.navigate(Screen.HiddenPlants.route) },
                     onNavigateToRepottingOverview = { navController.navigate(Screen.RepottingOverview.route) },
                     onNavigateToWateringOverview = { navController.navigate(Screen.WateringOverview.route) },
+                    onNavigateToCollectionInsights = { navController.navigate(Screen.CollectionInsights.route) },
                     onBackupInProgressChanged = { backupInProgress = it },
                     awayModeViewModel = awayModeViewModel(app),
                     autoBackupViewModel = viewModel(
@@ -543,6 +546,25 @@ fun YaptNavGraph(
                     )
                 )
                 WateringOverviewScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
+                    onNavigateToPlant = { plantId, tab ->
+                        navController.navigate(Screen.PlantDetail.createRoute(plantId, tab))
+                    }
+                )
+            }
+
+            composable(Screen.CollectionInsights.route) { backStackEntry ->
+                val vm: CollectionInsightsViewModel = viewModel(
+                    factory = CollectionInsightsViewModel.Factory(
+                        app.plantRepository,
+                        app.careLogRepository,
+                        app.plantIssueRepository,
+                        app.awayPeriodRepository,
+                        app.settingsDataStore
+                    )
+                )
+                CollectionInsightsScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStackOnce(backStackEntry) },
                     onNavigateToPlant = { plantId, tab ->

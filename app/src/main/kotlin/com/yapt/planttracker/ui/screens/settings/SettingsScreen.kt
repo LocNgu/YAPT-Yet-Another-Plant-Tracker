@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Notifications
@@ -116,6 +117,7 @@ fun SettingsScreen(
     onNavigateToHiddenPlants: () -> Unit = {},
     onNavigateToRepottingOverview: () -> Unit = {},
     onNavigateToWateringOverview: () -> Unit = {},
+    onNavigateToCollectionInsights: () -> Unit = {},
     onBackupInProgressChanged: (Boolean) -> Unit = {},
     awayModeViewModel: AwayModeViewModel? = null,
     autoBackupViewModel: AutoBackupViewModel? = null,
@@ -679,6 +681,13 @@ fun SettingsScreen(
                 title = stringResource(R.string.watering_overview_title),
                 subtitle = stringResource(R.string.watering_overview_settings_subtitle),
                 onClick = onNavigateToWateringOverview
+            )
+
+            SettingsItemRow(
+                icon = Icons.Filled.Insights,
+                title = stringResource(R.string.collection_insights_title),
+                subtitle = stringResource(R.string.collection_insights_settings_subtitle),
+                onClick = onNavigateToCollectionInsights
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

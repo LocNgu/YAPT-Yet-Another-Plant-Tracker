@@ -645,6 +645,29 @@
     </plurals>
 
     <!-- Watering overview (#901, product ADR-0064) -->
+    <string name="collection_insights_title">Collection insights</string>
+    <string name="collection_insights_settings_subtitle">Spot plants that need a closer look</string>
+    <string name="collection_insights_no_plants">No plants yet. Add a plant to see insights about your collection.</string>
+    <string name="collection_insights_window_note">Based on the last 30 days</string>
+    <string name="collection_insights_late_title">Often watered late</string>
+    <string name="collection_insights_late_hint">These plants were watered later than their interval allowed at least twice. Open one to widen its interval.</string>
+    <string name="collection_insights_late_empty">No plant was watered late more than once. Nothing to act on.</string>
+    <plurals name="collection_insights_late_count">
+        <item quantity="one">Watered late %d time</item>
+        <item quantity="other">Watered late %d times</item>
+    </plurals>
+    <string name="collection_insights_care_title">Care completed</string>
+    <string name="collection_insights_care_empty">No care logged in the last 30 days. Nothing to act on.</string>
+    <string name="collection_insights_care_count">%1$s: %2$d</string>
+    <string name="collection_insights_issues_title">Active health issues</string>
+    <string name="collection_insights_issues_hint">Open a plant to see its issues and resolve them.</string>
+    <string name="collection_insights_issues_empty">No active health issues. Nothing to act on.</string>
+    <string name="collection_insights_issue_started_today">Started today</string>
+    <plurals name="collection_insights_issue_days">
+        <item quantity="one">Active for %d day</item>
+        <item quantity="other">Active for %d days</item>
+    </plurals>
+    <string name="collection_insights_issue_row">%1$s · %2$s</string>
     <string name="watering_overview_title">Watering overview</string>
     <string name="watering_overview_settings_subtitle">See how often each plant needs water</string>
     <string name="watering_overview_no_plants">No plants yet. Add a plant to see how often it needs water.</string>
