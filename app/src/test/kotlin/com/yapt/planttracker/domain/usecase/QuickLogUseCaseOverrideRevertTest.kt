@@ -86,7 +86,7 @@ class QuickLogUseCaseOverrideRevertTest {
 
     /** The adaptive watering model is unconditional, so an observation can move [Plant.wateringConfidence]. */
     private fun adaptiveUseCase(): QuickLogUseCase {
-        val emptyDataStore: DataStore<Preferences> = mockk {
+        val seasonalOffDataStore: DataStore<Preferences> = mockk {
             every { data } returns flowOf(preferencesOf(SettingsKeys.SEASONAL_AMPLITUDE to "OFF"))
         }
         return QuickLogUseCase(
@@ -94,7 +94,7 @@ class QuickLogUseCaseOverrideRevertTest {
             plantRepo,
             careLogRepo,
             plantPhotoRepo,
-            emptyDataStore,
+            seasonalOffDataStore,
             database,
             wateringAdjustmentRepo
         )
